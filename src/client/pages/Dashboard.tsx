@@ -8,8 +8,8 @@ import {
   SsoAppItem 
 } from '../services/api';
 import { AppCardSkeleton } from '../components/Skeleton';
+import { SsoLogo } from '../components/SsoLogo';
 import { 
-  GraduationCap, 
   ExternalLink, 
   ShieldCheck, 
   BookOpenCheck, 
@@ -147,21 +147,12 @@ export const Dashboard: React.FC = () => {
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
-            {/* Brand */}
-            <div className="flex items-center space-x-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-950/10">
-                <GraduationCap className="w-6 h-6 text-amber-300" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-extrabold text-xl tracking-tight text-slate-900">ONE</span>
-                  <span className="font-extrabold text-xl tracking-tight text-emerald-700">UNUSU</span>
-                </div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  SSO Central Gateway
-                </p>
-              </div>
-            </div>
+            {/* Interactive SSO Brand Logo */}
+            <SsoLogo
+              size="md"
+              subtitle="SSO Central Gateway"
+              onClick={() => navigate('/')}
+            />
 
             {/* Navigation Right */}
             <div className="flex items-center space-x-3">
