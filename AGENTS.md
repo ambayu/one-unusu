@@ -4,46 +4,29 @@
 ONE UNUSU - Integrated Digital Campus
 Universitas Nahdlatul Ulama Sumatera Utara
 
-## Technology
-- Frontend: Next.js 16, TypeScript, Tailwind CSS
-- Backend: Laravel REST API
-- Database: MySQL
-- SSO: Keycloak OIDC
-- Local Development: Windows Laragon without Docker
-- Server Deployment: Docker Compose
+## Technology Stack
+- Frontend (`client/`): Vite + React 18, TypeScript, Tailwind CSS, Lucide Icons
+- Backend (`server/`): Node.js Express, TypeScript, Prisma ORM
+- Database: MySQL (`one_unusu_db`)
+- SSO & Gateway: Tautan terpadu ke LMS, SIAKAD, PMB, E-Surat, SDM-Sarpras, LPM/LPPM
 
-## Websites
-- 1 University Website
-- 6 Faculty Websites
-- 14 Study Program Websites
-- Institution Websites
+## Websites & Modules in ONE UNUSU
+- 1 University Main Website & SSO Gateway
+- 6 Faculty Profiles & Directories
+- 14 Study Program (Prodi S1) Profiles
+- Kampus News & Event Announcements
+- App Launcher Portal
 
-## Applications
+## Integrated Applications (Terpisah ke Repositori Mandiri)
 - SIAKAD: Existing third-party application
 - PMB: Existing third-party application
-- E-Surat: Planned
-- BAKSA and BAKSI: Planned
-- SDM and Sarpras: Planned
-- LPM and LPPM: Planned
-- LMS: Planned
+- LMS UNUSU: Mandiri di repositori `lms-unusu` (migrasi modul LMS dari `sin-unusu`)
+- E-Surat UNUSU: Mandiri di repositori `esurat-unusu`
+- SDM & Sarpras UNUSU: Mandiri di repositori `sdm-sarpras-unusu`
+- LPM & LPPM UNUSU: Mandiri di repositori `lpm-lppm-unusu`
 
-## Development Rules
-1. Use reusable React components.
-2. Follow TypeScript best practices.
-3. Build responsive and accessible interfaces.
-4. Never invent official university information.
-5. Never commit credentials or .env files.
-6. Never modify existing production services.
-7. Do not execute destructive database commands.
-8. Test before committing changes.
-9. Use Git feature branches.
-10. Ask before major architectural changes.
-
-## Production Environment
-- Ubuntu 20.04 legacy server
-- Project: /home/www/html/Jun/one-unusu
-- Existing Apache: ports 80 and 443
-- Existing MySQL: port 3306
-- Docker containers use isolated networks.
-- Do not publish database ports.
-- Do not modify existing Apache configuration.
+## Development Guidelines
+1. Gunakan komponen React modular, accessible, dan responsif.
+2. Jaga integritas skema Prisma dan relasi antar model.
+3. Selalu periksa CORS dan environment variable di `server/.env`.
+4. Jalankan `npm run dev` di root untuk menjalankan client dan server secara bersamaan.

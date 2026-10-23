@@ -1,0 +1,157 @@
+// Prisma schema for ONE UNUSU - Central SSO Identity Provider & Portal Gateway
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPERADMIN
+  DOSEN
+  MAHASISWA
+}
+
+// 1. MASTER PENGGUNA SSO
+model User {
+  id          Int            @id @default(autoincrement())
+  username    String         @unique // NIM Mahasiswa / NIDN Dosen / Username Admin
+  password    String         // Hashed bcrypt
+  nama        String
+  email       String?        @unique
+  noHp        String?
+  role        Role           @default(MAHASISWA)
+  nim         String?        // Khusus Mahasiswa
+  nidn        String?        // Khusus Dosen
+  fakultas    String?
+  prodi       String?
+  avatar      String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  authTokens  SsoAuthToken[]
+
+  @@map("users")
+}
+
+// 2. REGISTRY APLIKASI CABANG TERINTEGRASI SSO (Mirip developer_opd_app di SSO Medan)
+model SsoApp {
+  id            Int            @id @default(autoincrement())
+  clientId      String         @unique // Identifier unik aplikasi (cth: "lms-unusu")
+  clientKey     String         // Secret key untuk validasi Server-to-Server
+  nameApp       String         // Nama aplikasi (cth: "LMS UNUSU - Ruang Belajar Online")
+  description   String?        @db.Text
+  icon          String?        @default("LayoutGrid")
+  badge         String?        @default("Akademik")
+  urlRedirect   String         // URL Callback di cabang (cth: "http://localhost:5174/sso/callback")
+  targetRoles   String         // Role yang diizinkan (JSON: '["DOSEN","MAHASISWA"]')
+  isActive      Boolean        @default(true)
+  order         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  authTokens    SsoAuthToken[]
+
+  @@map("sso_apps")
+}
+
+// 3. TOKEN OTENTIKASI SINGLE-USE (V2 Single-Use Token 64 Char)
+model SsoAuthToken {
+  id          Int            @id @default(autoincrement())
+  token       String         @unique @db.VarChar(64) // 64 char random string
+  userId      Int
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  appId       Int
+  app         SsoApp         @relation(fields: [appId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime       // Waktu kedaluwarsa (5 menit)
+  isUsed      Boolean        @default(false) // 0 = aktif, 1 = sudah dibakar/hangus
+  createdAt   DateTime       @default(now())
+
+  @@index([token, clientId])
+  @@map("sso_auth_tokens")
+}
+
+// Data Pendukung Landing / Master Publik Lama (Dipertahankan agar kompatibel jika ada modul butuh)
+model Fakultas {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  nama        String
+  kode        String?
+  dekan       String?
+  deskripsi   String?  @db.Text
+  visi        String?  @db.Text
+  misi        String?  @db.Text
+  icon        String?  @default("GraduationCap")
+  prodiList   Prodi[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fakultas")
+}
+
+model Prodi {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  nama        String
+  jenjang     String    @default("S1")
+  akreditasi  String?   @default("Baik")
+  kaprodi     String?
+  deskripsi   String?   @db.Text
+  fakultasId  Int
+  fakultas    Fakultas  @relation(fields: [fakultasId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("prodi")
+}
+
+model LayananKampus {
+  id          Int      @id @default(autoincrement())
+  nama        String
+  kategori    String
+  deskripsi   String?
+  urlTarget   String
+  icon        String?  @default("ExternalLink")
+  isExternal  Boolean  @default(false)
+  urutan      Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("layanan_kampus")
+}
+
+model Berita {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  judul       String
+  ringkasan   String?   @db.Text
+  konten      String    @db.LongText
+  kategori    String    @default("Pengumuman")
+  penulis     String?   @default("Humas UNUSU")
+  gambar      String?
+  views       Int       @default(0)
+  publishedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("berita")
+}
+
+model BannerSlider {
+  id          Int      @id @default(autoincrement())
+  judul       String
+  subjudul    String?
+  gambarUrl   String
+  linkUrl     String?
+  urutan      Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("banner_sliders")
+}
