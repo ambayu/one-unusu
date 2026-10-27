@@ -130,13 +130,16 @@ async function main() {
   // ==========================================
   console.log("Registering SSO Client Apps...");
 
+  // Hapus aplikasi LMS lama jika masih ada
+  await prisma.ssoApp.deleteMany({ where: { clientId: "lms-unusu" } }).catch(() => {});
+
   const ssoApps = [
     {
-      clientId: "lms-unusu",
-      clientKey: SSO_CLIENT_KEYS.lmsUnusu,
+      clientId: "unusu-lms",
+      clientKey: SSO_CLIENT_KEYS.unusuLms,
       nameApp: "LMS UNUSU",
-      description: "Ruang Belajar Digital, Perkuliahan Online, Materi & Tugas Kuliah Terintegrasi.",
-      icon: "BookOpenCheck",
+      description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
+      icon: "GraduationCap",
       badge: "Pembelajaran",
       urlRedirect: `${PUBLIC_BASE_URL}/lms/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
@@ -192,18 +195,6 @@ async function main() {
       isActive: true,
     },
     {
-      clientId: "unusu-lms",
-      clientKey: SSO_CLIENT_KEYS.unusuLms,
-      nameApp: "LMS UNUSU (Heru)",
-      description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
-      icon: "GraduationCap",
-      badge: "Pembelajaran",
-      urlRedirect: `${PUBLIC_BASE_URL}/elearning/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
-      order: 6,
-      isActive: true,
-    },
-    {
       clientId: "unusu-akreditasi",
       clientKey: SSO_CLIENT_KEYS.unusuAkreditasi,
       nameApp: "Akreditasi UNUSU",
@@ -212,7 +203,7 @@ async function main() {
       badge: "Penjaminan Mutu",
       urlRedirect: `${PUBLIC_BASE_URL}/akreditasi/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
-      order: 7,
+      order: 6,
       isActive: true,
     },
   ];
