@@ -6,6 +6,31 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+/**
+ * Ambil kredensial SSO dari environment.
+ * Tidak ada nilai default di sini: seed menolak berjalan bila variabel belum
+ * diset, supaya client key tidak pernah kembali tersimpan di dalam repo.
+ */
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Environment variable ${name} belum diset. Isi dulu di .env sebelum menjalankan seed.`
+    );
+  }
+  return value;
+}
+
+const SSO_CLIENT_KEYS = {
+  lmsUnusu: requireEnv("SSO_CLIENT_KEY_LMS_UNUSU"),
+  lppmUnusu: requireEnv("SSO_CLIENT_KEY_LPPM_UNUSU"),
+  lpmUnusu: requireEnv("SSO_CLIENT_KEY_LPM_UNUSU"),
+  esuratUnusu: requireEnv("SSO_CLIENT_KEY_ESURAT_UNUSU"),
+  sdmSarpras: requireEnv("SSO_CLIENT_KEY_SDM_SARPRAS"),
+  unusuLms: requireEnv("SSO_CLIENT_KEY_UNUSU_LMS"),
+  unusuAkreditasi: requireEnv("SSO_CLIENT_KEY_UNUSU_AKREDITASI"),
+} as const;
+
 async function main() {
   console.log("Seeding data ONE UNUSU SSO & Portal...");
 
@@ -90,7 +115,7 @@ async function main() {
   const ssoApps = [
     {
       clientId: "lms-unusu",
-      clientKey: "secret_lms_unusu_key_2026",
+      clientKey: SSO_CLIENT_KEYS.lmsUnusu,
       nameApp: "LMS UNUSU",
       description: "Ruang Belajar Digital, Perkuliahan Online, Materi & Tugas Kuliah Terintegrasi.",
       icon: "BookOpenCheck",
@@ -102,7 +127,7 @@ async function main() {
     },
     {
       clientId: "lppm-unusu",
-      clientKey: "secret_lppm_unusu_key_2026",
+      clientKey: SSO_CLIENT_KEYS.lppmUnusu,
       nameApp: "LPPM UNUSU",
       description: "Portal Riset, Pengabdian Kepada Masyarakat, Publikasi Jurnal, dan Hibah Dosen.",
       icon: "FlaskConical",
@@ -114,7 +139,7 @@ async function main() {
     },
     {
       clientId: "lpm-unusu",
-      clientKey: "secret_lpm_unusu_key_2026",
+      clientKey: SSO_CLIENT_KEYS.lpmUnusu,
       nameApp: "LPM UNUSU",
       description: "Lembaga Penjaminan Mutu, Audit Mutu Internal (AMI), & Instrumen Akreditasi.",
       icon: "Award",
@@ -126,7 +151,7 @@ async function main() {
     },
     {
       clientId: "esurat-unusu",
-      clientKey: "secret_esurat_unusu_key_2026",
+      clientKey: SSO_CLIENT_KEYS.esuratUnusu,
       nameApp: "E-Surat UNUSU",
       description: "Tata Naskah Dinas, Disposisi Digital, & Surat Keterangan Mahasiswa/Dosen.",
       icon: "MailCheck",
@@ -138,7 +163,7 @@ async function main() {
     },
     {
       clientId: "sdm-sarpras-unusu",
-      clientKey: "secret_sdm_sarpras_key_2026",
+      clientKey: SSO_CLIENT_KEYS.sdmSarpras,
       nameApp: "SDM & Sarpras",
       description: "Manajemen Kepegawaian, Fasilitas Kampus, & Inventaris Sarana Prasarana.",
       icon: "Building2",
@@ -150,7 +175,7 @@ async function main() {
     },
     {
       clientId: "unusu-lms",
-      clientKey: "secret_unusu_lms_key_2026",
+      clientKey: SSO_CLIENT_KEYS.unusuLms,
       nameApp: "LMS UNUSU (Heru)",
       description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
       icon: "GraduationCap",
@@ -162,7 +187,7 @@ async function main() {
     },
     {
       clientId: "unusu-akreditasi",
-      clientKey: "secret_unusu_akreditasi_key_2026",
+      clientKey: SSO_CLIENT_KEYS.unusuAkreditasi,
       nameApp: "Akreditasi UNUSU",
       description: "Instrumen akreditasi, bukti dokumen, dan penilaian butir mutu program studi.",
       icon: "ClipboardCheck",
