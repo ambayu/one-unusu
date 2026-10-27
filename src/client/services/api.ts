@@ -26,7 +26,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       // Jika token kedaluwarsa saat mengakses endpoint private
-      if (window.location.pathname !== '/login') {
+      if (window.location.pathname !== import.meta.env.BASE_URL + 'login') {
         localStorage.removeItem('one_unusu_token');
         localStorage.removeItem('one_unusu_user');
       }
