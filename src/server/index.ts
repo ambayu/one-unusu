@@ -12,7 +12,11 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "one_unusu_super_secret_jwt_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET belum diset di environment. Server dihentikan demi keamanan.");
+  process.exit(1);
+}
 
 app.use(cors({
   origin: true,
