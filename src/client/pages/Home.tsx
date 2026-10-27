@@ -127,7 +127,7 @@ export const Home: React.FC = () => {
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Akses Langsung Sistem</p>
                   <div className="space-y-3">
                     <a
-                      href="http://localhost:5174"
+                      href="/lms/"
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/40 transition group"
@@ -163,7 +163,7 @@ export const Home: React.FC = () => {
                     </a>
 
                     <a
-                      href="http://localhost:5175"
+                      href="/esurat/"
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/40 transition group"

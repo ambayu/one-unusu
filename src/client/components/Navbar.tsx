@@ -16,10 +16,10 @@ export const Navbar: React.FC = () => {
   ];
 
   const quickServices = [
-    { name: 'LMS UNUSU', desc: 'Ruang Belajar Online', url: 'http://localhost:5174', tag: 'Internal' },
+    { name: 'LMS UNUSU', desc: 'Ruang Belajar Online', url: '/lms/', tag: 'Internal' },
     { name: 'SIAKAD', desc: 'KRS & Nilai Akademik', url: 'https://siakad.unusu.ac.id', tag: 'Sistem' },
     { name: 'PMB Online', desc: 'Pendaftaran Mahasiswa', url: 'https://pmb.unusu.ac.id', tag: 'Publik' },
-    { name: 'E-Surat', desc: 'Tata Naskah & Disposisi', url: 'http://localhost:5175', tag: 'Internal' },
+    { name: 'E-Surat', desc: 'Tata Naskah & Disposisi', url: '/esurat/', tag: 'Internal' },
   ];
 
   return (
@@ -165,7 +165,7 @@ export const Navbar: React.FC = () => {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-3">Layanan Terpadu</p>
             <div className="grid grid-cols-2 gap-2">
               <a
-                href="http://localhost:5174"
+                href="/lms/"
                 className="p-2.5 bg-slate-50 rounded-lg text-xs font-bold text-slate-800 text-center hover:bg-emerald-50"
               >
                 LMS UNUSU

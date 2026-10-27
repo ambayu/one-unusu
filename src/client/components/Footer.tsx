@@ -45,12 +45,12 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4 border-l-2 border-unusu-gold pl-3">Portal Terpadu</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><a href="http://localhost:5174" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">LMS Ruang Belajar <span>↗</span></a></li>
+              <li><a href="/lms/" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">LMS Ruang Belajar <span>↗</span></a></li>
               <li><a href="https://siakad.unusu.ac.id" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">SIAKAD Online <span>↗</span></a></li>
               <li><a href="https://pmb.unusu.ac.id" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">Penerimaan Mhs Baru <span>↗</span></a></li>
-              <li><a href="http://localhost:5175" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">E-Surat Digital <span>↗</span></a></li>
-              <li><a href="http://localhost:5176" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">SDM & Sarpras <span>↗</span></a></li>
-              <li><a href="http://localhost:5177" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">LPM / Mutu Kampus <span>↗</span></a></li>
+              <li><a href="/esurat/" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">E-Surat Digital <span>↗</span></a></li>
+              <li><a href="/sarpras/" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">SDM & Sarpras <span>↗</span></a></li>
+              <li><a href="/lpm/" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition flex items-center justify-between">LPM / Mutu Kampus <span>↗</span></a></li>
             </ul>
           </div>
 
