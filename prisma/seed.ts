@@ -31,11 +31,25 @@ const SSO_CLIENT_KEYS = {
   unusuAkreditasi: requireEnv("SSO_CLIENT_KEY_UNUSU_AKREDITASI"),
 } as const;
 
+/**
+ * Konfigurasi seed khusus lingkungan. Tidak ada nilai default untuk password:
+ * seed menolak berjalan bila env belum diset, supaya tidak pernah ada akun
+ * dengan kata sandi bawaan di server produksi.
+ */
+const PUBLIC_BASE_URL = requireEnv("SEED_PUBLIC_BASE_URL").replace(/\/+$/, "");
+const ADMIN_PASSWORD = requireEnv("SEED_ADMIN_PASSWORD");
+
+/** Akun demo (dosen & mahasiswa) hanya dibuat bila variabel ini diset. */
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "";
+
 async function main() {
   console.log("Seeding data ONE UNUSU SSO & Portal...");
 
   const saltRounds = 10;
-  const defaultPasswordHash = await bcrypt.hash("password123", saltRounds);
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, saltRounds);
+  const demoPasswordHash = DEMO_PASSWORD
+    ? await bcrypt.hash(DEMO_PASSWORD, saltRounds)
+    : null;
 
   // ==========================================
   // 1. SEED MASTER AKUN PENGGUNA (SSO USERS)
@@ -46,13 +60,13 @@ async function main() {
   await prisma.user.upsert({
     where: { username: "admin" },
     update: {
-      password: defaultPasswordHash,
+      password: adminPasswordHash,
       role: "SUPERADMIN",
       isActive: true,
     },
     create: {
       username: "admin",
-      password: defaultPasswordHash,
+      password: adminPasswordHash,
       nama: "Super Administrator ONE UNUSU",
       email: "admin@unusu.ac.id",
       noHp: "081234567890",
@@ -63,17 +77,20 @@ async function main() {
     },
   });
 
+  // Akun demo hanya untuk lingkungan uji. Di produksi dibiarkan kosong
+  // supaya tidak ada kredensial bersama di server.
+  if (demoPasswordHash) {
   // Dosen (Login menggunakan NIDN)
   await prisma.user.upsert({
     where: { username: "0102038901" },
     update: {
-      password: defaultPasswordHash,
+      password: demoPasswordHash,
       role: "DOSEN",
       isActive: true,
     },
     create: {
       username: "0102038901",
-      password: defaultPasswordHash,
+      password: demoPasswordHash,
       nama: "Dr. H. Muhammad Ilyas, M.Kom.",
       email: "ilyas@unusu.ac.id",
       noHp: "081398765432",
@@ -89,13 +106,13 @@ async function main() {
   await prisma.user.upsert({
     where: { username: "2201010045" },
     update: {
-      password: defaultPasswordHash,
+      password: demoPasswordHash,
       role: "MAHASISWA",
       isActive: true,
     },
     create: {
       username: "2201010045",
-      password: defaultPasswordHash,
+      password: demoPasswordHash,
       nama: "Siti Rahmah",
       email: "siti.rahmah@mhs.unusu.ac.id",
       noHp: "082165432109",
@@ -106,6 +123,7 @@ async function main() {
       isActive: true,
     },
   });
+  }
 
   // ==========================================
   // 2. SEED REGISTRY APLIKASI SSO (CABANG)
@@ -120,7 +138,7 @@ async function main() {
       description: "Ruang Belajar Digital, Perkuliahan Online, Materi & Tugas Kuliah Terintegrasi.",
       icon: "BookOpenCheck",
       badge: "Pembelajaran",
-      urlRedirect: "http://localhost:5174/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/lms/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 1,
       isActive: true,
@@ -132,7 +150,7 @@ async function main() {
       description: "Portal Riset, Pengabdian Kepada Masyarakat, Publikasi Jurnal, dan Hibah Dosen.",
       icon: "FlaskConical",
       badge: "Penelitian",
-      urlRedirect: "http://localhost:5178/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/lppm/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
       order: 2,
       isActive: true,
@@ -144,7 +162,7 @@ async function main() {
       description: "Lembaga Penjaminan Mutu, Audit Mutu Internal (AMI), & Instrumen Akreditasi.",
       icon: "Award",
       badge: "Penjaminan Mutu",
-      urlRedirect: "http://localhost:5177/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/lpm/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
       order: 3,
       isActive: true,
@@ -156,7 +174,7 @@ async function main() {
       description: "Tata Naskah Dinas, Disposisi Digital, & Surat Keterangan Mahasiswa/Dosen.",
       icon: "MailCheck",
       badge: "Administrasi",
-      urlRedirect: "http://localhost:5175/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/esurat/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 4,
       isActive: true,
@@ -168,7 +186,7 @@ async function main() {
       description: "Manajemen Kepegawaian, Fasilitas Kampus, & Inventaris Sarana Prasarana.",
       icon: "Building2",
       badge: "Kepegawaian",
-      urlRedirect: "http://localhost:3003/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/sarpras/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
       order: 5,
       isActive: true,
@@ -180,7 +198,7 @@ async function main() {
       description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
       icon: "GraduationCap",
       badge: "Pembelajaran",
-      urlRedirect: "http://localhost:3001/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/elearning/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 6,
       isActive: true,
@@ -192,7 +210,7 @@ async function main() {
       description: "Instrumen akreditasi, bukti dokumen, dan penilaian butir mutu program studi.",
       icon: "ClipboardCheck",
       badge: "Penjaminan Mutu",
-      urlRedirect: "http://localhost:3002/sso/callback",
+      urlRedirect: `${PUBLIC_BASE_URL}/akreditasi/sso/callback`,
       targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
       order: 7,
       isActive: true,
