@@ -23,7 +23,12 @@ import {
   RefreshCw,
   LogOut,
   User,
-  Sliders
+  Sliders,
+  Globe,
+  GraduationCap,
+  Sparkles,
+  ClipboardCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -105,6 +110,8 @@ export const Dashboard: React.FC = () => {
     switch (iconName) {
       case 'BookOpenCheck':
         return <BookOpenCheck className="w-6 h-6 text-emerald-600" />;
+      case 'GraduationCap':
+        return <GraduationCap className="w-6 h-6 text-emerald-600" />;
       case 'FlaskConical':
         return <FlaskConical className="w-6 h-6 text-amber-600" />;
       case 'Award':
@@ -113,6 +120,8 @@ export const Dashboard: React.FC = () => {
         return <MailCheck className="w-6 h-6 text-rose-600" />;
       case 'Building2':
         return <Building2 className="w-6 h-6 text-teal-600" />;
+      case 'ClipboardCheck':
+        return <ClipboardCheck className="w-6 h-6 text-purple-600" />;
       default:
         return <LayoutGrid className="w-6 h-6 text-emerald-600" />;
     }
@@ -336,6 +345,150 @@ export const Dashboard: React.FC = () => {
               </div>
             ))
           )}
+        </div>
+
+        {/* Section Ekosistem Portal & Layanan Publik (Non-SSO / Informasi Eksternal) */}
+        <div className="pt-8 border-t border-slate-200/80 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-teal-700" />
+                <span>Portal & Layanan Publik Kampus</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Akses langsung ke portal informasi publik, penerimaan mahasiswa baru, website resmi kampus, dan sistem akademik.
+              </p>
+            </div>
+            <span className="self-start sm:self-auto px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+              Akses Langsung / Publik
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Portal Web Utama */}
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-100">
+                    Website Resmi
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-teal-700 transition">
+                    Portal Utama UNUSU
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    Landing page resmi universitas, profil kampus, berita, pimpinan, dan kontak.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-teal-700">
+                <span>Kunjungi Portal</span>
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+            </a>
+
+            {/* 2. PMB Online */}
+            <a
+              href="https://pmb.unusu.ac.id"
+              target="_blank"
+              rel="noreferrer"
+              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-100">
+                    Penerimaan
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-amber-700 transition">
+                    PMB Online UNUSU
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    Penerimaan Mahasiswa Baru, pendaftaran jalur reguler, beasiswa, dan pengumuman seleksi.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
+                <span>Daftar Sekarang</span>
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+            </a>
+
+            {/* 3. SIAKAD Kampus */}
+            <a
+              href="https://siakad.unusu.ac.id"
+              target="_blank"
+              rel="noreferrer"
+              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-100">
+                    Akademik
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-blue-700 transition">
+                    SIAKAD UNUSU
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    Sistem Informasi Akademik, pengisian KRS, KHS, kartu ujian, dan transkrip mahasiswa.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                <span>Buka SIAKAD</span>
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+            </a>
+
+            {/* 4. Direktori Fakultas & Prodi */}
+            <a
+              href="/fakultas"
+              target="_blank"
+              rel="noreferrer"
+              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <BookOpenCheck className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                    Direktori
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-emerald-700 transition">
+                    Fakultas & Program Studi
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    Katalog lengkap 6 fakultas dan 14 program studi sarjana di lingkungan UNUSU.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
+                <span>Lihat Direktori</span>
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+            </a>
+          </div>
         </div>
       </main>
 
