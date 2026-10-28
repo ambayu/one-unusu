@@ -62,6 +62,18 @@ export const digitalServices: DigitalService[] = [
     targetRoles: ["DOSEN", "TENDIK", "BAGIAN UMUM"],
   },
   {
+    id: "akreditasi",
+    name: "Akreditasi UNUSU",
+    fullName: "Instrumen & Penilaian Mutu Akreditasi",
+    description: "Instrumen akreditasi, bukti fisik dokumen, dan penilaian butir mutu program studi terintegrasi.",
+    status: "available",
+    url: "/akreditasi/",
+    icon: "shield",
+    image: "/assets/apps/app-akreditasi.png",
+    badge: "Penjaminan Mutu",
+    targetRoles: ["DOSEN", "AUDITOR", "PIMPINAN"],
+  },
+  {
     id: "siakad",
     name: "SIAKAD UNUSU",
     fullName: "Sistem Informasi Akademik Terpadu",
