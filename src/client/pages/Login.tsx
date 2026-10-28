@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
 
   const fillQuickAccount = (userVal: string) => {
     setIdentifier(userVal);
-    setPassword(userVal === 'admin' ? 'AdminPassword123!' : 'password123');
+    setPassword('password123');
     setCaptchaAnswer(String(captchaNum1 + captchaNum2));
     setError(null);
   };
