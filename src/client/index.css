@@ -6,4 +6,26 @@
   html {
     scroll-behavior: smooth;
   }
+
+  body {
+    background-color: #ffffff;
+    color: #1c2420;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+.pattern-grid {
+  background-image:
+    linear-gradient(to right, rgb(18 90 56 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(18 90 56 / 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.pattern-grid-dark {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
 }

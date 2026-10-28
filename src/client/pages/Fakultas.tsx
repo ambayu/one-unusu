@@ -1,91 +1,78 @@
-import React, { useEffect, useState } from 'react';
-import { fetchFakultas, FakultasItem } from '../services/api';
-import { GraduationCap, ArrowRight, Award } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React from 'react';
+import { Topbar } from '../components/layout/Topbar';
+import { Navbar } from '../components/layout/Navbar';
+import { Footer } from '../components/layout/Footer';
+import { mainNavigation } from '../data/navigation';
+import { externalUrls } from '../data/site';
+import { faculties, studyPrograms, formatOrder } from '../data/academics';
+import { Container } from '../components/ui/Container';
+import { SectionHeading } from '../components/ui/SectionHeading';
+import { Icon } from '../components/ui/Icon';
 
 export const FakultasPage: React.FC = () => {
-  const [fakultas, setFakultas] = useState<FakultasItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchFakultas()
-      .then((res) => setFakultas(res.data.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
-  }, []);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <span className="text-xs font-bold uppercase tracking-wider text-unusu-green bg-emerald-50 px-3 py-1 rounded-full">
-          Akademik UNUSU
-        </span>
-        <h1 className="text-4xl font-extrabold text-slate-900 mt-3">6 Fakultas Unggulan</h1>
-        <p className="text-slate-600 mt-3 text-base">
-          Setiap fakultas di UNUSU mengintegrasikan keunggulan keilmuan kontemporer dengan penanaman nilai moral dan spiritual berlandaskan tradisi keilmuan Nahdlatul Ulama.
-        </p>
-      </div>
+    <div className="min-h-screen flex flex-col bg-white">
+      <Topbar />
+      <Navbar items={mainNavigation} registerUrl={externalUrls.pmb} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {fakultas.map((f) => (
-          <div
-            key={f.id}
-            className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-unusu-green/40 transition-all duration-200 flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-100/70 text-emerald-800">
-                  {f.kode || 'FAKULTAS'}
-                </span>
-                <span className="text-xs font-semibold text-slate-400">
-                  {f.prodiList?.length || 0} Program Studi
-                </span>
-              </div>
+      <main className="flex-1 py-16 sm:py-24">
+        <Container>
+          <SectionHeading
+            eyebrow="Akademik UNUSU"
+            title="Fakultas & Program Studi"
+            description="6 Fakultas unggulan mengintegrasikan keilmuan kontemporer dengan nilai-nilai Ahlussunnah wal Jama'ah."
+          />
 
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">{f.nama}</h2>
-              {f.dekan && (
-                <p className="text-xs font-medium text-slate-500 mb-4">
-                  Dekan: <span className="font-semibold text-slate-700">{f.dekan}</span>
-                </p>
-              )}
-              <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                {f.deskripsi}
-              </p>
-
-              {/* List Prodi */}
-              <div className="space-y-2 pt-4 border-t border-slate-100">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Program Studi Tersedia:</p>
-                {f.prodiList?.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/60 transition group"
-                  >
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 group-hover:text-unusu-green">{p.nama}</p>
-                      <p className="text-xs text-slate-500">Kaprodi: {p.kaprodi || '-'}</p>
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {faculties.map((f) => {
+              const prodis = studyPrograms.filter((p) => p.facultyId === f.id);
+              return (
+                <div
+                  key={f.id}
+                  className="bg-white rounded-3xl p-8 border border-stone-200 shadow-xs hover:shadow-xl hover:border-brand-300 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-mono text-xs font-bold px-3 py-1 rounded-lg bg-brand-50 text-brand-800 border border-brand-200">
+                        FAKULTAS {formatOrder(f.order)}
+                      </span>
+                      <span className="text-xs font-semibold text-stone-400">
+                        {prodis.length} Program Studi
+                      </span>
                     </div>
-                    <span className="text-xs bg-white border border-slate-200 px-2 py-0.5 rounded text-emerald-700 font-semibold shadow-2xs">
-                      {p.akreditasi || 'Terakreditasi'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
-              <a
-                href="https://pmb.unusu.ac.id"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center text-sm font-bold text-unusu-green hover:underline"
-              >
-                <span>Daftar Lewat PMB Online</span>
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </a>
-            </div>
+                    <h2 className="text-2xl font-bold text-brand-950 mb-3">{f.name}</h2>
+                    <p className="text-sm text-stone-600 leading-relaxed mb-6">
+                      Fakultas yang berdedikasi menghasilkan lulusan berkompetensi tinggi, siap berkarir di era digital, dan berakhlak mulia.
+                    </p>
+
+                    <div className="space-y-2 pt-4 border-t border-stone-100">
+                      <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Program Studi Tersedia:</p>
+                      {prodis.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between py-2.5 px-3.5 rounded-xl bg-ivory/80 text-sm font-semibold text-brand-900 border border-stone-100 hover:bg-brand-50/50 transition-colors"
+                        >
+                          <div className="flex items-center space-x-2.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
+                            <span>{p.name}</span>
+                          </div>
+                          <span className="text-xs text-stone-500 bg-white px-2 py-0.5 rounded border border-stone-200 font-mono">
+                            {p.degree || 'S1'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </Container>
+      </main>
+
+      <Footer />
     </div>
   );
 };
+export default FakultasPage;

@@ -19,7 +19,6 @@ import {
   Building2, 
   LayoutGrid, 
   ArrowRight,
-  Sparkles,
   AlertCircle,
   RefreshCw,
   LogOut,

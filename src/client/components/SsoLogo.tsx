@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GraduationCap, ShieldCheck, Sparkles, KeyRound } from 'lucide-react';
+import { GraduationCap, ShieldCheck, KeyRound } from 'lucide-react';
 
 interface SsoLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'hero';
@@ -88,9 +88,6 @@ export const SsoLogo: React.FC<SsoLogoProps> = ({
           <GraduationCap
             className={`${sizeClasses.icon} text-amber-300 drop-shadow-md transition-all duration-300 group-hover:rotate-6 group-hover:scale-110`}
           />
-
-          {/* Mini Sparkle Floating */}
-          <Sparkles className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1 animate-bounce opacity-80" />
 
           {/* Mini Key Shield di pojok bawah kanan */}
           <div className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 rounded-full p-0.5 shadow-md border border-emerald-950">
