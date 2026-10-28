@@ -196,7 +196,7 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
 // PUT /api/auth/profile (Update profil pribadi)
 app.put("/api/auth/profile", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { email, noHp, currentPassword, newPassword } = req.body;
+    const { email, noHp, avatar, currentPassword, newPassword } = req.body;
     const userId = req.user!.id;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -207,6 +207,7 @@ app.put("/api/auth/profile", authenticateToken, async (req: AuthRequest, res: Re
     const updateData: any = {};
     if (email !== undefined) updateData.email = email || null;
     if (noHp !== undefined) updateData.noHp = noHp || null;
+    if (avatar !== undefined) updateData.avatar = avatar || null;
 
     // Jika ingin mengganti password
     if (newPassword) {
@@ -236,7 +237,8 @@ app.put("/api/auth/profile", authenticateToken, async (req: AuthRequest, res: Re
         nim: true,
         nidn: true,
         fakultas: true,
-        prodi: true
+        prodi: true,
+        avatar: true
       }
     });
 

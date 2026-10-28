@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Home } from './pages/Home';
 import { AplikasiPage } from './pages/Aplikasi';
 import { BantuanPage } from './pages/Bantuan';
+import { FakultasPage } from './pages/Fakultas';
+import { ProdiPage } from './pages/Prodi';
+import { LayananPage } from './pages/Layanan';
+import { KeamananPage } from './pages/Keamanan';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
@@ -31,6 +35,10 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/aplikasi" element={<AplikasiPage />} />
         <Route path="/bantuan" element={<BantuanPage />} />
+        <Route path="/fakultas" element={<FakultasPage />} />
+        <Route path="/prodi" element={<ProdiPage />} />
+        <Route path="/layanan" element={<LayananPage />} />
+        <Route path="/keamanan" element={<KeamananPage />} />
 
         {/* SSO Authentication & Portal Routes */}
         <Route path="/login" element={<Login />} />

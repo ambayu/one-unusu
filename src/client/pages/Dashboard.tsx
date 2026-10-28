@@ -7,29 +7,21 @@ import {
   UserProfile, 
   SsoAppItem 
 } from '../services/api';
-import { AppCardSkeleton } from '../components/Skeleton';
-import { SsoLogo } from '../components/SsoLogo';
-import { 
-  ExternalLink, 
-  ShieldCheck, 
-  BookOpenCheck, 
-  FlaskConical, 
-  Award, 
-  MailCheck, 
-  Building2, 
-  LayoutGrid, 
-  ArrowRight,
-  AlertCircle,
-  RefreshCw,
-  LogOut,
-  User,
-  Sliders,
-  Globe,
-  GraduationCap,
-  Sparkles,
-  ClipboardCheck,
-  CheckCircle2
-} from 'lucide-react';
+import { SidebarLayout } from '../components/SidebarLayout';
+import {
+  ShieldCheckIcon,
+  AcademicCapIcon,
+  BuildingOffice2Icon,
+  Squares2X2Icon,
+  ExclamationCircleIcon,
+  GlobeAltIcon,
+  IdentificationIcon,
+  UserIcon,
+  LinkIcon,
+  ArrowRightIcon,
+  ChevronRightIcon,
+  CalendarDaysIcon,
+} from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -59,11 +51,13 @@ export const Dashboard: React.FC = () => {
     } catch (err: any) {
       console.error('Error loading SSO apps:', err);
       if (err.response?.status === 401 || err.response?.status === 403) {
+        localStorage.removeItem('one_unusu_token');
+        localStorage.removeItem('one_unusu_user');
         navigate('/login');
         return;
       }
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('Koneksi timeout. Gagal memuat daftar aplikasi SSO dalam batas waktu.');
+        setError('Koneksi timeout. Gagal memuat data SSO.');
       } else {
         setError('Gagal memuat katalog aplikasi SSO dari server.');
       }
@@ -81,13 +75,11 @@ export const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [navigate]);
 
-  // Handle SSO Token v2 Launch
   const handleLaunchApp = async (app: SsoAppItem) => {
     try {
       setRedirectingAppId(app.id);
       const res = await getSsoRedirectV2(app.clientId);
       if (res.data.status && res.data.redirectUrl) {
-        // Alihkan browser pengguna ke aplikasi cabang dengan parameter ?client_id=...&token=...
         window.location.href = res.data.redirectUrl;
       } else {
         alert(res.data.message || 'Gagal membuat tiket SSO.');
@@ -100,402 +92,394 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('one_unusu_token');
-    localStorage.removeItem('one_unusu_user');
-    navigate('/login');
+  // Helper mapping thumbnail foto aplikasi dari folder /assets/apps/
+  const getAppPreviewImage = (clientId: string) => {
+    const id = clientId.toLowerCase();
+    if (id.includes('lms')) return '/assets/apps/app-lms.png';
+    if (id.includes('esurat') || id.includes('e-surat')) return '/assets/apps/app-esurat.png';
+    if (id.includes('siakad')) return '/assets/apps/app-siakad.png';
+    if (id.includes('sarpras')) return '/assets/apps/app-sarpras.png';
+    if (id.includes('lpm')) return '/assets/apps/app-lpm.png';
+    if (id.includes('lppm')) return '/assets/apps/app-lppm.png';
+    return '/assets/apps/app-lms.png';
   };
 
-  const getAppIcon = (iconName?: string) => {
-    switch (iconName) {
-      case 'BookOpenCheck':
-        return <BookOpenCheck className="w-6 h-6 text-emerald-600" />;
-      case 'GraduationCap':
-        return <GraduationCap className="w-6 h-6 text-emerald-600" />;
-      case 'FlaskConical':
-        return <FlaskConical className="w-6 h-6 text-amber-600" />;
-      case 'Award':
-        return <Award className="w-6 h-6 text-indigo-600" />;
-      case 'MailCheck':
-        return <MailCheck className="w-6 h-6 text-rose-600" />;
-      case 'Building2':
-        return <Building2 className="w-6 h-6 text-teal-600" />;
-      case 'ClipboardCheck':
-        return <ClipboardCheck className="w-6 h-6 text-purple-600" />;
-      default:
-        return <LayoutGrid className="w-6 h-6 text-emerald-600" />;
-    }
+  const statusLabel = user ? (user.isActive ? 'Aktif' : 'Nonaktif') : 'Belum tersedia';
+
+  const identitySectionTitle =
+    user?.role === 'DOSEN'
+      ? 'Data Ketenagaan Dosen'
+      : user?.role === 'SUPERADMIN'
+        ? 'Otoritas & Unit Kerja'
+        : 'Data Akademik Mahasiswa';
+
+  type IdentityMetric = {
+    label: string;
+    value: string;
+    mono?: boolean;
   };
 
-  const getRoleBadge = (role?: string) => {
-    if (role === 'SUPERADMIN') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-          Super Administrator
-        </span>
-      );
-    }
-    if (role === 'DOSEN') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
-          Dosen Pengajar
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-        Mahasiswa Aktif
-      </span>
-    );
-  };
+  const identityMetrics: IdentityMetric[] =
+    user?.role === 'DOSEN'
+      ? [
+          { label: 'NIDN / NUP', value: user.nidn || 'Belum tersedia', mono: true },
+          { label: 'Homebase Prodi', value: user.prodi || 'Belum tersedia' },
+          { label: 'Fakultas Induk', value: user.fakultas || 'Belum tersedia' },
+          { label: 'Status Kepegawaian', value: statusLabel },
+        ]
+      : user?.role === 'SUPERADMIN'
+        ? [
+            { label: 'Username', value: user.username, mono: true },
+            { label: 'Unit Kerja', value: 'PUSTIK' },
+            { label: 'Hak Akses', value: 'Root SSO' },
+            { label: 'Status Akun', value: statusLabel },
+          ]
+        : [
+            {
+              label: 'Nomor Induk Mahasiswa',
+              value: user?.nim || user?.username || 'Belum tersedia',
+              mono: true,
+            },
+            { label: 'Program Studi', value: user?.prodi || 'Belum tersedia' },
+            { label: 'Fakultas', value: user?.fakultas || 'Belum tersedia' },
+            { label: 'Status Mahasiswa', value: statusLabel },
+          ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header Bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20 items-center">
-            {/* Interactive SSO Brand Logo */}
-            <SsoLogo
-              size="md"
-              subtitle="SSO Central Gateway"
-              onClick={() => navigate('/')}
-            />
+    <SidebarLayout user={user}>
+      <div className="space-y-6">
+        
+        {/* =========================================================================
+            1. HERO WELCOME CARD (Permukaan pale green, ilustrasi kampus, logo)
+           ========================================================================= */}
+        <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-8 shadow-xs">
+          <div 
+            className="absolute top-0 right-0 h-full w-1/2 pointer-events-none opacity-85 hidden sm:block bg-no-repeat bg-right bg-cover"
+            style={{
+              backgroundImage: `url('/assets/campus-banner.png')`,
+              maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)',
+              WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)'
+            }}
+          />
 
-            {/* Navigation Right */}
-            <div className="flex items-center space-x-3">
-              {user?.role === 'SUPERADMIN' && (
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition border border-blue-200"
-                >
-                  <Sliders className="w-4 h-4" />
-                  <span>Panel Superadmin</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => navigate('/profil')}
-                className="flex items-center space-x-2 p-1.5 sm:px-3 sm:py-2 rounded-xl hover:bg-slate-100 transition border border-slate-200"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-xs">
-                  {user?.nama?.charAt(0) || 'U'}
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-xs font-bold text-slate-800 line-clamp-1">{user?.nama}</p>
-                  <p className="text-[10px] text-slate-400 font-mono">
-                    {user?.nim || user?.nidn || user?.username}
-                  </p>
-                </div>
-              </button>
-
-              <button
-                onClick={handleLogout}
-                title="Keluar"
-                className="p-2.5 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition border border-slate-200"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+          <div className="relative z-10 flex items-center gap-5">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-xs flex-shrink-0 flex items-center justify-center">
+              <img 
+                src="/assets/pai/logo-unusu.jpg" 
+                alt="UNUSU Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Welcome Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white p-6 sm:p-8 shadow-xl">
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                  Portal Akun Terpadu
-                </span>
-                <span className="text-slate-600">•</span>
-                {getRoleBadge(user?.role)}
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Ahlan wa Sahlan, {user?.nama || 'Sivitas UNUSU'} 🤍
-              </h1>
-              <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-                {user?.role === 'MAHASISWA' && `NIM: ${user.nim} | Program Studi: ${user.prodi || '-'} | Fakultas: ${user.fakultas || '-'}`}
-                {user?.role === 'DOSEN' && `NIDN: ${user.nidn} | Homebase: ${user.prodi || '-'} | Fakultas: ${user.fakultas || '-'}`}
-                {user?.role === 'SUPERADMIN' && 'Anda memiliki hak penuh mengelola akun dan konfigurasi aplikasi SSO di database.'}
+            <div className="min-w-0 space-y-1.5">
+              <p className="text-base sm:text-lg font-bold text-[#14532D]">
+                Selamat Datang,
               </p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E293B] tracking-tight break-words">
+                {user?.nama || 'Pengguna'}
+              </h1>
             </div>
+          </div>
+        </div>
 
-            <div className="flex items-center space-x-2 bg-emerald-900/40 border border-emerald-500/30 rounded-2xl px-4 py-3">
-              <ShieldCheck className="w-8 h-8 text-emerald-400 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-white">SSO Token v2 Aktif</p>
-                <p className="text-[11px] text-emerald-200">Single-use token 64 char otomatis</p>
+        {/* =========================================================================
+            2. IDENTITAS CIVITAS (Daftar 2 kolom, menyesuaikan peran pengguna)
+           ========================================================================= */}
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-[#1E293B]">
+            <IdentificationIcon className="w-5 h-5 text-[#166534]" />
+            <span>{identitySectionTitle}</span>
+          </div>
+
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+            {identityMetrics.map((metric) => (
+              <div key={metric.label} className="min-w-0">
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">
+                  {metric.label}
+                </dt>
+                <dd
+                  className={`mt-1 text-sm font-semibold text-[#1E293B] break-words ${
+                    metric.mono ? 'font-mono' : ''
+                  }`}
+                >
+                  {metric.value}
+                </dd>
               </div>
-            </div>
-          </div>
+            ))}
+          </dl>
         </div>
 
-        {/* Catalog Section Header */}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <LayoutGrid className="w-5 h-5 text-emerald-700" />
-              <span>Aplikasi Terintegrasi SSO</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Klik aplikasi untuk masuk secara otomatis tanpa perlu login manual lagi.
-            </p>
-          </div>
-          <button
-            onClick={loadDashboardData}
-            disabled={loading}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Segarkan</span>
-          </button>
-        </div>
-
-        {/* Error Fallback with Retry */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-              <p className="text-sm font-medium">{error}</p>
+        {/* =========================================================================
+            3. WRAP KARTU TERPADU: LAYANAN SSO & AKSES KAMPUS (DENGAN GAMBAR PREVIEW)
+           ========================================================================= */}
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-[#166534]" />
+                <span>Aplikasi Terintegrasi SSO (Single Sign-On)</span>
+              </h2>
+              <p className="text-xs text-[#64748B] mt-0.5">
+                Pilih aplikasi di bawah untuk masuk otomatis menggunakan token SSO v2 tanpa perlu login ulang.
+              </p>
             </div>
             <button
               onClick={loadDashboardData}
-              className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D8E5DC] text-[11px] font-bold text-[#166534] hover:bg-[#F0FDF4] transition self-start sm:self-auto"
             >
-              Coba Lagi
+              <span>Muat Ulang Layanan</span>
+              <ArrowRightIcon className="w-3 h-3" />
             </button>
           </div>
-        )}
 
-        {/* Apps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Error state */}
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-[12px] border border-[#FECACA] bg-[#FEE2E2] px-3.5 py-3 text-xs font-medium text-[#B91C1C]">
+              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Grid Aplikasi SSO dengan Gambar Screenshot seperti di Landing Page */}
           {loading ? (
-            <>
-              <AppCardSkeleton />
-              <AppCardSkeleton />
-              <AppCardSkeleton />
-              <AppCardSkeleton />
-              <AppCardSkeleton />
-              <AppCardSkeleton />
-            </>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="rounded-[18px] border border-[#D8E5DC] bg-white overflow-hidden animate-pulse">
+                  <div className="aspect-[16/10] bg-[#E6EFE8]" />
+                  <div className="p-5 space-y-2.5">
+                    <div className="h-3.5 w-2/3 rounded bg-[#E6EFE8]" />
+                    <div className="h-2.5 w-full rounded bg-[#EEF4EF]" />
+                    <div className="h-2.5 w-4/5 rounded bg-[#EEF4EF]" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : apps.length === 0 ? (
-            <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-200/80 p-8 space-y-3">
-              <LayoutGrid className="w-12 h-12 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-700">Belum ada aplikasi yang tersedia untuk peran Anda.</p>
-              <p className="text-xs text-slate-400">Hubungi Superadministrator PUSTIK UNUSU jika Anda membutuhkan akses tambahan.</p>
+            <div className="rounded-[14px] border border-dashed border-[#C8DDD0] bg-[#F7FBF8] px-6 py-10 text-center">
+              <p className="text-sm font-semibold text-[#3A5544]">Belum ada aplikasi SSO aktif</p>
+              <p className="text-xs text-[#7FAD8E] mt-1">
+                Aplikasi yang terdaftar akan tampil di sini setelah diaktifkan oleh Superadmin.
+              </p>
             </div>
           ) : (
-            apps.map((app) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {apps.map((app) => (
               <div
                 key={app.id}
-                className="group bg-white rounded-2xl p-6 border border-slate-200/80 hover:border-emerald-500/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between space-y-5"
+                className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] hover:border-[#166534] bg-white shadow-xs hover:shadow-md transition-all duration-200"
               >
-                <div className="space-y-4">
-                  {/* Card Top */}
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      {getAppIcon(app.icon)}
+                <div>
+                  {/* Foto UI Mockup Aplikasi */}
+                  <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
+                    <img
+                      src={getAppPreviewImage(app.clientId)}
+                      alt={`Tampilan antarmuka ${app.nameApp}`}
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-103"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
+
+                    <div className="absolute top-3 left-3">
+                      <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
+                        {app.badge || 'Layanan SSO'}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
-                      {app.badge || 'Terkoneksi'}
-                    </span>
+
+                    <div className="absolute top-3 right-3">
+                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                        Terkoneksi
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Title & Desc */}
-                  <div>
-                    <h3 className="font-extrabold text-base text-slate-900 group-hover:text-emerald-700 transition">
+                  {/* Info Deskripsi Aplikasi */}
+                  <div className="p-4 sm:p-5 space-y-2">
+                    <h3 className="font-bold text-base text-[#1E293B] group-hover:text-[#166534] transition">
                       {app.nameApp}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                      {app.description || 'Layanan digital terintegrasi ONE UNUSU.'}
+                    <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
+                      {app.description || 'Layanan digital terintegrasi sistem Single Sign-On UNUSU.'}
                     </p>
                   </div>
                 </div>
 
-                {/* Launch Action */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5 text-[11px] font-semibold text-emerald-700">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Single Sign-On</span>
-                  </div>
+                {/* Tombol Aksi Buka Aplikasi */}
+                <div className="p-4 sm:p-5 pt-0">
                   <button
                     onClick={() => handleLaunchApp(app)}
                     disabled={redirectingAppId === app.id}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-950/10 transition group-hover:scale-105 disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs hover:shadow-sm transition disabled:opacity-50"
                   >
-                    {redirectingAppId === app.id ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Menghubungkan...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Buka Layanan</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </>
-                    )}
+                    <span>{redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi Cabang'}</span>
+                    <ArrowRightIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-            ))
+            ))}
+          </div>
           )}
         </div>
 
-        {/* Section Ekosistem Portal & Layanan Publik (Non-SSO / Informasi Eksternal) */}
-        <div className="pt-8 border-t border-slate-200/80 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-teal-700" />
-                <span>Portal & Layanan Publik Kampus</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Akses langsung ke portal informasi publik, penerimaan mahasiswa baru, website resmi kampus, dan sistem akademik.
-              </p>
-            </div>
-            <span className="self-start sm:self-auto px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-              Akses Langsung / Publik
-            </span>
+        {/* =========================================================================
+            4. WRAP KARTU TERPADU: PORTAL INFORMASI & DIREKTORI KAMPUS
+           ========================================================================= */}
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+          <div>
+            <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+              <Squares2X2Icon className="w-4 h-4 text-[#166534]" />
+              <span>Portal Informasi & Direktori Publik Kampus</span>
+            </h2>
+            <p className="text-xs text-[#64748B] mt-0.5">
+              Portal informasi, pendaftaran mahasiswa baru, dan direktori akademik fakultas.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 1. Portal Web Utama */}
-            <a
-              href="/"
-              target="_blank"
-              rel="noreferrer"
-              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Globe className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-100">
-                    Website Resmi
-                  </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Portal Utama */}
+            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
+              <div className="space-y-2.5">
+                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
+                  <GlobeAltIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-teal-700 transition">
+                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
                     Portal Utama UNUSU
                   </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    Landing page resmi universitas, profil kampus, berita, pimpinan, dan kontak.
+                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                    Berita terkini, profil kampus, dan informasi resmi seputar UNUSU.
                   </p>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-teal-700">
-                <span>Kunjungi Portal</span>
-                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </div>
-            </a>
+              <a 
+                href="/" 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
+              >
+                <span>Kunjungi Website</span>
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
 
             {/* 2. PMB Online */}
-            <a
-              href="https://pmb.unusu.ac.id"
-              target="_blank"
-              rel="noreferrer"
-              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-100">
-                    Penerimaan
-                  </span>
+            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#B45309] transition flex flex-col justify-between space-y-3 group shadow-2xs">
+              <div className="space-y-2.5">
+                <div className="w-10 h-10 rounded-[10px] bg-[#FEF3C7] flex items-center justify-center text-[#B45309]">
+                  <UserIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-amber-700 transition">
+                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#B45309] transition">
                     PMB Online UNUSU
                   </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    Penerimaan Mahasiswa Baru, pendaftaran jalur reguler, beasiswa, dan pengumuman seleksi.
+                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                    Pendaftaran mahasiswa baru, jalur beasiswa, dan panduan seleksi.
                   </p>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
-                <span>Daftar Sekarang</span>
-                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </div>
-            </a>
+              <a 
+                href="https://pmb.unusu.ac.id" 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
+              >
+                <span>Portal PMB</span>
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
 
-            {/* 3. SIAKAD Kampus */}
-            <a
-              href="https://siakad.unusu.ac.id"
-              target="_blank"
-              rel="noreferrer"
-              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-100">
-                    Akademik
-                  </span>
+            {/* 3. SIAKAD Online */}
+            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
+              <div className="space-y-2.5">
+                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
+                  <AcademicCapIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-blue-700 transition">
-                    SIAKAD UNUSU
+                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
+                    SIAKAD Online
                   </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    Sistem Informasi Akademik, pengisian KRS, KHS, kartu ujian, dan transkrip mahasiswa.
+                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                    Kartu Rencana Studi (KRS), transkrip nilai, jadwal kuliah, dan presensi.
                   </p>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+              <a 
+                href="https://siakad.unusu.ac.id" 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
+              >
                 <span>Buka SIAKAD</span>
-                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </div>
-            </a>
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
 
-            {/* 4. Direktori Fakultas & Prodi */}
-            <a
-              href="/fakultas"
-              target="_blank"
-              rel="noreferrer"
-              className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500/60 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <BookOpenCheck className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
-                    Direktori
-                  </span>
+            {/* 4. Fakultas & Prodi */}
+            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
+              <div className="space-y-2.5">
+                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
+                  <BuildingOffice2Icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-emerald-700 transition">
-                    Fakultas & Program Studi
+                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
+                    Fakultas & Prodi
                   </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    Katalog lengkap 6 fakultas dan 14 program studi sarjana di lingkungan UNUSU.
+                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                    Profil 6 fakultas dan 14 program studi sarjana terakreditasi di UNUSU.
                   </p>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
+              <a 
+                href="/fakultas" 
+                target="_blank" 
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
+              >
                 <span>Lihat Direktori</span>
-                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            5. BOTTOM BANNER: SATU AKUN, SEMUA LAYANAN
+           ========================================================================= */}
+        <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-7 shadow-xs">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 hidden sm:flex items-center justify-center">
+                <img 
+                  src="/assets/sso-laptop.png" 
+                  alt="SSO Laptop Illustration" 
+                  className="w-full h-full object-contain drop-shadow-sm"
+                />
               </div>
+
+              <div className="space-y-1.5">
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#166534]">
+                  Sistem Terintegrasi
+                </span>
+                <h3 className="text-lg sm:text-xl font-extrabold text-[#1E293B]">
+                  Satu Akun, Semua Layanan
+                </h3>
+                <p className="text-xs sm:text-sm text-[#475569] max-w-xl leading-relaxed">
+                  Akses seluruh layanan kampus UNUSU dengan mudah, aman dan terintegrasi melalui sistem Single Sign-On (SSO).
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="/bantuan"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#14532D] hover:bg-[#166534] text-white text-xs sm:text-sm font-bold shadow-sm transition whitespace-nowrap self-start md:self-auto"
+            >
+              <span>Pelajari Lebih Lanjut</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </a>
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-400">
-        <p>ONE UNUSU SSO Central Gateway • Universitas Nahdlatul Ulama Sumatera Utara</p>
-      </footer>
-    </div>
+      </div>
+    </SidebarLayout>
   );
 };
+
+export default Dashboard;

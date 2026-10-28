@@ -87,7 +87,7 @@ export const loginSso = (identifier: string, password: string) =>
 export const fetchMe = () =>
   api.get<{ status: boolean; data: UserProfile }>('/auth/me');
 
-export const updateProfile = (data: { email?: string; noHp?: string; currentPassword?: string; newPassword?: string }) =>
+export const updateProfile = (data: { email?: string; noHp?: string; avatar?: string; currentPassword?: string; newPassword?: string }) =>
   api.put<{ status: boolean; message: string; data: UserProfile }>('/auth/profile', data);
 
 // ==========================================

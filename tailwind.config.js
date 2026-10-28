@@ -7,6 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        page: '#F1F5F2',
+        surface: '#FFFFFF',
+        borderGreen: '#D8E5DC',
+        primaryGreen: {
+          DEFAULT: '#166534',
+          hover: '#14532D',
+          deep: '#14532D',
+          secondary: '#15803D',
+          accent: '#22C55E',
+          soft: '#DCFCE7',
+          pale: '#F0FDF4',
+        },
         brand: {
           50: '#f0f8f3',
           100: '#dbefe2',

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginSso } from '../services/api';
-import { 
-  Eye, 
-  EyeOff, 
-  AlertCircle, 
-  ShieldCheck, 
-  RefreshCw,
-  Moon,
-  ChevronLeft
-} from 'lucide-react';
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  ExclamationCircleIcon,
+  ShieldCheckIcon,
+  ArrowPathIcon,
+  ChevronLeftIcon,
+} from '@heroicons/react/24/outline';
 
 export const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -60,7 +59,15 @@ export const Login: React.FC = () => {
       if (res.data.status && res.data.token) {
         localStorage.setItem('one_unusu_token', res.data.token);
         localStorage.setItem('one_unusu_user', JSON.stringify(res.data.data));
-        navigate('/dashboard');
+
+        // Cek apakah data profil (email & noHp) masih kosong
+        const userData = res.data.data;
+        if (!userData.email || !userData.noHp) {
+          // Arahkan ke halaman profil terlebih dahulu untuk melengkapi biodata
+          navigate('/profil', { state: { requiredBio: true } });
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError(res.data.message || 'Login gagal.');
         generateCaptcha();
@@ -95,10 +102,10 @@ export const Login: React.FC = () => {
         <div>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#64748B] hover:text-[#166534] transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Kembali ke Home</span>
+            <ChevronLeftIcon className="w-4 h-4" />
+            <span>Kembali ke Beranda</span>
           </Link>
         </div>
 
@@ -107,18 +114,18 @@ export const Login: React.FC = () => {
           
           {/* Headline */}
           <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#1E293B] tracking-tight">
               Masuk
             </h1>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-[#64748B]">
               Gunakan NIM (Mahasiswa) atau NIDN (Dosen / Tendik)
             </p>
           </div>
 
           {/* Alert Error */}
           {error && (
-            <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600" />
+            <div className="mb-6 flex items-start gap-3 p-3.5 rounded-[10px] bg-[#FEE2E2] border border-[#FECACA] text-[#B91C1C] text-xs">
+              <ExclamationCircleIcon className="w-4 h-4 mt-0.5 shrink-0 text-[#B91C1C]" />
               <span>{error}</span>
             </div>
           )}
@@ -126,23 +133,23 @@ export const Login: React.FC = () => {
           <form onSubmit={handleLogin} className="space-y-5">
             {/* NIM / NIDN */}
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-slate-800">
-                NIM / NIDN <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-[#1E293B]">
+                NIM / NIDN <span className="text-[#B91C1C]">*</span>
               </label>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Masukkan NIM atau NIDN"
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition shadow-xs"
+                className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                 required
               />
             </div>
 
             {/* Kata Sandi */}
             <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-slate-800">
-                Kata Sandi <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-[#1E293B]">
+                Kata Sandi <span className="text-[#B91C1C]">*</span>
               </label>
               <div className="relative">
                 <input
@@ -150,61 +157,61 @@ export const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan kata sandi"
-                  className="w-full pl-4 pr-11 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition shadow-xs"
+                  className="w-full pl-4 pr-11 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#94A3B8] hover:text-[#475569]"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             {/* Remember Me & Lupa Sandi */}
             <div className="flex items-center justify-between text-sm pt-0.5">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-[#475569]">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="w-4 h-4 rounded border-[#D8E5DC] text-[#166534] focus:ring-[#166534]"
                 />
                 <span>Buat tetap Masuk</span>
               </label>
               <Link
                 to="/bantuan"
-                className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                className="text-sm font-medium text-[#166534] hover:text-[#14532D]"
               >
                 Lupa kata sandi?
               </Link>
             </div>
 
             {/* Verifikasi Keamanan (CAPTCHA) */}
-            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200/90 space-y-2.5">
+            <div className="p-4 rounded-[12px] bg-[#F0FDF4] border border-[#BBF7D0] space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>Verifikasi Keamanan (CAPTCHA) <span className="text-red-500">*</span></span>
+                <div className="flex items-center gap-1.5 font-bold text-[#1E293B]">
+                  <ShieldCheckIcon className="w-4 h-4 text-[#166534]" />
+                  <span>Verifikasi Keamanan (CAPTCHA) <span className="text-[#B91C1C]">*</span></span>
                 </div>
                 <button
                   type="button"
                   onClick={generateCaptcha}
-                  className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-medium transition-colors"
+                  className="inline-flex items-center gap-1 text-[#166534] hover:text-[#14532D] font-medium transition-colors"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <ArrowPathIcon className="w-3.5 h-3.5" />
                   <span>Muat Ulang</span>
                 </button>
               </div>
 
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#64748B]">
                 Jawab soal matematika sederhana berikut sebelum masuk.
               </p>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="flex items-center justify-center py-2 px-4 bg-white border border-slate-200 rounded-lg font-mono text-base font-bold text-slate-800 tracking-wider shadow-2xs">
+                <div className="flex items-center justify-center py-2 px-4 bg-white border border-[#D8E5DC] rounded-[8px] font-mono text-base font-bold text-[#1E293B] tracking-wider shadow-xs">
                   {captchaNum1} + {captchaNum2} = ?
                 </div>
                 <input
@@ -212,7 +219,7 @@ export const Login: React.FC = () => {
                   value={captchaAnswer}
                   onChange={(e) => setCaptchaAnswer(e.target.value)}
                   placeholder="Jawaban"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-center text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] shadow-xs"
                   required
                 />
               </div>
@@ -222,7 +229,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold text-sm rounded-lg shadow-md shadow-emerald-900/10 transition duration-150 disabled:opacity-50"
+              className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150 disabled:opacity-50"
             >
               {loading ? 'Memproses...' : 'Masuk'}
             </button>
@@ -231,33 +238,33 @@ export const Login: React.FC = () => {
             <div className="text-center pt-2">
               <Link
                 to="/aplikasi"
-                className="text-xs font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                className="text-xs font-medium text-[#166534] hover:text-[#14532D] hover:underline"
               >
                 Lihat Katalog Layanan Tanpa Login
               </Link>
             </div>
 
             {/* Akun Demo Cepat */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-xs">
-              <span className="text-[11px] text-slate-400">Uji Coba:</span>
+            <div className="pt-4 border-t border-[#E8EFEA] flex items-center justify-center gap-2 text-xs">
+              <span className="text-[11px] text-[#94A3B8]">Uji Coba:</span>
               <button
                 type="button"
                 onClick={() => fillQuickAccount('2201010045')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 text-[11px] font-medium transition"
+                className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
               >
                 Mahasiswa
               </button>
               <button
                 type="button"
                 onClick={() => fillQuickAccount('0102038901')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 text-[11px] font-medium transition"
+                className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
               >
                 Dosen
               </button>
               <button
                 type="button"
                 onClick={() => fillQuickAccount('admin')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 text-[11px] font-medium transition"
+                className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
               >
                 Superadmin
               </button>
@@ -267,7 +274,7 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Footer Sisi Kiri */}
-        <div className="text-xs text-slate-400 text-center lg:text-left">
+        <div className="text-xs text-[#64748B] text-center lg:text-left">
           &copy; {new Date().getFullYear()} Universitas Nahdlatul Ulama Sumatera Utara
         </div>
       </div>
@@ -283,12 +290,12 @@ export const Login: React.FC = () => {
         />
 
         {/* Overlay Gradien Halus Menjaga Foto Tetap Terang & Jernih */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#062419]/95 via-[#062419]/35 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#14532D]/95 via-[#14532D]/35 to-transparent pointer-events-none" />
 
         {/* Konten Sedikit & Minimalis di Bawah */}
         <div className="relative z-10 max-w-lg space-y-2.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-400/40 text-gold-300 text-xs font-semibold backdrop-blur-md">
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#14532D]/70 border border-[#22C55E]/40 text-[#DCFCE7] text-xs font-semibold">
+            <span className="size-2 rounded-full bg-[#22C55E] animate-pulse" />
             <span>ONE UNUSU Portal SSO</span>
           </div>
 
@@ -296,20 +303,9 @@ export const Login: React.FC = () => {
             Universitas Nahdlatul Ulama Sumatera Utara
           </h2>
 
-          <p className="text-xs sm:text-sm text-slate-200 drop-shadow font-medium leading-relaxed">
+          <p className="text-xs sm:text-sm text-[#DCFCE7] drop-shadow font-medium leading-relaxed">
             Satu pintu akses digital terintegrasi untuk seluruh civitas akademika UNUSU.
           </p>
-        </div>
-
-        {/* Tombol Tema Bulat di Pojok Kanan Atas */}
-        <div className="absolute top-6 right-6 z-20">
-          <button
-            type="button"
-            aria-label="Toggle Theme"
-            className="size-10 rounded-full bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-          >
-            <Moon className="w-4 h-4" />
-          </button>
         </div>
 
       </div>

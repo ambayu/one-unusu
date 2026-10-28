@@ -14,7 +14,7 @@ export function Logo({ tone = "light", compact = false }: LogoProps) {
     <Link
       to="/"
       className="group flex items-center gap-3 rounded-lg"
-      aria-label={`${siteConfig.platformName} — ${siteConfig.name}, ke beranda`}
+      aria-label={`${siteConfig.platformName} : ${siteConfig.name}, ke beranda`}
     >
       <span
         aria-hidden="true"

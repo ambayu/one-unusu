@@ -1,21 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchMe, updateProfile, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
-import { SsoLogo } from '../components/SsoLogo';
-import { 
-  ArrowLeft, 
-  User, 
-  Lock, 
-  Mail, 
-  Phone, 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle, 
-  GraduationCap, 
-  BookOpen, 
-  KeyRound
-} from 'lucide-react';
+import { SidebarLayout } from '../components/SidebarLayout';
+import {
+  ShieldCheckIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  EnvelopeIcon,
+  KeyIcon,
+  PhoneIcon,
+  CameraIcon,
+  AcademicCapIcon,
+  IdentificationIcon,
+  BuildingOffice2Icon,
+  BriefcaseIcon,
+  XMarkIcon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline';
 
 export const Profile: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -26,11 +28,24 @@ export const Profile: React.FC = () => {
   // Form states
   const [email, setEmail] = useState('');
   const [noHp, setNoHp] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  // 3x4 Red Background Crop Modal State
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRequiredBio = Boolean((location.state as any)?.requiredBio);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -41,6 +56,7 @@ export const Profile: React.FC = () => {
           setUser(res.data.data);
           setEmail(res.data.data.email || '');
           setNoHp(res.data.data.noHp || '');
+          setAvatar(res.data.data.avatar || null);
         }
       } catch (err: any) {
         console.error('Failed to load profile:', err);
@@ -53,6 +69,77 @@ export const Profile: React.FC = () => {
     };
     loadProfile();
   }, [navigate]);
+
+  // Handle Photo Upload & Open 3x4 Modal
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('File harus berupa gambar (JPG, PNG, atau WebP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result as string);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Drag pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Generate 3x4 Canvas with Solid Red Background (#b91c1c)
+  const handleApplyCrop = () => {
+    if (!imageRef.current) return;
+
+    // Standard 3x4 portrait aspect ratio (300 x 400px)
+    const targetW = 300;
+    const targetH = 400;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 1. Draw Mandatory Red Background (Latar Merah Resmi #b91c1c)
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    // 2. Draw user image transformed (zoom & pan)
+    const img = imageRef.current;
+    ctx.save();
+    ctx.translate(targetW / 2 + pan.x, targetH / 2 + pan.y);
+    ctx.scale(zoom, zoom);
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+    ctx.restore();
+
+    // 3. Export to base64 jpeg
+    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setAvatar(croppedDataUrl);
+    setCropModalOpen(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,12 +155,13 @@ export const Profile: React.FC = () => {
       const res = await updateProfile({
         email,
         noHp,
+        avatar: avatar || undefined,
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
       });
 
       if (res.data.status) {
-        setMessage({ type: 'success', text: 'Profil dan pengaturan berhasil diperbarui.' });
+        setMessage({ type: 'success', text: 'Biodata Anda berhasil disimpan dan diperbarui.' });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
@@ -81,7 +169,7 @@ export const Profile: React.FC = () => {
           setUser(res.data.data);
         }
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal memperbarui profil.' });
+        setMessage({ type: 'error', text: res.data.message || 'Gagal memperbarui biodata.' });
       }
     } catch (err: any) {
       console.error('Update profile error:', err);
@@ -92,193 +180,410 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/')}
-              className="inline-flex items-center space-x-1.5 p-2 rounded-xl text-xs font-bold text-slate-600 hover:text-emerald-700 hover:bg-slate-100 transition"
-              title="Kembali ke Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <SsoLogo size="sm" onClick={() => navigate('/')} />
+    <SidebarLayout user={user}>
+      <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Banner Lengkapi Biodata Wajib */}
+        {isRequiredBio && (!user?.email || !user?.noHp) && (
+          <div className="p-4 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] flex items-start gap-3 text-xs">
+            <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm text-[#92400E]">Lengkapi Biodata Akun Anda</p>
+              <p className="mt-0.5 text-[#B45309] leading-relaxed">
+                Untuk keamanan akun dan integrasi sistem kampus, silakan lengkapi Email aktif, nomor WhatsApp, serta pasfoto resmi Anda sebelum melanjutkan ke layanan lain.
+              </p>
+            </div>
           </div>
-          <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-            Pengaturan Profil
-          </span>
-        </div>
-      </header>
+        )}
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
         {loading ? (
           <ProfileSkeleton />
         ) : (
           <>
-            {/* Identity Banner Based on Role */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-5">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg shadow-emerald-950/10">
-                    {user?.nama?.charAt(0) || 'U'}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{user?.nama}</h1>
+            {/* Header Biodata Spesifik Berdasarkan Peran (MAHASISWA / DOSEN / SUPERADMIN) */}
+            <div className="bg-white rounded-[16px] p-6 sm:p-7 border border-[#D8E5DC] shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                
+                {/* Photo 3x4 & Basic Info */}
+                <div className="flex items-start sm:items-center gap-5">
+                  <div className="relative group flex-shrink-0">
+                    <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-[#D8E5DC] bg-[#B91C1C] shadow-xs flex items-center justify-center text-white">
+                      {avatar ? (
+                        <img src={avatar} alt={user?.nama} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-2">
+                          <IdentificationIcon className="w-8 h-8 text-white/90" />
+                          <span className="text-[9px] font-bold mt-1 text-white uppercase tracking-wider">3x4 Merah</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs font-mono font-bold text-emerald-700">
-                      {user?.role === 'MAHASISWA' && `NIM: ${user.nim}`}
-                      {user?.role === 'DOSEN' && `NIDN: ${user.nidn}`}
-                      {user?.role === 'SUPERADMIN' && `Username: ${user.username}`}
-                    </p>
-                    <span className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                      {user?.role}
-                    </span>
+
+                    {/* Change photo button trigger */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute -bottom-2 -right-2 p-1.5 rounded-full bg-[#166534] hover:bg-[#14532D] text-white shadow-md border-2 border-white transition"
+                      title="Unggah / Atur Pasfoto 3x4"
+                    >
+                      <CameraIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl sm:text-2xl font-bold text-[#1E293B] tracking-tight truncate">
+                        {user?.nama}
+                      </h1>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#166534]">
+                      {user?.role === 'MAHASISWA' && (
+                        <span>NIM: {user.nim || user.username}</span>
+                      )}
+                      {user?.role === 'DOSEN' && (
+                        <span>NIDN: {user.nidn || user.username}</span>
+                      )}
+                      {user?.role === 'SUPERADMIN' && (
+                        <span>ID Admin: {user.username}</span>
+                      )}
+                    </div>
+
+                    <div className="pt-1 flex items-center gap-2">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
+                        {user?.role === 'MAHASISWA' && 'Biodata Mahasiswa'}
+                        {user?.role === 'DOSEN' && 'Biodata Dosen Pengajar'}
+                        {user?.role === 'SUPERADMIN' && 'Biodata Super Administrator'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Akun Terverifikasi SSO</span>
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-[8px] bg-[#F0FDF4] border border-[#D8E5DC] text-[#166534] text-xs font-semibold self-start sm:self-auto">
+                  <ShieldCheckIcon className="w-4 h-4 text-[#166534]" />
+                  <span>SSO Terverifikasi</span>
                 </div>
               </div>
 
-              {/* Detail Atribut Akademik */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                <div className="p-3.5 bg-slate-50 rounded-xl space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fakultas</p>
-                  <p className="text-xs font-bold text-slate-800">{user?.fakultas || 'Pusat Kampus'}</p>
-                </div>
-                <div className="p-3.5 bg-slate-50 rounded-xl space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Program Studi / Unit</p>
-                  <p className="text-xs font-bold text-slate-800">{user?.prodi || 'Teknologi Informasi'}</p>
-                </div>
-                <div className="p-3.5 bg-slate-50 rounded-xl space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Akun</p>
-                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{user?.isActive ? 'Aktif' : 'Nonaktif'}</span>
+              {/* CARD 1: KHUSUS BIODATA MAHASISWA */}
+              {user?.role === 'MAHASISWA' && (
+                <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
+                  <p className="text-xs font-bold text-[#475569] uppercase tracking-wider">
+                    Data Akademik Mahasiswa
                   </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Nomor Induk Mahasiswa</span>
+                      <p className="font-mono font-bold text-[#1E293B] mt-0.5">{user.nim || user.username}</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Program Studi (S1)</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.prodi || 'S1 Sistem Informasi'}</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Fakultas</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.fakultas || 'Sains & Teknologi'}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* CARD 2: KHUSUS BIODATA DOSEN */}
+              {user?.role === 'DOSEN' && (
+                <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
+                  <p className="text-xs font-bold text-[#475569] uppercase tracking-wider">
+                    Data Ketenagaan Dosen & Homebase
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">NIDN / NUP</span>
+                      <p className="font-mono font-bold text-[#1E293B] mt-0.5">{user.nidn || user.username}</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Homebase Prodi</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.prodi || 'S1 Pendidikan Agama Islam'}</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Fakultas Induk</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.fakultas || 'Studi Islam'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CARD 3: KHUSUS BIODATA SUPERADMIN */}
+              {user?.role === 'SUPERADMIN' && (
+                <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
+                  <p className="text-xs font-bold text-[#475569] uppercase tracking-wider">
+                    Otoritas Manajemen Sistem & Infrastruktur
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Username Administrator</span>
+                      <p className="font-mono font-bold text-[#1E293B] mt-0.5">{user.username}</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Unit Kerja</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">PUSTIK / IT Center UNUSU</p>
+                    </div>
+                    <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Hak Akses</span>
+                      <p className="font-bold text-[#166534] mt-0.5">Full Root SSO & Master DB</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notification alert */}
             {message && (
               <div
-                className={`p-4 rounded-2xl flex items-start space-x-3 text-xs font-medium ${
+                className={`p-3.5 rounded-[10px] flex items-center justify-between text-xs font-medium ${
                   message.type === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border border-rose-200 text-rose-800'
+                    ? 'bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534]'
+                    : 'bg-[#FEE2E2] border border-[#FECACA] text-[#B91C1C]'
                 }`}
               >
-                {message.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 mt-0.5 text-rose-600 flex-shrink-0" />
-                )}
-                <span>{message.text}</span>
+                <div className="flex items-center gap-2">
+                  {message.type === 'success' ? (
+                    <CheckCircleIcon className="w-4 h-4 text-[#166534] flex-shrink-0" />
+                  ) : (
+                    <ExclamationCircleIcon className="w-4 h-4 text-[#B91C1C] flex-shrink-0" />
+                  )}
+                  <span>{message.text}</span>
+                </div>
+                <button onClick={() => setMessage(null)} className="text-[#94A3B8] hover:text-[#475569]">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
               </div>
             )}
 
-            {/* Form Edit Profile & Ganti Password */}
-            <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+            {/* Form Input Kontak & Keamanan Akun */}
+            <form onSubmit={handleSubmit} className="bg-white rounded-[16px] p-6 sm:p-7 border border-[#D8E5DC] shadow-xs space-y-6">
               <div>
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-emerald-700" />
-                  <span>Kontak & Informasi Pribadi</span>
+                <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+                  <EnvelopeIcon className="w-4 h-4 text-[#166534]" />
+                  <span>Kontak & Pasfoto Biodata</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Pastikan email dan nomor WhatsApp Anda aktif untuk menerima notifikasi kampus.
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  Pastikan alamat email dan nomor WhatsApp Anda aktif untuk komunikasi resmi kampus.
                 </p>
+              </div>
+
+              {/* Photo Upload Notice */}
+              <div className="p-3.5 rounded-[10px] bg-[#F0FDF4] border border-[#D8E5DC] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <CameraIcon className="w-5 h-5 text-[#166534] flex-shrink-0" />
+                  <div>
+                    <span className="font-bold text-[#1E293B]">Pasfoto Resmi (3x4 Latar Belakang Merah)</span>
+                    <p className="text-[11px] text-[#64748B]">Gunakan foto formal menghadap ke depan dengan latar merah.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="self-start sm:self-auto px-3.5 py-1.5 rounded-[8px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-xs font-semibold text-[#166534] transition"
+                >
+                  {avatar ? 'Ganti Pasfoto' : 'Pilih & Crop Pasfoto'}
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">Email Kampus / Pribadi</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nama@unusu.ac.id"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
-                  />
+                  <label className="block text-xs font-semibold text-[#1E293B]">
+                    Alamat Email <span className="text-[#B91C1C]">*</span>
+                  </label>
+                  <div className="relative">
+                    <EnvelopeIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="nama@unusu.ac.id"
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                    />
+                  </div>
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">No. WhatsApp</label>
-                  <input
-                    type="text"
-                    value={noHp}
-                    onChange={(e) => setNoHp(e.target.value)}
-                    placeholder="0812xxxxxxxx"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
-                  />
+                  <label className="block text-xs font-semibold text-[#1E293B]">
+                    Nomor WhatsApp Aktif <span className="text-[#B91C1C]">*</span>
+                  </label>
+                  <div className="relative">
+                    <PhoneIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      required
+                      value={noHp}
+                      onChange={(e) => setNoHp(e.target.value)}
+                      placeholder="0812xxxxxxxx"
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Password Section */}
-              <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="pt-6 border-t border-[#E8EFEA] space-y-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <KeyRound className="w-4 h-4 text-emerald-700" />
-                    <span>Ubah Password SSO</span>
+                  <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+                    <KeyIcon className="w-4 h-4 text-[#166534]" />
+                    <span>Ubah Kata Sandi SSO</span>
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Kosongkan jika Anda tidak bermaksud mengganti password akun Anda.
+                  <p className="text-xs text-[#64748B] mt-0.5">
+                    Kosongkan jika Anda tidak ingin mengganti kata sandi akun SSO Anda saat ini.
                   </p>
                 </div>
 
-                <div className="space-y-3 max-w-md">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">Password Saat Ini</label>
+                    <label className="block text-xs font-semibold text-[#1E293B]">Kata Sandi Saat Ini</label>
                     <input
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Masukkan password saat ini"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
+                      placeholder="Masukkan kata sandi lama"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">Password Baru</label>
+                    <label className="block text-xs font-semibold text-[#1E293B]">Kata Sandi Baru</label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Minimal 6 karakter"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">Ulangi Password Baru</label>
+                    <label className="block text-xs font-semibold text-[#1E293B]">Ulangi Kata Sandi Baru</label>
                     <input
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Ketik ulang password baru"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition"
+                      placeholder="Konfirmasi kata sandi baru"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Save Button */}
-              <div className="pt-4 flex justify-end">
+              <div className="pt-4 border-t border-[#E8EFEA] flex justify-end">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-950/10 transition disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-[8px] bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-xs transition shadow-xs disabled:opacity-50"
                 >
-                  {submitting ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
+                  {submitting ? 'Menyimpan...' : 'Simpan Pembaruan Biodata'}
                 </button>
               </div>
             </form>
           </>
         )}
-      </main>
-    </div>
+
+        {/* MODAL ADJUST & CROP PASFOTO 3X4 DENGAN LATAR BELAKANG MERAH */}
+        {cropModalOpen && rawImageSrc && (
+          <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-[#D8E5DC]">
+              
+              <div className="flex justify-between items-center pb-3 border-b border-[#E8EFEA]">
+                <div>
+                  <h3 className="font-bold text-[#1E293B] text-sm">Sesuaikan Pasfoto 3x4 Resmi</h3>
+                  <p className="text-[11px] text-[#64748B]">Geser dan perbesar foto agar pas di dalam bingkai 3x4 berlatar merah.</p>
+                </div>
+                <button
+                  onClick={() => setCropModalOpen(false)}
+                  className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Crop Viewport: Rasio 3:4 (w-60 h-80 / 240px x 320px) dengan Background Merah Resmi */}
+              <div className="flex flex-col items-center justify-center py-2">
+                <div
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  className="relative w-60 h-80 rounded-lg overflow-hidden bg-[#b91c1c] border-2 border-dashed border-white/60 shadow-md cursor-grab active:cursor-grabbing select-none"
+                >
+                  <img
+                    ref={imageRef}
+                    src={rawImageSrc}
+                    alt="Foto Asli"
+                    draggable={false}
+                    style={{
+                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                      transformOrigin: 'center center',
+                    }}
+                    className="max-w-none absolute inset-0 m-auto pointer-events-none"
+                  />
+                  
+                  {/* Subtle 3x4 Guideline Grid */}
+                  <div className="absolute inset-0 pointer-events-none border border-white/20">
+                    <div className="w-full h-1/3 border-b border-white/20" />
+                    <div className="w-full h-1/3 border-b border-white/20" />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[#94A3B8] mt-2">
+                  *Klik & geser foto untuk mengatur posisi. Latar belakang merah (#b91c1c) otomatis diterapkan.
+                </p>
+              </div>
+
+              {/* Zoom Controls */}
+              <div className="space-y-1.5 px-4 text-xs">
+                <div className="flex justify-between text-[#475569] font-semibold">
+                  <span>Perbesar / Perkecil (Zoom):</span>
+                  <span>{Math.round(zoom * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="3"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="w-full accent-emerald-800"
+                />
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#E8EFEA]">
+                <button
+                  type="button"
+                  onClick={() => setCropModalOpen(false)}
+                  className="px-3.5 py-2 rounded-[8px] text-[#475569] bg-[#F1F5F2] hover:bg-[#DCFCE7] font-semibold text-xs transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyCrop}
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs transition"
+                >
+                  Terapkan Pasfoto 3x4
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    </SidebarLayout>
   );
 };
+
+export default Profile;

@@ -115,7 +115,7 @@ export function AcademicSection() {
                       <PlaceholderValue value={program.name} fallback={`Prodi ${formatOrder(program.order)}`} />
                     </Link>
                     <span className="wrap-anywhere text-xs text-stone-500">
-                      {program.degree ?? "S1"} · {faculty?.name ?? "Fakultas —"}
+                      {program.degree ?? "S1"} · {faculty?.name ?? "Fakultas"}
                     </span>
                     <SmartLink
                       href={program.websiteUrl}

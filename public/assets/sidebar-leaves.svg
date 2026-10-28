@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 520" fill="none" preserveAspectRatio="xMinYMax meet">
+  <defs>
+    <linearGradient id="leafMint" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0%" stop-color="#86EFAC" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#D1FAE5" stop-opacity="0.55" />
+    </linearGradient>
+    <linearGradient id="leafDeep" x1="0" y1="1" x2="0.6" y2="0">
+      <stop offset="0%" stop-color="#34D399" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#A7F3D0" stop-opacity="0.5" />
+    </linearGradient>
+    <linearGradient id="leafGold" x1="0" y1="1" x2="0.5" y2="0">
+      <stop offset="0%" stop-color="#FDE68A" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FEF9C3" stop-opacity="0.35" />
+    </linearGradient>
+    <linearGradient id="leafPale" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0%" stop-color="#DCFCE7" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#F0FDF4" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+
+  <!-- Soft yellow ambient wash at the base -->
+  <ellipse cx="60" cy="500" rx="150" ry="120" fill="#FEF08A" opacity="0.18" />
+
+  <!-- Far background pale leaf, tall slim blade -->
+  <path d="M42 520 C30 430 34 340 62 250 C86 340 74 440 42 520 Z" fill="url(#leafPale)" />
+
+  <!-- Wide mint leaf sweeping right -->
+  <path d="M28 520 C60 460 118 430 150 372 C148 432 108 486 28 520 Z" fill="url(#leafMint)" />
+
+  <!-- Gold accent leaf tucked behind -->
+  <path d="M60 520 C96 470 150 448 176 404 C180 456 138 496 60 520 Z" fill="url(#leafGold)" />
+
+  <!-- Main deep-green blade curving up the left edge -->
+  <path d="M2 520 C14 420 6 320 34 232 C58 330 44 436 2 520 Z" fill="url(#leafDeep)" />
+
+  <!-- Foreground small leaf near base -->
+  <path d="M30 520 C46 480 84 458 96 424 C104 462 74 496 30 520 Z" fill="url(#leafMint)" />
+
+  <!-- Thin stem accents -->
+  <path d="M20 520 C26 456 40 400 66 352" stroke="#6EE7B7" stroke-width="2.5" stroke-linecap="round" opacity="0.55" />
+  <path d="M56 520 C74 476 106 452 138 428" stroke="#86EFAC" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+</svg>

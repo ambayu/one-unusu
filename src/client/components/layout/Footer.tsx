@@ -31,7 +31,7 @@ export function Footer() {
         <div className="lg:col-span-4">
           <Logo tone="dark" />
           <p className="mt-6 max-w-sm text-sm leading-relaxed">
-            {siteConfig.platformName} — {siteConfig.platformTagline}. Portal terpadu website
+            {siteConfig.platformName} : {siteConfig.platformTagline}. Portal terpadu website
             universitas, fakultas, program studi, dan layanan digital {siteConfig.name}.
           </p>
           <ul className="mt-6 flex flex-wrap gap-2" aria-label="Media sosial">

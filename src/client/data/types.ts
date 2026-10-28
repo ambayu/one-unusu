@@ -19,6 +19,42 @@ export type NavItem = {
 
 export type ServiceStatus = "available" | "coming-soon";
 
+export type Faculty = {
+  id: string;
+  slug: string;
+  order: number;
+  name: string;
+  websiteUrl: string | null;
+};
+
+export type StudyProgram = {
+  id: string;
+  slug: string;
+  order: number;
+  name: string;
+  degree: string;
+  facultyId: string;
+  websiteUrl: string | null;
+};
+
+export type NewsItem = {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  date: string;
+  isSample?: boolean;
+};
+
+export type AgendaItem = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  isSample?: boolean;
+};
+
 export type DigitalService = {
   id: string;
   name: string;

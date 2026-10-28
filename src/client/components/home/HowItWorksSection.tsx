@@ -29,7 +29,7 @@ export function HowItWorksSection() {
           id="tentang-title"
           eyebrow="Keamanan & Kemudahan"
           title="Bagaimana ONE UNUSU Bekerja?"
-          description="Standar portal identitas modern yang dirancang untuk mempermudah akses dan menjaga keamanan data civitas kampus."
+          description="Standar portal identitas civitas kampus untuk mempermudah akses dan menjaga keamanan data autentikasi."
           align="center"
         />
 
