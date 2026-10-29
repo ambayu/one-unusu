@@ -1,74 +1,159 @@
 ﻿# ONE UNUSU
 
-**Integrated Digital Campus Platform**  
+**Integrated Digital Campus Platform**
 Universitas Nahdlatul Ulama Sumatera Utara (UNUSU)
 
----
-
-## 🚀 Arsitektur & Teknologi
-
-Proyek ini menggunakan arsitektur **Fullstack Monorepo Ringan**:
-* **Frontend (`client/`)**: Vite React 18, TypeScript, Tailwind CSS, Lucide Icons, React Router v6.
-* **Backend (`server/`)**: Node.js Express, TypeScript, Prisma ORM.
-* **Database**: MySQL (`one_unusu_db`).
+Portal identitas digital tunggal (SSO) beserta katalog aplikasi terintegrasi, direktori akademik publik, dan panel tata kelola SSO. Seluruh kode berada dalam **satu paket fullstack** di repositori ini.
 
 ---
 
-## 📁 Struktur Direktori
+## Teknologi
+
+| Lapisan | Teknologi |
+|---|---|
+| Frontend | Vite, React 18, TypeScript, Tailwind CSS, Heroicons, React Router 7 |
+| Backend | Node.js, Express, TypeScript (entri tunggal `src/server/index.ts`) |
+| Database | MySQL melalui Prisma ORM |
+| Autentikasi | JWT + otorisasi berbasis izin `resource:action` |
+
+---
+
+## Struktur Direktori
 
 ```text
 one-unusu/
-├── client/              # Frontend Web Portal (Vite React)
-│   ├── src/
-│   │   ├── components/  # Navbar, Footer, Mega Menu
-│   │   ├── pages/       # Home, Fakultas, Prodi, Layanan, Berita
-│   │   └── services/    # Axios API Client
-│   └── package.json
-├── server/              # Backend REST API (Node.js + Prisma)
-│   ├── src/             # Express API Controllers & Routes
-│   ├── prisma/          # schema.prisma & seeder 6 Fakultas & 14 Prodi
-│   └── package.json
-└── package.json         # Root orchestration (concurrently dev)
+├── src/
+│   ├── client/                 # SPA portal publik + panel SSO
+│   │   ├── components/         # layout, section beranda, komponen ui
+│   │   ├── data/               # konten statis: academics, services, news, navigation, site
+│   │   ├── hooks/              # hook bersama
+│   │   ├── lib/                # util & katalog izin (permissions.ts)
+│   │   ├── pages/              # Home, Aplikasi, Fakultas, Prodi, Layanan, Bantuan,
+│   │   │                       # Keamanan, Login, Dashboard, Profile, admin/*
+│   │   └── services/           # klien API (Axios)
+│   └── server/
+│       └── index.ts            # seluruh endpoint REST API
+├── prisma/
+│   ├── schema.prisma           # model User, Role, Permission, RolePermission,
+│   │                           # SsoApp, SsoAuthToken, Fakultas, Prodi,
+│   │                           # LayananKampus, Berita, BannerSlider
+│   ├── access-control.ts       # katalog izin + definisi peran sistem
+│   ├── seed.ts                 # seed akun, registri aplikasi SSO, izin & peran
+│   └── seed-access.ts          # seed izin & peran saja (tanpa data lain)
+├── public/assets/              # logo, banner hero, ilustrasi, foto
+├── docs/                       # governance: rules, arsitektur, design system, docs per rute
+├── index.html
+├── vite.config.ts
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.server.json
+└── package.json
 ```
 
 ---
 
-## ⚡ Cara Menjalankan
+## Cara Menjalankan
 
-### 1. Instalasi Dependensi
-Jalankan di root folder:
+### 1. Instalasi dependensi
+
 ```bash
 npm install
-npm install --prefix server
-npm install --prefix client
 ```
 
-### 2. Setup Database & Prisma (Server)
-Copy file `.env.example` ke `.env` di folder `server/`:
+### 2. Konfigurasi environment
+
+Salin `.env.example` menjadi `.env` di root proyek, lalu sesuaikan:
+
 ```bash
-cp server/.env.example server/.env
+DATABASE_URL="mysql://root:@localhost:3306/one_unusu_db"
+JWT_SECRET="..."
+CORS_ORIGIN="http://localhost:5173"
+VITE_API_URL="http://localhost:5000/api"
 ```
-Sesuaikan konfigurasi database MySQL di `server/.env`, lalu jalankan:
+
+### 3. Setup Prisma
+
 ```bash
-cd server
 npx prisma generate
 npx prisma migrate dev --name init
 npm run prisma:seed
 ```
 
-### 3. Jalankan Aplikasi
-Jalankan secara bersamaan dari root folder:
+`prisma:seed` membutuhkan `SSO_CLIENT_KEY_*`, `SEED_PUBLIC_BASE_URL`, dan `SEED_ADMIN_PASSWORD`. Akun demo dosen/mahasiswa hanya dibuat bila `SEED_DEMO_PASSWORD` diset.
+
+Bila hanya perlu menyiapkan katalog izin dan peran sistem (gejala: sidebar hanya menampilkan judul "MENU UTAMA" tanpa item), jalankan:
+
+```bash
+npm run prisma:seed:access
+```
+
+### 4. Jalankan aplikasi
+
 ```bash
 npm run dev
 ```
-* **Frontend**: `http://localhost:5173`
-* **Backend API**: `http://localhost:5000/api`
+
+* Frontend: `http://localhost:5173`
+* Backend API: `http://localhost:5000/api`
+* `/api` diproksi oleh Vite saat mode pengembangan.
 
 ---
 
-## 🌐 Modul Ekosistem Terkait
-Layanan terintegrasi yang beroperasi di repositori terpisah:
-* `lms-unusu`: E-learning & ruang belajar digital.
-* `esurat-unusu`: Persuratan dinas & disposisi digital.
-* `sdm-sarpras-unusu`: Kepegawaian & sarana prasarana.
-* `lpm-lppm-unusu`: Penjaminan mutu & LPPM riset.
+## Perintah npm
+
+| Perintah | Fungsi |
+|---|---|
+| `npm run dev` | Menjalankan server (tsx watch) dan Vite bersamaan |
+| `npm run dev:server` | Hanya backend |
+| `npm run dev:client` | Hanya frontend |
+| `npm run build` | Build client (`vite build`) lalu server (`tsc`) |
+| `npm start` | Menjalankan hasil build di `dist/server/index.js` |
+| `npm run prisma:generate` | Generate Prisma Client |
+| `npm run prisma:migrate` | Migrasi development |
+| `npm run prisma:seed` | Seed lengkap |
+| `npm run prisma:seed:access` | Seed izin, peran, dan pemetaan role pengguna |
+| `npm run prisma:seed:directory` | Seed direktori aplikasi non-SSO (`LayananKampus`) |
+
+---
+
+## Aplikasi yang Terdaftar di Repositori Ini
+
+Registri aplikasi SSO ada di `prisma/seed.ts` (tabel `SsoApp`), sedangkan katalog yang tampil di portal publik ada di `src/client/data/services.ts`.
+
+| clientId | Nama | Terintegrasi SSO | Peran yang diizinkan |
+|---|---|---|---|
+| `unusu-lms` | LMS UNUSU | Ya | DOSEN, MAHASISWA, SUPERADMIN |
+| `lppm-unusu` | LPPM UNUSU | Ya | DOSEN, SUPERADMIN |
+| `lpm-unusu` | LPM UNUSU | Ya | DOSEN, SUPERADMIN |
+| `esurat-unusu` | E-Surat UNUSU | Ya | DOSEN, MAHASISWA, SUPERADMIN |
+| `sdm-sarpras-unusu` | SDM & Sarpras | Ya | DOSEN, SUPERADMIN |
+| `unusu-akreditasi` | Akreditasi UNUSU | Ya | DOSEN, SUPERADMIN |
+| `siakad` | SIAKAD UNUSU | Tidak (tautan eksternal) | Seluruh civitas |
+
+Yang tersedia di repositori ini adalah **registri aplikasi, kredensial klien (`clientKey`), dan alur penerbitan token SSO** — yaitu `POST /api/sso/app-client/:clientId/v2/redirect` dan `POST /api/v2/website/verify-token`. Kode aplikasi terintegrasi tidak berada di dalam repo ini.
+
+---
+
+## Sumber Data Konten
+
+Halaman publik (`/fakultas`, `/prodi`, `/layanan`, `/aplikasi`) membaca konten dari `src/client/data/`:
+
+* `academics.ts` — daftar fakultas dan program studi
+* `services.ts` — katalog aplikasi digital
+* `news.ts` — berita dan agenda
+* `navigation.ts`, `site.ts` — navigasi, identitas, dan tautan eksternal
+
+Model `Fakultas`, `Prodi`, `Berita`, dan `BannerSlider` sudah tersedia di skema Prisma, namun belum memiliki seeder.
+
+Aplikasi non-SSO berada di tabel `LayananKampus` dan di-seed lewat `prisma/directory.ts` (`npm run prisma:seed:directory`). Entri saat ini: SIAKAD UNUSU dan PMB UNUSU. Entri lain ditambahkan melalui panel `/admin/direktori`.
+
+---
+
+## Dokumentasi
+
+* `docs/README.md` — indeks dokumentasi
+* `docs/PROJECT_RULES.md` — aturan pengembangan & batasan wajib
+* `docs/ARCHITECTURE.md` — arsitektur, alur SSO, dan daftar endpoint
+* `docs/design-system/` — token warna, tipografi, komponen, template halaman
+* `docs/routes/` — README, RULES, dan CHANGELOG per rute (`public`, `auth`, `dashboard`, `profile`, `admin`)
+* `AGENTS.md` — instruksi teknis untuk agen otomatis

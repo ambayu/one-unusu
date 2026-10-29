@@ -3,6 +3,9 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 8000,
+  // Sesi portal disimpan pada cookie HttpOnly, jadi setiap request wajib
+  // membawa kredensial. Frontend tidak pernah membaca token secara langsung.
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,9 +14,11 @@ const api = axios.create({
 // Interceptor untuk menyematkan JWT Token otomatis di setiap request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('one_unusu_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Klien lama masih menyimpan token di storage; bila ada, tetap dikirim
+    // sebagai header agar tidak memutus sesi yang sedang berjalan.
+    const legacyToken = localStorage.getItem('one_unusu_token');
+    if (legacyToken && config.headers) {
+      config.headers.Authorization = `Bearer ${legacyToken}`;
     }
     return config;
   },
@@ -33,7 +38,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const loginPath = `${import.meta.env.BASE_URL}login`;
+      const baseUrl = import.meta.env.BASE_URL;
+      const loginPath = `${baseUrl}login`;
       const onLoginPage = window.location.pathname === loginPath;
 
       localStorage.removeItem('one_unusu_token');
@@ -41,7 +47,15 @@ api.interceptors.response.use(
 
       // Di halaman login, biarkan formulir yang menampilkan pesan galat.
       if (!onLoginPage) {
-        window.location.replace(loginPath);
+        // Sertakan tujuan semula supaya pengguna kembali ke halaman yang sama
+        // setelah login, termasuk saat masuk lewat tautan aplikasi cabang.
+        const path = window.location.pathname.startsWith(baseUrl)
+          ? `/${window.location.pathname.slice(baseUrl.length)}`
+          : window.location.pathname;
+        const nextPath = `${path}${window.location.search}`;
+        const safeNext = nextPath.startsWith('//') ? '' : nextPath;
+
+        window.location.replace(`${loginPath}?next=${encodeURIComponent(safeNext)}`);
       }
     }
     return Promise.reject(error);
@@ -95,6 +109,8 @@ export interface SsoAppItem {
   badge?: string;
   urlRedirect: string;
   targetRoles: string;
+  /** Dihitung server dari `targetRoles` vs peran pengguna yang sedang login. */
+  isAllowed?: boolean;
   isActive: boolean;
   order: number;
 }
@@ -130,6 +146,9 @@ export const loginSso = (identifier: string, password: string) =>
 
 export const fetchMe = () =>
   api.get<{ status: boolean; data: UserProfile }>('/auth/me');
+
+export const logoutSession = () =>
+  api.post<{ status: boolean; message: string }>('/auth/logout');
 
 export const updateProfile = (data: { email?: string; noHp?: string; avatar?: string; currentPassword?: string; newPassword?: string }) =>
   api.put<{ status: boolean; message: string; data: UserProfile }>('/auth/profile', data);

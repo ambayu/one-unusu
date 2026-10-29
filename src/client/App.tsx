@@ -8,6 +8,7 @@ import { ProdiPage } from './pages/Prodi';
 import { LayananPage } from './pages/Layanan';
 import { KeamananPage } from './pages/Keamanan';
 import { Login } from './pages/Login';
+import { SsoAuthorize } from './pages/SsoAuthorize';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { RegistrasiSso } from './pages/admin/RegistrasiSso';
@@ -18,7 +19,6 @@ import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { PERMISSIONS } from './lib/permissions';
 import type { UserProfile } from './services/api';
 
-const TOKEN_STORAGE_KEY = 'one_unusu_token';
 const USER_STORAGE_KEY = 'one_unusu_user';
 
 function readCachedUser(): UserProfile | null {
@@ -35,10 +35,13 @@ function readCachedUser(): UserProfile | null {
   }
 }
 
-// Protected Route Guard untuk SSO Dashboard
+/**
+ * Penjaga rute panel. Validasi sesi sebenarnya dilakukan server melalui cookie
+ * HttpOnly, jadi cache pengguna di sini hanya penanda agar pengunjung anonim
+ * langsung diarahkan ke halaman login.
+ */
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!token) {
+  if (!readCachedUser()) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -85,6 +88,8 @@ export function App() {
 
         {/* SSO Authentication & Portal Routes */}
         <Route path="/login" element={<Login />} />
+        {/* Titik masuk SSO dari aplikasi cabang (LMS, E-Surat, Akreditasi, dll.) */}
+        <Route path="/sso/authorize" element={<SsoAuthorize />} />
         <Route
           path="/dashboard"
           element={

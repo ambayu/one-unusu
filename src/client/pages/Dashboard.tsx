@@ -89,15 +89,18 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('one_unusu_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
+    // Validasi sesi dilakukan server lewat cookie HttpOnly; bila cookie sudah
+    // tidak berlaku, interceptor mengarahkan pengguna kembali ke halaman login.
     loadDashboardData();
   }, [navigate]);
 
   const handleLaunchApp = async (app: SsoAppItem) => {
+    // Peran tidak sesuai: jangan minta token, langsung arahkan ke landing page.
+    if (app.isAllowed === false) {
+      navigate('/');
+      return;
+    }
+
     try {
       setRedirectingAppId(app.id);
       const res = await getSsoRedirectV2(app.clientId);
@@ -108,6 +111,13 @@ export const Dashboard: React.FC = () => {
       }
     } catch (err: any) {
       console.error('SSO Redirect error:', err);
+
+      // Peran tidak berhak atas aplikasi ini: langsung ke landing page.
+      if (err.response?.status === 403) {
+        navigate('/');
+        return;
+      }
+
       alert(err.response?.data?.message || 'Gagal mengarahkan ke aplikasi cabang.');
     } finally {
       setRedirectingAppId(null);
@@ -303,7 +313,10 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {apps.map((app) => (
+            {apps.map((app) => {
+              const isAllowed = app.isAllowed !== false;
+
+              return (
               <div
                 key={app.id}
                 className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] hover:border-[#166534] bg-white shadow-xs hover:shadow-md transition-all duration-200"
@@ -314,7 +327,9 @@ export const Dashboard: React.FC = () => {
                     <img
                       src={getAppPreviewImage(app)}
                       alt={`Gambar aplikasi ${app.nameApp}`}
-                      className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
+                      className={`w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103 ${
+                        isAllowed ? '' : 'grayscale opacity-70'
+                      }`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
@@ -325,9 +340,15 @@ export const Dashboard: React.FC = () => {
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                        Terkoneksi
-                      </span>
+                      {isAllowed ? (
+                        <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                          Terkoneksi
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                          Akses Terbatas
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -345,16 +366,27 @@ export const Dashboard: React.FC = () => {
                 {/* Tombol Aksi Buka Aplikasi */}
                 <div className="p-4 sm:p-5 pt-0">
                   <button
-                    onClick={() => handleLaunchApp(app)}
-                    disabled={redirectingAppId === app.id}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs hover:shadow-sm transition disabled:opacity-50"
+                    onClick={() => (isAllowed ? handleLaunchApp(app) : navigate('/'))}
+                    disabled={isAllowed && redirectingAppId === app.id}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
+                      isAllowed
+                        ? 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                        : 'bg-white border border-[#D8E5DC] text-[#64748B] hover:bg-[#F7FBF8] hover:text-[#166534]'
+                    }`}
                   >
-                    <span>{redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi'}</span>
+                    <span>
+                      {isAllowed
+                        ? redirectingAppId === app.id
+                          ? 'Mengarahkan SSO...'
+                          : 'Buka Aplikasi'
+                        : 'Buka Beranda'}
+                    </span>
                     <ArrowRightIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           )}
         </div>

@@ -1,5 +1,26 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-10-30] - Semua Aplikasi Tampil, Akses Tetap Dibatasi Peran
+
+### Changed
+- **`GET /api/sso/apps` tidak lagi menyaring aplikasi per peran.** Seluruh aplikasi aktif dikirim ke dashboard, masing-masing membawa penanda `isAllowed` hasil perbandingan `targetRoles` dengan peran pengguna yang sedang login. Penegakan akses tetap di endpoint penerbitan token (`fail-closed`).
+- **Kartu aplikasi di Dashboard** menampilkan seluruh aplikasi: yang sesuai peran memakai badge hijau **Terkoneksi** dan tombol "Buka Aplikasi"; yang tidak sesuai memakai badge amber **Akses Terbatas**, gambar di-`grayscale`, dan tombol "Buka Beranda".
+
+### Added
+- `handleLaunchApp` pada `Dashboard.tsx` mengarahkan pengguna ke landing page (`/`) bila `isAllowed === false` atau server membalas `403`. Pengguna tidak lagi menerima `alert` pesan penolakan peran.
+
+## [2026-10-30] - Sidebar Kosong: Seed Role & Izin Dipisah
+
+### Fixed
+- **Sidebar tanpa item menu** untuk semua peran (termasuk Superadmin). Penyebab: tabel `Permission` dan `Role` kosong serta kolom `User.roleId` bernilai `null` pada seluruh akun, sehingga `getUserPermissionKeys()` mengembalikan array kosong dan `hasPermission()` di `SidebarLayout` menyaring habis `MENU UTAMA`.
+
+### Added
+- `prisma/access-control.ts`: sumber tunggal `PERMISSION_CATALOG`, `ROLE_DEFINITIONS`, dan `seedAccessControl(prisma)` yang menyinkronkan izin, peran sistem, serta pemetaan `User.roleId` berdasarkan kolom enum `User.role`. Bersifat idempotent dan tidak menghapus izin yang sudah diberikan lewat panel admin.
+- `prisma/seed-access.ts` + skrip `npm run prisma:seed:access` untuk menyiapkan akses tanpa menjalankan seed penuh (yang membutuhkan `SSO_CLIENT_KEY_*`, `SEED_PUBLIC_BASE_URL`, dan `SEED_ADMIN_PASSWORD`).
+
+### Changed
+- `prisma/seed.ts` tidak lagi menduplikasi katalog izin/peran; bagian ke-3 kini memanggil `seedAccessControl(prisma)`. Perilaku `deleteMany` pada `RolePermission` dihapus agar seeding tidak mencabut izin hasil konfigurasi admin.
+
 ## [2026-10-29] - Ornamen Sidebar Dilebarkan 60%
 
 ### Changed

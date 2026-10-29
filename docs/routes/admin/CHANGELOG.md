@@ -1,5 +1,16 @@
 # Changelog — Admin Panel
 
+## [2026-10-30] - Seeder Direktori Non-SSO
+
+### Added
+- `prisma/directory.ts`: sumber tunggal `DIRECTORY_ENTRIES` dan fungsi `seedDirectory(prisma)` untuk tabel `LayananKampus`, dipakai bersama oleh `prisma/seed.ts` dan `prisma/seed-directory.ts`.
+- Skrip `npm run prisma:seed:directory` untuk mengisi direktori non-SSO tanpa menjalankan seed penuh.
+- Entri awal: **SIAKAD UNUSU** (`https://siakad.unusu.ac.id`, ikon `AcademicCapIcon`) dan **PMB UNUSU** (`https://pmb.unusu.ac.id`, ikon `UserIcon`), keduanya `isExternal: true`.
+
+### Changed
+- `prisma/seed.ts` kini memiliki bagian ke-4 yang memanggil `seedDirectory(prisma)`, sehingga seed lengkap ikut mengisi direktori non-SSO.
+- `seedDirectory` bersifat idempotent: pencocokan memakai `nama`, entri yang sudah ada diperbarui (bukan diduplikasi), dan entri lain hasil panel admin tidak dihapus.
+
 ## [2026-10-29] - Pemecahan Panel Admin & Izin Berbasis Resource
 
 ### Added

@@ -4,6 +4,18 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ---
 
+## [2026-10-30]
+
+### Changed
+- `README.md` ditulis ulang agar sesuai kondisi repositori: menghapus klaim struktur monorepo (`client/` dan `server/` terpisah), perintah `npm install --prefix`, ikon Lucide, dan React Router v6.
+- Bagian "Modul Ekosistem Terkait" yang menyebut repositori di luar workspace (`lms-unusu`, `esurat-unusu`, `sdm-sarpras-unusu`, `lpm-lppm-unusu`) diganti tabel **Aplikasi yang Terdaftar di Repositori Ini** berisi 7 entri: 6 aplikasi SSO dari `prisma/seed.ts` dan `siakad` (tautan eksternal non-SSO) dari `src/client/data/services.ts`.
+- Klaim "seeder 6 Fakultas & 14 Prodi" dihapus; diganti penjelasan bahwa konten fakultas, prodi, layanan, berita, dan banner dibaca dari `src/client/data/` dan model Prisma terkait belum memiliki seeder.
+- Menambahkan tabel perintah npm, daftar variabel environment, dan tautan indeks dokumentasi `docs/`.
+
+### Added
+- Catatan penyiapan akses via `npm run prisma:seed:access` bila tabel izin/peran belum terisi.
+- Seeder direktori aplikasi non-SSO: `prisma/directory.ts`, `prisma/seed-directory.ts`, dan skrip `npm run prisma:seed:directory` (entri awal: SIAKAD UNUSU dan PMB UNUSU).
+
 ## [2026-10-29]
 
 ### Added

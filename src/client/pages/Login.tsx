@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
 import {
   EyeIcon,
@@ -9,6 +9,12 @@ import {
   ArrowPathIcon,
   ChevronLeftIcon,
 } from '@heroicons/react/24/outline';
+
+/**
+ * Kata sandi akun uji coba. Nilainya harus sama dengan `SEED_DEMO_PASSWORD`
+ * dan `SEED_ADMIN_PASSWORD` pada environment saat seeding.
+ */
+const DEMO_PASSWORD = 'password123';
 
 export const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -32,31 +38,41 @@ export const Login: React.FC = () => {
   };
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  /**
+   * Tujuan lanjutan setelah login, dipakai alur SSO dari aplikasi cabang.
+   * Hanya path internal yang diterima agar tidak bisa dipakai sebagai
+   * pengalihan ke situs luar.
+   */
+  const rawNext = searchParams.get('next');
+  const nextPath =
+    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+
+  const resolveLandingPath = (role?: string) =>
+    role === 'SUPERADMIN' ? '/admin' : '/dashboard';
 
   useEffect(() => {
     generateCaptcha();
 
-    // Jika sudah ada session token login, langsung arahkan ke panel yang sesuai
-    const existingToken = localStorage.getItem('one_unusu_token');
+    // Sesi aktif ditandai oleh cookie HttpOnly. Bila cache pengguna tersedia,
+    // arahkan langsung ke panel; server tetap memvalidasi sesi pada request
+    // berikutnya dan mengembalikan pengguna ke halaman ini bila sudah berakhir.
     const existingUserStr = localStorage.getItem('one_unusu_user');
-    if (existingToken && existingUserStr) {
+    if (existingUserStr) {
       try {
         const u = JSON.parse(existingUserStr);
-        if (u.role === 'SUPERADMIN') {
-          navigate('/admin', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
+        navigate(nextPath ?? resolveLandingPath(u.role), { replace: true });
       } catch (e) {
         // Abaikan parse error
       }
     }
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim() || !password) {
-      setError('Silakan masukkan NIM / NIDN dan kata sandi Anda.');
+      setError('Silakan masukkan NIM / NIDN / username dan kata sandi Anda.');
       return;
     }
 
@@ -72,19 +88,22 @@ export const Login: React.FC = () => {
       setError(null);
 
       const res = await loginSso(identifier, password);
-      if (res.data.status && res.data.token) {
-        localStorage.setItem('one_unusu_token', res.data.token);
+      if (res.data.status) {
+        // Hanya profil umum yang disimpan; token sesi berada di cookie HttpOnly.
         localStorage.setItem('one_unusu_user', JSON.stringify(res.data.data));
 
         // Cek apakah data profil (email & noHp) masih kosong
         const userData = res.data.data;
-        if (!userData.email || !userData.noHp) {
+
+        // Alur SSO dari aplikasi cabang: lanjutkan ke tujuan semula agar
+        // pengguna tidak berhenti di panel portal.
+        if (nextPath) {
+          navigate(nextPath);
+        } else if (!userData.email || !userData.noHp) {
           // Arahkan ke halaman profil terlebih dahulu untuk melengkapi biodata
           navigate('/profil', { state: { requiredBio: true } });
-        } else if (userData.role === 'SUPERADMIN') {
-          navigate('/admin');
         } else {
-          navigate('/dashboard');
+          navigate(resolveLandingPath(userData.role));
         }
       } else {
         setError(res.data.message || 'Login gagal.');
@@ -105,11 +124,7 @@ export const Login: React.FC = () => {
 
   const fillQuickAccount = (userVal: string) => {
     setIdentifier(userVal);
-    if (userVal === 'admin') {
-      setPassword('AdminPassword123!');
-    } else {
-      setPassword('password123');
-    }
+    setPassword(DEMO_PASSWORD);
     setCaptchaAnswer(String(captchaNum1 + captchaNum2));
     setError(null);
   };
@@ -140,7 +155,7 @@ export const Login: React.FC = () => {
               Masuk
             </h1>
             <p className="mt-2 text-sm text-[#64748B]">
-              Gunakan NIM (Mahasiswa) atau NIDN (Dosen / Tendik)
+              Gunakan NIM (Mahasiswa), NIDN (Dosen / Tendik), atau username administrator
             </p>
           </div>
 
@@ -156,13 +171,13 @@ export const Login: React.FC = () => {
             {/* NIM / NIDN */}
             <div className="space-y-1.5">
               <label className="block text-sm font-semibold text-[#1E293B]">
-                NIM / NIDN <span className="text-[#B91C1C]">*</span>
+                NIM / NIDN / Username <span className="text-[#B91C1C]">*</span>
               </label>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Masukkan NIM atau NIDN"
+                placeholder="Masukkan NIM, NIDN, atau username"
                 className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                 required
               />

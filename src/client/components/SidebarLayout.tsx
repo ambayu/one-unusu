@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { UserProfile } from '../services/api';
+import { UserProfile, logoutSession } from '../services/api';
 import {
   HomeIcon,
   UserCircleIcon,
@@ -33,7 +33,13 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Hapus sesi di server agar cookie HttpOnly ikut dibersihkan.
+      await logoutSession();
+    } catch {
+      // Sesi mungkin sudah berakhir; pembersihan lokal tetap dilanjutkan.
+    }
     localStorage.removeItem('one_unusu_token');
     localStorage.removeItem('one_unusu_user');
     navigate('/login');

@@ -123,4 +123,6 @@ Catatan implementasi:
      - `GET|POST /api/admin/apps`, `PUT /api/admin/apps/:id`
      - `GET /api/admin/permissions`, `GET|POST /api/admin/roles`, `PUT /api/admin/roles/:id`, `PUT /api/admin/roles/:id/permissions`, `DELETE /api/admin/roles/:id`
    - Setiap endpoint admin dilindungi middleware `requirePermission(key)`; `permissions` pengguna dikirim pada `POST /api/auth/login` dan `GET /api/auth/me`.
+   - `GET /api/sso/apps` mengembalikan **semua** aplikasi aktif beserta penanda `isAllowed` (perbandingan `targetRoles` dengan peran pengguna). Penyaringan keras hanya dilakukan pada `GET /api/sso/app-client/:clientId/v2/redirect` yang menolak `403` bila peran tidak berhak.
+   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai untuk pemetaan saat seeding (`prisma/access-control.ts`, dijalankan lewat `npm run prisma:seed:access`).
    - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`.

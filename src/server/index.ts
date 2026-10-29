@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -23,6 +24,23 @@ if (JWT_SECRET.length < 32) {
   console.error("FATAL: JWT_SECRET terlalu pendek (minimal 32 karakter). Server dihentikan demi keamanan.");
   process.exit(1);
 }
+
+/**
+ * Sesi portal disimpan pada cookie HttpOnly supaya token tidak dapat dibaca
+ * JavaScript browser. Path dibatasi ke prefix aplikasi agar cookie tidak ikut
+ * terkirim ke aplikasi cabang lain yang berbagi domain.
+ */
+const AUTH_COOKIE_NAME = "one_unusu_token";
+const AUTH_COOKIE_PATH = process.env.AUTH_COOKIE_PATH || "/";
+const AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+const authCookieOptions = {
+  httpOnly: true,
+  secure: process.env.AUTH_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: AUTH_COOKIE_PATH,
+  maxAge: AUTH_TOKEN_TTL_MS,
+};
 
 // Di belakang reverse proxy (nginx), IP asli klien dibaca dari X-Forwarded-For
 // supaya rate limiter bekerja per klien, bukan per proxy.
@@ -57,6 +75,8 @@ app.use(
     crossOriginEmbedderPolicy: false
   })
 );
+
+app.use(cookieParser());
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
@@ -211,13 +231,31 @@ function isAuthPayload(decoded: unknown): decoded is AuthRequest["user"] {
   );
 }
 
-const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+/**
+ * Ambil token sesi dari cookie HttpOnly. Header Authorization tetap diterima
+ * sebagai jalur cadangan agar klien lama dan pengujian manual via curl masih
+ * berjalan. Token di query string tetap ditolak karena mudah bocor lewat
+ * access log, history browser, dan Referer.
+ */
+const readSessionToken = (req: Request): string | null => {
+  const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
+  if (typeof cookieToken === "string" && cookieToken.trim()) {
+    return cookieToken.trim();
+  }
+
   const authHeader = req.headers.authorization;
-  // Token hanya diterima dari header Authorization. Token di query string
-  // ditolak karena mudah bocor lewat access log, history browser, dan Referer.
-  const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : null;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    const headerToken = authHeader.slice(7).trim();
+    if (headerToken) {
+      return headerToken;
+    }
+  }
+
+  return null;
+};
+
+const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const token = readSessionToken(req);
 
   if (!token) {
     return res.status(401).json({ status: false, message: "Akses ditolak. Token tidak disediakan." });
@@ -391,7 +429,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
     if (typeof identifier !== "string" || typeof password !== "string" || !identifier.trim() || !password) {
       return res.status(400).json({
         status: false,
-        message: "NIM / NIDN dan password wajib diisi."
+        message: "NIM / NIDN / username dan password wajib diisi."
       });
     }
 
@@ -421,7 +459,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       await bcrypt.compare(password, DUMMY_PASSWORD_HASH).catch(() => false);
       return res.status(401).json({
         status: false,
-        message: "NIM / NIDN atau password salah."
+        message: "NIM / NIDN / username atau password salah."
       });
     }
 
@@ -436,7 +474,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
     if (!isMatch) {
       return res.status(401).json({
         status: false,
-        message: "NIM / NIDN atau password salah."
+        message: "NIM / NIDN / username atau password salah."
       });
     }
 
@@ -453,6 +491,10 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
     );
 
     const permissionKeys = await getUserPermissionKeys(user.id);
+
+    // Sesi utama dititipkan pada cookie HttpOnly. Token tetap disertakan di body
+    // hanya untuk kompatibilitas klien lama; frontend tidak lagi menyimpannya.
+    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions);
 
     res.json({
       status: true,
@@ -476,6 +518,13 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
     logServerError("POST /api/auth/login", error);
     res.status(500).json({ status: false, message: "Terjadi kesalahan server saat login." });
   }
+});
+
+// POST /api/auth/logout (Akhiri sesi portal)
+app.post("/api/auth/logout", (req: Request, res: Response) => {
+  const { maxAge: _maxAge, ...clearOptions } = authCookieOptions;
+  res.clearCookie(AUTH_COOKIE_NAME, clearOptions);
+  res.json({ status: true, message: "Sesi berhasil diakhiri." });
 });
 
 // GET /api/auth/me (Ambil profil sesi yang sedang login)
@@ -642,19 +691,21 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
-    // Filter aplikasi yang diizinkan untuk role user (fail-closed: konfigurasi
-    // rusak tidak boleh membuka akses).
-    const accessibleApps = apps.filter((app) => {
+    // Seluruh aplikasi aktif dikirim ke dashboard. Penanda `isAllowed` dipakai
+    // UI untuk menonaktifkan kartu yang perannya tidak sesuai; penegakan akses
+    // tetap dilakukan pada endpoint penerbitan token di bawah (fail-closed).
+    const appsWithAccess = apps.map((app) => {
       try {
         const allowedRoles: unknown = JSON.parse(app.targetRoles);
-        return Array.isArray(allowedRoles) && allowedRoles.includes(userRole);
+        const isAllowed = Array.isArray(allowedRoles) && allowedRoles.includes(userRole);
+        return { ...app, isAllowed };
       } catch {
         logServerError(`targetRoles tidak valid pada aplikasi ${app.clientId}`, app.targetRoles);
-        return false;
+        return { ...app, isAllowed: false };
       }
     });
 
-    res.json({ status: true, data: accessibleApps });
+    res.json({ status: true, data: appsWithAccess });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal memuat katalog aplikasi SSO." });
   }

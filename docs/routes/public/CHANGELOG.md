@@ -9,6 +9,8 @@
 - **Hero Landing Page — Teks Menyatu di Gambar**: `HeroSection` tidak lagi menampilkan panel teks overlay (tag, judul, paragraf). Headline tiap slide di-bake langsung ke dalam aset banner agar foto tetap jernih tanpa lapisan blur. Sisa overlay di JSX hanya tombol aksi, indikator slide, dan navigasi; judul halaman dipindah ke `h1.sr-only` untuk aksesibilitas.
 - **Hero Landing Page — Pesan per Slide**: Teks banner kini berbeda tiap slide (bukan "ONE UNUSU" seragam): *Kampus Terpadu / Gedung Rektorat Gaperta*, *Aktivitas Akademik / Kolaborasi Mahasiswa*, *Fasilitas Teknologi / Laboratorium Komputasi*, *Pusat Literasi / Perpustakaan Kampus*.
 - **Hero Landing Page — Mobile**: Banner memakai aset mobile 1:1 terpisah lewat `<picture><source media="(max-width: 767px)">`, dirender pada kontainer `aspect-square` sehingga tampil utuh tanpa ter-crop dan teks tetap besar. Mulai breakpoint `md` banner menjadi full-bleed `absolute inset-0` memakai aset 16:9 dengan `object-cover`.
+- **Hero Landing Page — Overlay Dihapus**: Gradient scrim `linear-gradient` di atas banner (dan `backdrop-blur` pada tombol sekunder) dihapus total. Tombol aksi, indikator, dan navigasi slide memakai warna solid `brand-950` agar foto tampil apa adanya.
+- **Hero Landing Page — Tombol CTA Dihapus**: Tombol "Masuk SSO" dan "Katalog (n)" di dalam hero dihilangkan. Hero kini murni banner bergambar dengan navigasi slide (dot + panah) di bagian bawah. Jalur masuk tetap tersedia lewat Navbar (`Login SSO`) dan banner SSO di `DigitalServicesSection`.
 
 ### Added
 - **Aset hero mobile** `public/assets/hero/*-mobile.png` (1024×1024) — empat banner vertikal dengan tipografi di tengah-atas dan scrim gradient hijau tua di bagian atas.
