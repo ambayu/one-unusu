@@ -20,15 +20,28 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor response untuk menangani session expired (401 / 403)
+/**
+ * Interceptor response untuk menangani sesi berakhir.
+ *
+ * Hanya 401 yang berarti sesi tidak lagi sah. 403 berarti pengguna sah namun
+ * tidak berizin pada endpoint tersebut, sehingga sesi tidak boleh dihapus.
+ * Setelah token dibersihkan, pengguna diarahkan ke halaman login: tanpa
+ * pengalihan, komponen sempat dirender dengan data pengguna kosong dan
+ * meninggalkan tampilan panel tanpa menu.
+ */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      // Jika token kedaluwarsa saat mengakses endpoint private
-      if (window.location.pathname !== import.meta.env.BASE_URL + 'login') {
-        localStorage.removeItem('one_unusu_token');
-        localStorage.removeItem('one_unusu_user');
+    if (error.response?.status === 401) {
+      const loginPath = `${import.meta.env.BASE_URL}login`;
+      const onLoginPage = window.location.pathname === loginPath;
+
+      localStorage.removeItem('one_unusu_token');
+      localStorage.removeItem('one_unusu_user');
+
+      // Di halaman login, biarkan formulir yang menampilkan pesan galat.
+      if (!onLoginPage) {
+        window.location.replace(loginPath);
       }
     }
     return Promise.reject(error);

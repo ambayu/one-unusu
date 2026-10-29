@@ -47,7 +47,20 @@ export const Dashboard: React.FC = () => {
         fetchDirectories(),
       ]);
 
-      if (userRes.status === 'fulfilled' && userRes.value.data.status) {
+      // allSettled tidak pernah melempar galat, jadi kegagalan tiap permintaan
+      // harus diperiksa manual. Tanpa ini, sesi mati hanya menghasilkan panel
+      // kosong tanpa menu dan tanpa pesan apa pun.
+      if (userRes.status === 'rejected') {
+        const status = userRes.reason?.response?.status;
+        if (status === 401 || status === 403) {
+          // Interceptor sudah membersihkan sesi dan mengalihkan ke halaman login.
+          return;
+        }
+        setError('Gagal memuat data akun Anda. Periksa koneksi lalu muat ulang halaman.');
+        return;
+      }
+
+      if (userRes.value.data.status) {
         setUser(userRes.value.data.data);
         localStorage.setItem('one_unusu_user', JSON.stringify(userRes.value.data.data));
       }
