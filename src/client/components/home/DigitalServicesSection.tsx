@@ -210,7 +210,7 @@ export function DigitalServicesSection() {
         </div>
 
         {/* Banner Ajakan Masuk SSO (Sesuai Aturan Docs: brand-900 solid, gold-400 button, tanpa grid buram) */}
-        <div className="mt-16 p-8 sm:p-10 rounded-3xl bg-brand-900 text-white text-center max-w-4xl mx-auto space-y-5 shadow-xl border border-brand-800 relative overflow-hidden">
+        <div className="mt-16 p-8 sm:p-10 rounded-3xl bg-brand-900 text-white text-center w-full space-y-5 shadow-xl border border-brand-800 relative overflow-hidden">
           <div className="relative z-10 space-y-3">
             <span className="inline-block px-3 py-1 rounded-full bg-gold-400/15 text-gold-300 text-xs font-bold uppercase tracking-wider border border-gold-400/30">
               Single Sign-On Gateway

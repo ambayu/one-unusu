@@ -8,26 +8,26 @@ const heroSlides = [
   {
     id: 1,
     image: "/assets/hero/hero-campus-1.png",
-    tag: "Kampus Terpadu UNUSU",
-    title: "Gedung Rektorat & Kampus Gaperta Medan",
+    imageMobile: "/assets/hero/hero-campus-1-mobile.png",
+    title: "Kampus Terpadu - Gedung Rektorat Gaperta",
   },
   {
     id: 2,
     image: "/assets/hero/hero-students-2.png",
-    tag: "Aktivitas Akademik",
-    title: "Kolaborasi & Ruang Belajar Mahasiswa",
+    imageMobile: "/assets/hero/hero-students-2-mobile.png",
+    title: "Aktivitas Akademik - Kolaborasi Mahasiswa",
   },
   {
     id: 3,
     image: "/assets/hero/hero-digital-3.png",
-    tag: "Fasilitas Teknologi",
-    title: "Laboratorium Komputasi & Multimedia",
+    imageMobile: "/assets/hero/hero-digital-3-mobile.png",
+    title: "Fasilitas Teknologi - Laboratorium Komputasi",
   },
   {
     id: 4,
-    image: "/assets/apps/app-lms.png",
-    tag: "Ekosistem Satelit",
-    title: "LMS & Layanan Digital Terintegrasi",
+    image: "/assets/hero/hero-library-4.png",
+    imageMobile: "/assets/hero/hero-library-4-mobile.png",
+    title: "Pusat Literasi - Perpustakaan Kampus",
   },
 ];
 
@@ -41,15 +41,16 @@ export function HeroSection() {
     return () => clearInterval(timer);
   }, []);
 
-  const slide = heroSlides[currentSlide];
-
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative isolate h-[calc(100vh-5rem)] min-h-[550px] w-full flex flex-col justify-between overflow-hidden bg-brand-950 text-white"
+      className="relative isolate w-full overflow-hidden bg-brand-950 text-white md:flex md:h-[calc(100vh-5rem)] md:min-h-[550px] md:flex-col md:justify-between"
     >
-      {/* GAMBAR FULL SCREEN TINGGI MAKSIMAL (100% HEIGHT) & JERNIH */}
-      <div className="absolute inset-0 -z-20 overflow-hidden pointer-events-none">
+      {/*
+        Mobile: banner memakai aset mobile berukuran 1:1 sehingga tampil utuh tanpa ter-crop.
+        Desktop: banner menutupi seluruh section (full-bleed) memakai aset 16:9.
+      */}
+      <div className="relative aspect-square w-full overflow-hidden md:absolute md:inset-0 md:aspect-auto md:h-full md:-z-20">
         {heroSlides.map((item, index) => (
           <div
             key={item.id}
@@ -57,82 +58,63 @@ export function HeroSection() {
               index === currentSlide ? "opacity-100" : "opacity-0"
             }`}
           >
-            <img
-              src={item.image}
-              alt={item.title}
-              className="w-full h-full object-cover object-center"
-            />
+            <picture>
+              <source media="(max-width: 767px)" srcSet={item.imageMobile} />
+              <img
+                src={item.image}
+                alt={item.title}
+                className="h-full w-full object-cover object-center"
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+            </picture>
           </div>
         ))}
       </div>
 
-      {/* OVERLAY SANGAT TIPIS HANYA DI ATAS & BAWAH SUPAYA FOTO TETAP TERANG DAN JERNIH */}
+      {/* Scrim tipis hanya di desktop, untuk keterbacaan tombol di area bawah */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-gradient-to-b from-brand-950/60 via-transparent to-brand-950/85 pointer-events-none"
+        className="pointer-events-none absolute inset-0 -z-10 hidden bg-gradient-to-t from-brand-950/85 via-brand-950/20 to-transparent md:block"
       />
 
-      {/* RUANG TENGAH KOSONG AGAR FOTO TAMPIL PENUH */}
-      <div className="flex-1" />
+      {/* Judul visual sudah menyatu di dalam gambar banner */}
+      <h1 id="hero-title" className="sr-only">
+        ONE UNUSU - Portal SSO terpadu Universitas Nahdlatul Ulama Sumatera Utara
+      </h1>
 
-      {/* KONTEN MINIMALIS MENEMPEL ELEGAN DI BAGIAN BAWAH */}
-      <div className="relative z-10 pb-8 pt-16">
+      {/* Ruang tengah kosong agar foto tampil penuh di desktop */}
+      <div className="hidden md:block md:flex-1" />
+
+      {/* Aksi & navigasi slide */}
+      <div className="relative z-10 py-6 md:pb-8 md:pt-16">
         <Container>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            
-            {/* Teks Singkat & Bersih */}
-            <div className="max-w-xl space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-brand-950/70 border border-gold-400/50 px-3.5 py-1 text-xs font-bold text-gold-300 backdrop-blur-md uppercase tracking-wider">
-                <span className="size-2 rounded-full bg-gold-400 animate-pulse" />
-                <span>{slide.tag}</span>
-              </div>
-              
-              <h1
-                id="hero-title"
-                className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
-              >
-                ONE UNUSU <span className="text-gold-300">Portal SSO</span>
-              </h1>
-              
-              <p className="text-sm sm:text-base text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] font-medium">
-                Satu akun untuk mengakses seluruh layanan akademik, administrasi, dan penjaminan mutu.
-              </p>
-            </div>
-
-            {/* Tombol Aksi Cepat */}
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between md:gap-6">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold-400 px-6 py-3.5 text-sm font-bold text-brand-950 shadow-xl shadow-black/40 hover:bg-gold-300 transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold-400 px-6 py-3.5 text-sm font-bold text-brand-950 shadow-xl shadow-black/40 transition-all hover:scale-105 hover:bg-gold-300 active:scale-95"
               >
                 <Icon name="shield" className="size-4" />
                 <span>Masuk SSO</span>
               </Link>
               <Link
                 to="/aplikasi"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-black/60 border border-white/30 backdrop-blur-md px-6 py-3.5 text-sm font-semibold text-white hover:bg-black/80 transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-black/60 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all hover:bg-black/80"
               >
                 <Icon name="layers" className="size-4 text-gold-300" />
                 <span>Katalog ({digitalServices.length})</span>
               </Link>
             </div>
 
-          </div>
-
-          {/* Kontrol Navigasi Slide Bawah */}
-          <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between">
-            <span className="text-xs sm:text-sm text-white/80 font-medium drop-shadow">
-              {slide.title}
-            </span>
-
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3 md:justify-end">
               <div className="flex items-center gap-1.5">
                 {heroSlides.map((item, idx) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setCurrentSlide(idx)}
-                    aria-label={`Slide ${idx + 1}`}
+                    aria-label={`Slide ${idx + 1}: ${item.title}`}
+                    aria-current={idx === currentSlide}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
                       idx === currentSlide ? "w-6 bg-gold-400" : "w-2 bg-white/40 hover:bg-white/70"
                     }`}
@@ -143,9 +125,11 @@ export function HeroSection() {
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1))}
-                  aria-label="Sebelumnya"
-                  className="size-7 rounded-lg bg-black/50 border border-white/20 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+                  onClick={() =>
+                    setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1))
+                  }
+                  aria-label="Slide sebelumnya"
+                  className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-white transition-colors hover:bg-black/80"
                 >
                   <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -154,8 +138,8 @@ export function HeroSection() {
                 <button
                   type="button"
                   onClick={() => setCurrentSlide((prev) => (prev + 1) % heroSlides.length)}
-                  aria-label="Berikutnya"
-                  className="size-7 rounded-lg bg-black/50 border border-white/20 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+                  aria-label="Slide berikutnya"
+                  className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-white transition-colors hover:bg-black/80"
                 >
                   <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -164,7 +148,6 @@ export function HeroSection() {
               </div>
             </div>
           </div>
-
         </Container>
       </div>
 
