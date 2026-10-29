@@ -184,6 +184,9 @@ export const deleteAdminRole = (id: number) =>
 export const fetchDirectories = () =>
   api.get<{ status: boolean; data: DirectoryItem[] }>('/directories');
 
+export const fetchAdminDirectories = () =>
+  api.get<{ status: boolean; data: DirectoryItem[] }>('/admin/directories');
+
 export const createAdminDirectory = (data: Partial<DirectoryItem>) =>
   api.post<{ status: boolean; message: string; data: DirectoryItem }>('/admin/directories', data);
 

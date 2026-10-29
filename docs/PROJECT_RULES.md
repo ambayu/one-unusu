@@ -65,6 +65,19 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 3. **Database Safety**: Operasi destruktif (`DROP`, `TRUNCATE`, bulk delete) dilarang keras tanpa persetujuan eksplisit.
 4. **Type Safety**: Kode TypeScript harus bersih, hindari penggunaan `any` atau `@ts-ignore` tanpa alasan defensif yang valid.
 
+### 5.1 Lapisan Hardening Server (Wajib Dipertahankan)
+
+1. **Security Header**: `helmet` wajib aktif. CSP membatasi `script-src 'self'`; `img-src` mengizinkan `data:` karena ikon disimpan sebagai data URL base64.
+2. **CORS Allowlist**: Origin hanya diterima bila terdaftar di `CORS_ORIGIN` (dipisah koma). Bila variabel kosong, hanya origin lokal yang lolos. Dilarang mengembalikan `origin: true`.
+3. **Batas Payload Berlapis**: Body parser global dibatasi `1mb`; hanya route `POST/PUT /api/admin/apps` dan `PUT /api/auth/profile` yang memakai `50mb` untuk gambar base64.
+4. **Rate Limiting**: `POST /api/auth/login` maksimal 10 percobaan gagal per 15 menit per IP (`skipSuccessfulRequests`), `POST /api/v2/website/verify-token` 120/menit, operasi tulis admin 60/menit, dan limiter global 300/menit untuk seluruh `/api`.
+5. **Token Hanya dari Header**: `authenticateToken` menerima token **hanya** dari `Authorization: Bearer`. Token via query string ditolak karena mudah bocor lewat access log dan `Referer`. Algoritma JWT dipatok ke `HS256`.
+6. **Tidak Membocorkan Detail Error**: Respons klien selalu pesan generik. Detail error hanya ditulis ke log server via `logServerError()`. Dilarang menyertakan `error.message` di response.
+7. **Validasi URL Keluar**: Semua URL yang dirender menjadi tautan (`urlTarget`, `urlRedirect`) wajib lolos `normalizeHttpUrl()` (hanya `http`/`https`), untuk mencegah `javascript:` XSS.
+8. **Fail-Closed**: Konfigurasi tidak valid (mis. `targetRoles` bukan JSON array peran yang dikenal) harus menolak akses, bukan membuka akses.
+9. **Anti Eskalasi Hak Akses**: Saat memperbarui izin sebuah peran, pengguna hanya boleh memberikan izin yang memang sudah dimilikinya sendiri.
+10. **Single-Use Token Atomik**: Pembakaran token SSO memakai `updateMany` dengan kondisi `isUsed: false` dan `expiresAt > now` di dalam `WHERE` agar dua request paralel tidak dapat memakai token yang sama.
+
 ---
 
 ## 7. Aturan Notifikasi, Dialog & Modal Sistem (Mandatory)

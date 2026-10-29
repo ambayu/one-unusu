@@ -18,7 +18,7 @@ import {
   DirectoryItem,
   createAdminDirectory,
   deleteAdminDirectory,
-  fetchDirectories,
+  fetchAdminDirectories,
   updateAdminDirectory,
 } from '../../services/api';
 import { hasPermission, PERMISSIONS } from '../../lib/permissions';
@@ -73,7 +73,7 @@ export const DirektoriPublik: React.FC = () => {
   const loadDirectories = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchDirectories();
+      const res = await fetchAdminDirectories();
       if (res.data.status) {
         setItems(res.data.data);
       }

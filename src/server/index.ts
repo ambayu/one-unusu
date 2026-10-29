@@ -41,10 +41,11 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        // Google Fonts dipakai di index.html; gaya inline dibutuhkan Tailwind/React.
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         // Ikon aplikasi disimpan sebagai data URL base64.
         imgSrc: ["'self'", "data:", "https:"],
-        fontSrc: ["'self'", "data:"],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
@@ -288,6 +289,51 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString("hex
 function logServerError(context: string, error: unknown): void {
   const detail = error instanceof Error ? error.message : String(error);
   console.error(`[${new Date().toISOString()}] ${context}: ${detail}`);
+}
+
+const ALLOWED_ROLE_SET = new Set<string>(ALLOWED_ROLES);
+
+/**
+ * Menormalkan daftar peran target menjadi JSON array yang hanya berisi peran
+ * yang dikenal sistem. Mengembalikan null bila format tidak valid.
+ */
+function normalizeTargetRoles(value: unknown): string | null {
+  let list: unknown = value;
+
+  if (typeof value === "string") {
+    try {
+      list = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(list) || list.length === 0) {
+    return null;
+  }
+
+  const roles: string[] = [];
+  for (const item of list) {
+    if (typeof item !== "string" || !ALLOWED_ROLE_SET.has(item)) {
+      return null;
+    }
+    roles.push(item);
+  }
+
+  return JSON.stringify(Array.from(new Set(roles)));
+}
+
+/** Ikon boleh berupa nama ikon (alfanumerik) atau gambar (data URL / http). */
+function normalizeIconValue(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+  const trimmed = value.trim();
+  const image = normalizeImageSource(trimmed);
+  if (image) {
+    return image;
+  }
+  return /^[A-Za-z0-9]{1,50}$/.test(trimmed) ? trimmed : null;
 }
 
 
@@ -823,9 +869,10 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
       }
     });
   } catch (error: any) {
+    logServerError("POST /api/v2/website/verify-token", error);
     res.status(500).json({
       status: false,
-      message: "Terjadi kesalahan internal pada server SSO: " + error.message
+      message: "Terjadi kesalahan internal pada server SSO."
     });
   }
 });
@@ -885,15 +932,46 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
 });
 
 // POST /api/admin/users (Tambah User Baru)
-app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), async (req: AuthRequest, res: Response) => {
+app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, nama, email, noHp, role, nim, nidn, fakultas, prodi } = req.body;
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { username, password, nama, email, noHp, role, nim, nidn, fakultas, prodi } = body;
 
-    if (!username || !password || !nama || !role) {
+    if (typeof username !== "string" || typeof password !== "string" || typeof nama !== "string" || typeof role !== "string") {
       return res.status(400).json({ status: false, message: "Username/NIM/NIDN, password, nama, dan role wajib diisi." });
     }
 
-    const existing = await prisma.user.findUnique({ where: { username } });
+    const trimmedUsername = username.trim();
+    const trimmedNama = nama.trim();
+
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      return res.status(400).json({
+        status: false,
+        message: "Username hanya boleh huruf, angka, titik, garis bawah, atau strip (3-40 karakter)."
+      });
+    }
+    if (!trimmedNama || trimmedNama.length > 120) {
+      return res.status(400).json({ status: false, message: "Nama wajib diisi maksimal 120 karakter." });
+    }
+    if (password.length < 8 || password.length > 200) {
+      return res.status(400).json({ status: false, message: "Password minimal 8 karakter." });
+    }
+    if (!ALLOWED_ROLES.includes(role as UserRole)) {
+      return res.status(400).json({ status: false, message: "Peran pengguna tidak valid." });
+    }
+
+    if (email !== undefined && email !== null && email !== "") {
+      if (typeof email !== "string" || email.length > 120 || !EMAIL_PATTERN.test(email.trim())) {
+        return res.status(400).json({ status: false, message: "Format email tidak valid." });
+      }
+    }
+    if (noHp !== undefined && noHp !== null && noHp !== "") {
+      if (typeof noHp !== "string" || !PHONE_PATTERN.test(noHp.trim())) {
+        return res.status(400).json({ status: false, message: "Format nomor WhatsApp tidak valid." });
+      }
+    }
+
+    const existing = await prisma.user.findUnique({ where: { username: trimmedUsername } });
     if (existing) {
       return res.status(400).json({ status: false, message: "Username / NIM / NIDN sudah terdaftar." });
     }
@@ -901,23 +979,39 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await prisma.user.create({
       data: {
-        username,
+        username: trimmedUsername,
         password: hashedPassword,
-        nama,
-        email: email || null,
-        noHp: noHp || null,
+        nama: trimmedNama,
+        email: typeof email === "string" && email.trim() ? email.trim() : null,
+        noHp: typeof noHp === "string" && noHp.trim() ? noHp.trim() : null,
         role: role as UserRole,
-        nim: role === "MAHASISWA" ? (nim || username) : null,
-        nidn: role === "DOSEN" ? (nidn || username) : null,
-        fakultas: fakultas || null,
-        prodi: prodi || null,
+        nim: role === "MAHASISWA" ? (typeof nim === "string" && nim.trim() ? nim.trim() : trimmedUsername) : null,
+        nidn: role === "DOSEN" ? (typeof nidn === "string" && nidn.trim() ? nidn.trim() : trimmedUsername) : null,
+        fakultas: typeof fakultas === "string" && fakultas.trim() ? fakultas.trim() : null,
+        prodi: typeof prodi === "string" && prodi.trim() ? prodi.trim() : null,
         isActive: true
+      },
+      // Password hash tidak pernah dikembalikan ke klien.
+      select: {
+        id: true,
+        username: true,
+        nama: true,
+        email: true,
+        noHp: true,
+        role: true,
+        nim: true,
+        nidn: true,
+        fakultas: true,
+        prodi: true,
+        isActive: true,
+        createdAt: true
       }
     });
 
     res.json({ status: true, message: "Pengguna SSO berhasil didaftarkan.", data: newUser });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal menambahkan pengguna: " + error.message });
+    logServerError("POST /api/admin/users", error);
+    res.status(500).json({ status: false, message: "Gagal menambahkan pengguna." });
   }
 });
 
@@ -934,54 +1028,145 @@ app.get("/api/admin/apps", authenticateToken, requirePermission("application:vie
 });
 
 // POST /api/admin/apps (Tambah Aplikasi Cabang Baru)
-app.post("/api/admin/apps", authenticateToken, requirePermission("application:edit"), async (req: AuthRequest, res: Response) => {
+app.post("/api/admin/apps", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { clientId, clientKey, nameApp, description, icon, badge, urlRedirect, targetRoles } = req.body;
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { clientId, clientKey, nameApp, description, icon, badge, urlRedirect, targetRoles } = body;
 
-    if (!clientId || !clientKey || !nameApp || !urlRedirect) {
+    if (typeof clientId !== "string" || typeof clientKey !== "string" || typeof nameApp !== "string") {
       return res.status(400).json({ status: false, message: "client_id, client_key, nama aplikasi, dan URL redirect wajib diisi." });
     }
 
-    const existing = await prisma.ssoApp.findUnique({ where: { clientId } });
+    const trimmedClientId = clientId.trim();
+    const trimmedNameApp = nameApp.trim();
+    const normalizedUrl = normalizeHttpUrl(urlRedirect);
+
+    if (!/^[A-Za-z0-9._-]{3,100}$/.test(trimmedClientId)) {
+      return res.status(400).json({ status: false, message: "Client ID hanya boleh huruf, angka, titik, garis bawah, atau strip (3-100 karakter)." });
+    }
+    if (clientKey.trim().length < 16 || clientKey.trim().length > 200) {
+      return res.status(400).json({ status: false, message: "Client Key minimal 16 karakter." });
+    }
+    if (!trimmedNameApp || trimmedNameApp.length > 120) {
+      return res.status(400).json({ status: false, message: "Nama aplikasi wajib diisi maksimal 120 karakter." });
+    }
+    if (!normalizedUrl) {
+      return res.status(400).json({ status: false, message: "URL redirect harus berupa alamat http atau https yang valid." });
+    }
+
+    const normalizedRoles = targetRoles === undefined
+      ? JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"])
+      : normalizeTargetRoles(targetRoles);
+
+    if (!normalizedRoles) {
+      return res.status(400).json({ status: false, message: "Daftar peran target tidak valid." });
+    }
+
+    const normalizedIcon = icon === undefined ? "LayoutGrid" : normalizeIconValue(icon);
+    if (!normalizedIcon) {
+      return res.status(400).json({ status: false, message: "Ikon aplikasi tidak valid." });
+    }
+
+    const existing = await prisma.ssoApp.findUnique({ where: { clientId: trimmedClientId } });
     if (existing) {
       return res.status(400).json({ status: false, message: "Aplikasi dengan Client ID tersebut sudah terdaftar." });
     }
 
     const newApp = await prisma.ssoApp.create({
       data: {
-        clientId,
-        clientKey,
-        nameApp,
-        description: description || null,
-        icon: icon || "LayoutGrid",
-        badge: badge || "Internal",
-        urlRedirect,
-        targetRoles: typeof targetRoles === "string" ? targetRoles : JSON.stringify(targetRoles || ["DOSEN", "MAHASISWA", "SUPERADMIN"]),
+        clientId: trimmedClientId,
+        clientKey: clientKey.trim(),
+        nameApp: trimmedNameApp,
+        description: typeof description === "string" && description.trim() ? description.trim() : null,
+        icon: normalizedIcon,
+        badge: typeof badge === "string" && badge.trim() ? badge.trim().slice(0, 40) : "Internal",
+        urlRedirect: normalizedUrl,
+        targetRoles: normalizedRoles,
         isActive: true
       }
     });
 
     res.json({ status: true, message: "Aplikasi SSO berhasil didaftarkan.", data: newApp });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal mendaftarkan aplikasi: " + error.message });
+    logServerError("POST /api/admin/apps", error);
+    res.status(500).json({ status: false, message: "Gagal mendaftarkan aplikasi." });
   }
 });
 
 // PUT /api/admin/apps/:id (Update Aplikasi Cabang)
-app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application:edit"), async (req: AuthRequest, res: Response) => {
+app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    const { nameApp, description, icon, badge, urlRedirect, targetRoles, isActive, clientKey } = req.body;
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID aplikasi tidak valid." });
+    }
 
-    const data: any = {};
-    if (nameApp) data.nameApp = nameApp;
-    if (description !== undefined) data.description = description;
-    if (icon) data.icon = icon;
-    if (badge) data.badge = badge;
-    if (urlRedirect) data.urlRedirect = urlRedirect;
-    if (clientKey) data.clientKey = clientKey;
-    if (targetRoles) data.targetRoles = typeof targetRoles === "string" ? targetRoles : JSON.stringify(targetRoles);
-    if (isActive !== undefined) data.isActive = isActive;
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { nameApp, description, icon, badge, urlRedirect, targetRoles, isActive, clientKey } = body;
+
+    const data: {
+      nameApp?: string;
+      description?: string | null;
+      icon?: string;
+      badge?: string;
+      urlRedirect?: string;
+      clientKey?: string;
+      targetRoles?: string;
+      isActive?: boolean;
+    } = {};
+
+    if (nameApp !== undefined) {
+      if (typeof nameApp !== "string" || !nameApp.trim() || nameApp.trim().length > 120) {
+        return res.status(400).json({ status: false, message: "Nama aplikasi tidak valid." });
+      }
+      data.nameApp = nameApp.trim();
+    }
+    if (description !== undefined) {
+      data.description = typeof description === "string" && description.trim() ? description.trim() : null;
+    }
+    if (icon !== undefined) {
+      const normalizedIcon = normalizeIconValue(icon);
+      if (!normalizedIcon) {
+        return res.status(400).json({ status: false, message: "Ikon aplikasi tidak valid." });
+      }
+      data.icon = normalizedIcon;
+    }
+    if (badge !== undefined) {
+      if (typeof badge !== "string" || !badge.trim()) {
+        return res.status(400).json({ status: false, message: "Badge aplikasi tidak valid." });
+      }
+      data.badge = badge.trim().slice(0, 40);
+    }
+    if (urlRedirect !== undefined) {
+      const normalizedUrl = normalizeHttpUrl(urlRedirect);
+      if (!normalizedUrl) {
+        return res.status(400).json({ status: false, message: "URL redirect harus berupa alamat http atau https yang valid." });
+      }
+      data.urlRedirect = normalizedUrl;
+    }
+    if (clientKey !== undefined && clientKey !== "") {
+      if (typeof clientKey !== "string" || clientKey.trim().length < 16 || clientKey.trim().length > 200) {
+        return res.status(400).json({ status: false, message: "Client Key minimal 16 karakter." });
+      }
+      data.clientKey = clientKey.trim();
+    }
+    if (targetRoles !== undefined) {
+      const normalizedRoles = normalizeTargetRoles(targetRoles);
+      if (!normalizedRoles) {
+        return res.status(400).json({ status: false, message: "Daftar peran target tidak valid." });
+      }
+      data.targetRoles = normalizedRoles;
+    }
+    if (isActive !== undefined) {
+      if (typeof isActive !== "boolean") {
+        return res.status(400).json({ status: false, message: "Status aktif harus berupa boolean." });
+      }
+      data.isActive = isActive;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ status: false, message: "Tidak ada data yang diubah." });
+    }
 
     const updated = await prisma.ssoApp.update({
       where: { id },
@@ -990,15 +1175,16 @@ app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application
 
     res.json({ status: true, message: "Data aplikasi SSO berhasil diperbarui.", data: updated });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal memperbarui aplikasi: " + error.message });
+    logServerError("PUT /api/admin/apps/:id", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui aplikasi." });
   }
 });
 
 // DELETE /api/admin/apps/:id (Hapus Aplikasi Terdaftar)
-app.delete("/api/admin/apps/:id", authenticateToken, requirePermission("application:delete"), async (req: AuthRequest, res: Response) => {
+app.delete("/api/admin/apps/:id", authenticateToken, requirePermission("application:delete"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (!id) {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ status: false, message: "ID aplikasi tidak valid." });
     }
 
@@ -1013,7 +1199,8 @@ app.delete("/api/admin/apps/:id", authenticateToken, requirePermission("applicat
 
     res.json({ status: true, message: `Aplikasi ${app.nameApp} berhasil dihapus.` });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal menghapus aplikasi: " + error.message });
+    logServerError("DELETE /api/admin/apps/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus aplikasi." });
   }
 });
 
@@ -1063,15 +1250,23 @@ app.get("/api/admin/roles", authenticateToken, requirePermission("role:view"), a
 });
 
 // POST /api/admin/roles (Tambah peran baru)
-app.post("/api/admin/roles", authenticateToken, requirePermission("role:edit"), async (req: AuthRequest, res: Response) => {
+app.post("/api/admin/roles", authenticateToken, requirePermission("role:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { code, name, description } = req.body;
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { code, name, description } = body;
 
-    if (!code || !name) {
+    if (typeof code !== "string" || typeof name !== "string" || !code.trim() || !name.trim()) {
       return res.status(400).json({ status: false, message: "Kode dan nama peran wajib diisi." });
     }
 
-    const normalizedCode = String(code).trim().toUpperCase().replace(/\s+/g, "_");
+    const normalizedCode = code.trim().toUpperCase().replace(/\s+/g, "_");
+    if (!/^[A-Z0-9_]{2,40}$/.test(normalizedCode)) {
+      return res.status(400).json({ status: false, message: "Kode peran hanya boleh huruf, angka, dan garis bawah (2-40 karakter)." });
+    }
+    if (name.trim().length > 80) {
+      return res.status(400).json({ status: false, message: "Nama peran maksimal 80 karakter." });
+    }
+
     const existing = await prisma.role.findUnique({ where: { code: normalizedCode } });
     if (existing) {
       return res.status(400).json({ status: false, message: "Kode peran tersebut sudah digunakan." });
@@ -1080,51 +1275,69 @@ app.post("/api/admin/roles", authenticateToken, requirePermission("role:edit"), 
     const role = await prisma.role.create({
       data: {
         code: normalizedCode,
-        name: String(name).trim(),
-        description: description ? String(description) : null,
+        name: name.trim(),
+        description: typeof description === "string" && description.trim() ? description.trim().slice(0, 255) : null,
         isSystem: false
       }
     });
 
     res.json({ status: true, message: "Peran baru berhasil dibuat.", data: role });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal membuat peran: " + error.message });
+    logServerError("POST /api/admin/roles", error);
+    res.status(500).json({ status: false, message: "Gagal membuat peran." });
   }
 });
 
 // PUT /api/admin/roles/:id (Ubah nama / deskripsi peran)
-app.put("/api/admin/roles/:id", authenticateToken, requirePermission("role:edit"), async (req: AuthRequest, res: Response) => {
+app.put("/api/admin/roles/:id", authenticateToken, requirePermission("role:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const { name, description } = req.body;
-
-    if (!id) {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ status: false, message: "ID peran tidak valid." });
     }
 
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { name, description } = body;
+
     const data: { name?: string; description?: string | null } = {};
-    if (name) data.name = String(name).trim();
-    if (description !== undefined) data.description = description ? String(description) : null;
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim() || name.trim().length > 80) {
+        return res.status(400).json({ status: false, message: "Nama peran tidak valid." });
+      }
+      data.name = name.trim();
+    }
+    if (description !== undefined) {
+      data.description = typeof description === "string" && description.trim() ? description.trim().slice(0, 255) : null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ status: false, message: "Tidak ada data yang diubah." });
+    }
 
     const role = await prisma.role.update({ where: { id }, data });
     res.json({ status: true, message: "Peran berhasil diperbarui.", data: role });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal memperbarui peran: " + error.message });
+    logServerError("PUT /api/admin/roles/:id", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui peran." });
   }
 });
 
 // PUT /api/admin/roles/:id/permissions (Ganti seluruh izin milik peran)
-app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission("permission:edit"), async (req: AuthRequest, res: Response) => {
+app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission("permission:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const rawKeys: unknown = req.body.permissionKeys;
-
-    if (!id) {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ status: false, message: "ID peran tidak valid." });
     }
 
+    const body = isPlainObject(req.body) ? req.body : {};
+    const rawKeys: unknown = body.permissionKeys;
+
     if (!Array.isArray(rawKeys) || rawKeys.some((key) => typeof key !== "string")) {
       return res.status(400).json({ status: false, message: "permissionKeys harus berupa array string." });
+    }
+    if (rawKeys.length > 500) {
+      return res.status(400).json({ status: false, message: "Jumlah izin melebihi batas." });
     }
 
     const role = await prisma.role.findUnique({ where: { id } });
@@ -1132,8 +1345,21 @@ app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission
       return res.status(404).json({ status: false, message: "Peran tidak ditemukan." });
     }
 
+    const requestedKeys = Array.from(new Set(rawKeys as string[]));
+
+    // Mencegah eskalasi hak akses: pengguna hanya boleh membagikan izin yang
+    // memang sudah dimilikinya sendiri.
+    const ownKeys = await getUserPermissionKeys(req.user!.id);
+    const unauthorizedKeys = requestedKeys.filter((key) => !ownKeys.includes(key));
+    if (unauthorizedKeys.length > 0) {
+      return res.status(403).json({
+        status: false,
+        message: "Anda tidak dapat memberikan izin yang tidak Anda miliki sendiri."
+      });
+    }
+
     const permissions = await prisma.permission.findMany({
-      where: { key: { in: rawKeys as string[] } },
+      where: { key: { in: requestedKeys } },
       select: { id: true }
     });
 
@@ -1151,15 +1377,16 @@ app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission
       data: { roleId: id, totalPermissions: permissions.length }
     });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal memperbarui izin peran: " + error.message });
+    logServerError("PUT /api/admin/roles/:id/permissions", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui izin peran." });
   }
 });
 
 // DELETE /api/admin/roles/:id (Hapus peran non-sistem yang belum dipakai)
-app.delete("/api/admin/roles/:id", authenticateToken, requirePermission("role:delete"), async (req: AuthRequest, res: Response) => {
+app.delete("/api/admin/roles/:id", authenticateToken, requirePermission("role:delete"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (!id) {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ status: false, message: "ID peran tidak valid." });
     }
 
@@ -1183,7 +1410,8 @@ app.delete("/api/admin/roles/:id", authenticateToken, requirePermission("role:de
     await prisma.role.delete({ where: { id } });
     res.json({ status: true, message: "Peran berhasil dihapus." });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal menghapus peran: " + error.message });
+    logServerError("DELETE /api/admin/roles/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus peran." });
   }
 });
 
@@ -1196,57 +1424,152 @@ app.get("/api/directories", async (req: Request, res: Response) => {
   try {
     const directories = await prisma.layananKampus.findMany({
       where: { active: true },
+      orderBy: { urutan: "asc" },
+      select: {
+        id: true,
+        nama: true,
+        kategori: true,
+        deskripsi: true,
+        urlTarget: true,
+        icon: true,
+        isExternal: true,
+        urutan: true,
+        active: true
+      }
+    });
+    res.json({ status: true, data: directories });
+  } catch (error: any) {
+    logServerError("GET /api/directories", error);
+    res.status(500).json({ status: false, message: "Gagal memuat direktori publik." });
+  }
+});
+
+// GET /api/admin/directories (Seluruh direktori termasuk yang nonaktif)
+app.get("/api/admin/directories", authenticateToken, requirePermission("directory:view"), async (req: AuthRequest, res: Response) => {
+  try {
+    const directories = await prisma.layananKampus.findMany({
       orderBy: { urutan: "asc" }
     });
     res.json({ status: true, data: directories });
   } catch (error: any) {
+    logServerError("GET /api/admin/directories", error);
     res.status(500).json({ status: false, message: "Gagal memuat direktori publik." });
   }
 });
 
 // POST /api/admin/directories (Tambah item direktori publik)
-app.post("/api/admin/directories", authenticateToken, requirePermission("directory:edit"), async (req: AuthRequest, res: Response) => {
+app.post("/api/admin/directories", authenticateToken, requirePermission("directory:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { nama, kategori, deskripsi, urlTarget, icon, isExternal, urutan, active } = req.body;
-    if (!nama || !urlTarget) {
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { nama, kategori, deskripsi, urlTarget, icon, isExternal, urutan, active } = body;
+
+    if (typeof nama !== "string" || !nama.trim()) {
       return res.status(400).json({ status: false, message: "Nama direktori dan URL target wajib diisi." });
+    }
+    if (nama.trim().length > 120) {
+      return res.status(400).json({ status: false, message: "Nama direktori maksimal 120 karakter." });
+    }
+
+    const normalizedUrl = normalizeHttpUrl(urlTarget);
+    if (!normalizedUrl) {
+      return res.status(400).json({ status: false, message: "URL target harus berupa alamat http atau https yang valid." });
+    }
+
+    const normalizedIcon = icon === undefined ? "GlobeAltIcon" : normalizeIconValue(icon);
+    if (!normalizedIcon) {
+      return res.status(400).json({ status: false, message: "Ikon direktori tidak valid." });
     }
 
     const created = await prisma.layananKampus.create({
       data: {
-        nama: String(nama).trim(),
-        kategori: kategori ? String(kategori).trim() : "Portal",
-        deskripsi: deskripsi ? String(deskripsi).trim() : null,
-        urlTarget: String(urlTarget).trim(),
-        icon: icon || "GlobeAltIcon",
-        isExternal: Boolean(isExternal),
-        urutan: typeof urutan === "number" ? urutan : 0,
-        active: active !== undefined ? Boolean(active) : true
+        nama: nama.trim(),
+        kategori: typeof kategori === "string" && kategori.trim() ? kategori.trim().slice(0, 60) : "Portal",
+        deskripsi: typeof deskripsi === "string" && deskripsi.trim() ? deskripsi.trim().slice(0, 500) : null,
+        urlTarget: normalizedUrl,
+        icon: normalizedIcon,
+        isExternal: isExternal === true,
+        urutan: toPositiveInt(urutan, 0),
+        active: active === undefined ? true : active === true
       }
     });
 
     res.json({ status: true, message: "Direktori publik berhasil ditambahkan.", data: created });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal menambahkan direktori: " + error.message });
+    logServerError("POST /api/admin/directories", error);
+    res.status(500).json({ status: false, message: "Gagal menambahkan direktori." });
   }
 });
 
 // PUT /api/admin/directories/:id (Update item direktori publik)
-app.put("/api/admin/directories/:id", authenticateToken, requirePermission("directory:edit"), async (req: AuthRequest, res: Response) => {
+app.put("/api/admin/directories/:id", authenticateToken, requirePermission("directory:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (!id) return res.status(400).json({ status: false, message: "ID direktori tidak valid." });
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID direktori tidak valid." });
+    }
 
-    const { nama, kategori, deskripsi, urlTarget, icon, isExternal, urutan, active } = req.body;
-    const data: any = {};
-    if (nama !== undefined) data.nama = String(nama).trim();
-    if (kategori !== undefined) data.kategori = String(kategori).trim();
-    if (deskripsi !== undefined) data.deskripsi = deskripsi ? String(deskripsi).trim() : null;
-    if (urlTarget !== undefined) data.urlTarget = String(urlTarget).trim();
-    if (icon !== undefined) data.icon = icon;
-    if (isExternal !== undefined) data.isExternal = Boolean(isExternal);
-    if (urutan !== undefined) data.urutan = Number(urutan);
-    if (active !== undefined) data.active = Boolean(active);
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { nama, kategori, deskripsi, urlTarget, icon, isExternal, urutan, active } = body;
+
+    const data: {
+      nama?: string;
+      kategori?: string;
+      deskripsi?: string | null;
+      urlTarget?: string;
+      icon?: string;
+      isExternal?: boolean;
+      urutan?: number;
+      active?: boolean;
+    } = {};
+
+    if (nama !== undefined) {
+      if (typeof nama !== "string" || !nama.trim() || nama.trim().length > 120) {
+        return res.status(400).json({ status: false, message: "Nama direktori tidak valid." });
+      }
+      data.nama = nama.trim();
+    }
+    if (kategori !== undefined) {
+      if (typeof kategori !== "string" || !kategori.trim()) {
+        return res.status(400).json({ status: false, message: "Kategori direktori tidak valid." });
+      }
+      data.kategori = kategori.trim().slice(0, 60);
+    }
+    if (deskripsi !== undefined) {
+      data.deskripsi = typeof deskripsi === "string" && deskripsi.trim() ? deskripsi.trim().slice(0, 500) : null;
+    }
+    if (urlTarget !== undefined) {
+      const normalizedUrl = normalizeHttpUrl(urlTarget);
+      if (!normalizedUrl) {
+        return res.status(400).json({ status: false, message: "URL target harus berupa alamat http atau https yang valid." });
+      }
+      data.urlTarget = normalizedUrl;
+    }
+    if (icon !== undefined) {
+      const normalizedIcon = normalizeIconValue(icon);
+      if (!normalizedIcon) {
+        return res.status(400).json({ status: false, message: "Ikon direktori tidak valid." });
+      }
+      data.icon = normalizedIcon;
+    }
+    if (isExternal !== undefined) {
+      if (typeof isExternal !== "boolean") {
+        return res.status(400).json({ status: false, message: "Status eksternal harus berupa boolean." });
+      }
+      data.isExternal = isExternal;
+    }
+    if (urutan !== undefined) {
+      data.urutan = toPositiveInt(urutan, 0);
+    }
+    if (active !== undefined) {
+      if (typeof active !== "boolean") {
+        return res.status(400).json({ status: false, message: "Status aktif harus berupa boolean." });
+      }
+      data.active = active;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ status: false, message: "Tidak ada data yang diubah." });
+    }
 
     const updated = await prisma.layananKampus.update({
       where: { id },
@@ -1255,21 +1578,30 @@ app.put("/api/admin/directories/:id", authenticateToken, requirePermission("dire
 
     res.json({ status: true, message: "Direktori publik berhasil diperbarui.", data: updated });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal memperbarui direktori: " + error.message });
+    logServerError("PUT /api/admin/directories/:id", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui direktori." });
   }
 });
 
 // DELETE /api/admin/directories/:id (Hapus item direktori publik)
-app.delete("/api/admin/directories/:id", authenticateToken, requirePermission("directory:delete"), async (req: AuthRequest, res: Response) => {
+app.delete("/api/admin/directories/:id", authenticateToken, requirePermission("directory:delete"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (!id) return res.status(400).json({ status: false, message: "ID direktori tidak valid." });
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID direktori tidak valid." });
+    }
 
     await prisma.layananKampus.delete({ where: { id } });
     res.json({ status: true, message: "Direktori publik berhasil dihapus." });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Gagal menghapus direktori: " + error.message });
+    logServerError("DELETE /api/admin/directories/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus direktori." });
   }
+});
+
+// Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
+app.use("/api", (req: Request, res: Response) => {
+  res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });
 });
 
 // Fallback all non-API routes to index.html (SPA History Fallback)
@@ -1279,6 +1611,24 @@ app.get("*", (req: Request, res: Response) => {
       res.status(200).send("ONE UNUSU SSO Server Running. Build the client to serve the UI.");
     }
   });
+});
+
+// Penanganan error terpusat: detail teknis hanya masuk log server, tidak pernah
+// dikirim ke klien.
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("CORS")) {
+    res.status(403).json({ status: false, message: "Origin tidak diizinkan." });
+    return;
+  }
+
+  logServerError(`${req.method} ${req.originalUrl}`, err);
+  res.status(500).json({ status: false, message: "Terjadi kesalahan pada server." });
 });
 
 app.listen(PORT, () => {
