@@ -67,10 +67,16 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 
 ---
 
-## 6. Aturan Navigasi & Integritas Rute (Mandatory)
+## 7. Aturan Notifikasi, Dialog & Modal Sistem (Mandatory)
 
-1. **Rute Terdaftar**: Setiap item di `mainNavigation`, `topbarLinks`, dan `footerQuickLinks` wajib menunjuk rute yang terdaftar di `src/client/App.tsx`. Tautan ke halaman yang belum ada dilarang; gunakan `href: null` agar `SmartLink` menampilkan status nonaktif.
-2. **Satu Perubahan, Satu Kesatuan**: Menambah halaman berarti menambah rute di `App.tsx`, menambah tautan navigasi, dan menambah dokumentasi di `docs/routes/<modul>/` pada perubahan yang sama.
-3. **Tanpa Halaman Yatim**: Halaman yang tidak dapat diakses dari navigasi maupun rute internal dilarang dibiarkan di repositori. Hapus, atau daftarkan rutenya.
-4. **Tanpa Komponen Duplikat**: Komponen layout hanya boleh berada di `src/client/components/layout/`. Dilarang membuat salinan di `src/client/components/` tingkat atas.
-5. **Tanpa Data Palsu di UI**: Nilai fallback identitas wajib berupa label netral (`Pengguna`, `Belum tersedia`). Dilarang menampilkan nama, NIM, prodi, atau status contoh yang terlihat seperti data asli.
+1. **Standard Notification Modal**: Seluruh umpan balik aksi (berhasil simpan, gagal validasi/server, dialog konfirmasi hapus/tindakan penting) **wajib menggunakan modal dialog standar (`NotificationModal` / varian modal card)**, bukan banner alert statis yang mudah terlewat atau browser `alert()` / `confirm()`.
+2. **Kategori Modal Notifikasi**:
+   - `success`: Berlatar icon hijau `#DCFCE7`, teks `#166534`, tombol aksi primer.
+   - `error`: Berlatar icon merah `#FEE2E2`, teks `#B91C1C`, tombol tutup bahaya.
+   - `confirm`: Berlatar icon kuning/amber `#FEF3C7`, teks `#B45309`, dua tombol (Batal + Lanjutkan/Hapus).
+   - `info`: Berlatar icon biru `#EFF6FF`, teks `#1D4ED8`.
+3. **Penyimpanan Gambar Base64**: Kolom penyimpan gambar (seperti `icon` aplikasi SSO) di database wajib bertipe `LONGTEXT` di MySQL (`@db.LongText` di Prisma), dan body parser Express wajib diset minimal `50mb` agar tidak terjadi error `413 Payload Too Large` atau data truncation `65535`.
+4. **Statistik Card Icon Placement**: Kartu metrik/statistik operasional di panel tata kelola wajib menempatkan icon di sebelah kanan tengah (bukan pojok kanan atas) dengan ukuran icon minimal `w-8 h-8` di dalam kontainer `w-13 h-13 rounded-[14px]` agar seimbang dengan angka metrik 2xl.
+5. **Permukaan Gelap Portal Publik**: Banner ajakan masuk SSO dan footer landing page wajib patuh pada token resmi `brand-900` (`#0b3a25`) solid dan border `brand-800` (`#0e482d`), aksen `gold-400` (`#d3ac46`) untuk tombol & divider, serta **tanpa grid motif** (`pattern-grid-dark`) agar permukaan bersih, tidak silau/kusam, dan konsisten dengan palet resmi `docs/design-system/COLORS.md`. Dilarang mencampur token abu-abu `slate` ke dalam portal publik.
+6. **Pembedaan Aplikasi SSO & Non-SSO**: Halaman katalog publik (`/aplikasi`) memunculkan seluruh aplikasi secara terbuka dan memisahkannya ke dalam dua section visual terpisah: Section 1 khusus *Aplikasi Terintegrasi Single Sign-On (SSO)* dan Section 2 khusus *Aplikasi Mandiri & Eksternal (Non-SSO)* dengan badge status dan tombol aksi yang relevan.
+7. **Dinamisasi Direktori Publik Dashboard**: Bagian "Portal Informasi & Direktori Publik Kampus" di Dashboard SSO wajib terhubung secara dinamis ke database (tabel `layanan_kampus`) dan dapat dikelola secara penuh (CRUD) melalui menu admin khusus **`/admin/direktori` (Direktori Publik)** yang dilindungi izin `directory:*`. Dilarang melakukan hardcode link direktori di Dashboard.

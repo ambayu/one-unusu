@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { 
   fetchMe, 
   fetchSsoApps, 
+  fetchDirectories,
   getSsoRedirectV2, 
   UserProfile, 
-  SsoAppItem 
+  SsoAppItem,
+  DirectoryItem,
 } from '../services/api';
 import { SidebarLayout } from '../components/SidebarLayout';
+import { isImageSource } from '../lib/appIcon';
 import {
   ShieldCheckIcon,
   AcademicCapIcon,
@@ -26,6 +29,7 @@ import {
 export const Dashboard: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [apps, setApps] = useState<SsoAppItem[]>([]);
+  const [directories, setDirectories] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [redirectingAppId, setRedirectingAppId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,16 +41,21 @@ export const Dashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [userRes, appsRes] = await Promise.all([
+      const [userRes, appsRes, dirRes] = await Promise.allSettled([
         fetchMe(),
-        fetchSsoApps()
+        fetchSsoApps(),
+        fetchDirectories(),
       ]);
 
-      if (userRes.data.status) {
-        setUser(userRes.data.data);
+      if (userRes.status === 'fulfilled' && userRes.value.data.status) {
+        setUser(userRes.value.data.data);
+        localStorage.setItem('one_unusu_user', JSON.stringify(userRes.value.data.data));
       }
-      if (appsRes.data.status) {
-        setApps(appsRes.data.data);
+      if (appsRes.status === 'fulfilled' && appsRes.value.data.status) {
+        setApps(appsRes.value.data.data);
+      }
+      if (dirRes.status === 'fulfilled' && dirRes.value.data.status) {
+        setDirectories(dirRes.value.data.data);
       }
     } catch (err: any) {
       console.error('Error loading SSO apps:', err);
@@ -92,9 +101,12 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Helper mapping thumbnail foto aplikasi dari folder /assets/apps/
-  const getAppPreviewImage = (clientId: string) => {
-    const id = clientId.toLowerCase();
+  // Thumbnail kartu aplikasi: gambar hasil unggahan pada registrasi SSO menjadi sumber utama.
+  // Kolom icon juga menyimpan nama ikon lama, jadi hanya nilai berupa sumber gambar yang dipakai.
+  const getAppPreviewImage = (app: Pick<SsoAppItem, 'clientId' | 'icon'>) => {
+    if (isImageSource(app.icon)) return app.icon as string;
+
+    const id = app.clientId.toLowerCase();
     if (id.includes('lms')) return '/assets/apps/app-lms.png';
     if (id.includes('esurat') || id.includes('e-surat')) return '/assets/apps/app-esurat.png';
     if (id.includes('siakad')) return '/assets/apps/app-siakad.png';
@@ -112,6 +124,21 @@ export const Dashboard: React.FC = () => {
       : user?.role === 'SUPERADMIN'
         ? 'Otoritas & Unit Kerja'
         : 'Data Akademik Mahasiswa';
+
+  const renderDirectoryIcon = (iconName: string | null) => {
+    switch (iconName) {
+      case 'UserIcon':
+        return <UserIcon className="w-5 h-5" />;
+      case 'AcademicCapIcon':
+        return <AcademicCapIcon className="w-5 h-5" />;
+      case 'BuildingOffice2Icon':
+        return <BuildingOffice2Icon className="w-5 h-5" />;
+      case 'Squares2X2Icon':
+        return <Squares2X2Icon className="w-5 h-5" />;
+      default:
+        return <GlobeAltIcon className="w-5 h-5" />;
+    }
+  };
 
   type IdentityMetric = {
     label: string;
@@ -269,12 +296,12 @@ export const Dashboard: React.FC = () => {
                 className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] hover:border-[#166534] bg-white shadow-xs hover:shadow-md transition-all duration-200"
               >
                 <div>
-                  {/* Foto UI Mockup Aplikasi */}
+                  {/* Gambar aplikasi dari registrasi SSO */}
                   <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
                     <img
-                      src={getAppPreviewImage(app.clientId)}
-                      alt={`Tampilan antarmuka ${app.nameApp}`}
-                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-103"
+                      src={getAppPreviewImage(app)}
+                      alt={`Gambar aplikasi ${app.nameApp}`}
+                      className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
@@ -309,7 +336,7 @@ export const Dashboard: React.FC = () => {
                     disabled={redirectingAppId === app.id}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs hover:shadow-sm transition disabled:opacity-50"
                   >
-                    <span>{redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi Cabang'}</span>
+                    <span>{redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi'}</span>
                     <ArrowRightIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -334,109 +361,44 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 1. Portal Utama */}
-            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div className="space-y-2.5">
-                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
-                  <GlobeAltIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
-                    Portal Utama UNUSU
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                    Berita terkini, profil kampus, dan informasi resmi seputar UNUSU.
-                  </p>
-                </div>
+            {directories.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-xs text-[#94A3B8]">
+                Belum ada direktori publik yang dikonfigurasi.
               </div>
-              <a 
-                href="/" 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
-              >
-                <span>Kunjungi Website</span>
-                <ArrowRightIcon className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* 2. PMB Online */}
-            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#B45309] transition flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div className="space-y-2.5">
-                <div className="w-10 h-10 rounded-[10px] bg-[#FEF3C7] flex items-center justify-center text-[#B45309]">
-                  <UserIcon className="w-5 h-5" />
+            ) : (
+              directories.map((dir) => (
+                <div
+                  key={dir.id}
+                  className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs"
+                >
+                  <div className="space-y-2.5">
+                    <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
+                      {renderDirectoryIcon(dir.icon)}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                        {dir.kategori}
+                      </span>
+                      <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
+                        {dir.nama}
+                      </h4>
+                      <p className="text-xs text-[#64748B] mt-1 leading-relaxed line-clamp-2">
+                        {dir.deskripsi || 'Layanan portal publik terpadu UNUSU.'}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={dir.urlTarget}
+                    target={dir.isExternal ? '_blank' : '_self'}
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
+                  >
+                    <span>Kunjungi Tautan</span>
+                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#B45309] transition">
-                    PMB Online UNUSU
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                    Pendaftaran mahasiswa baru, jalur beasiswa, dan panduan seleksi.
-                  </p>
-                </div>
-              </div>
-              <a 
-                href="https://pmb.unusu.ac.id" 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
-              >
-                <span>Portal PMB</span>
-                <ArrowRightIcon className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* 3. SIAKAD Online */}
-            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div className="space-y-2.5">
-                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
-                  <AcademicCapIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
-                    SIAKAD Online
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                    Kartu Rencana Studi (KRS), transkrip nilai, jadwal kuliah, dan presensi.
-                  </p>
-                </div>
-              </div>
-              <a 
-                href="https://siakad.unusu.ac.id" 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
-              >
-                <span>Buka SIAKAD</span>
-                <ArrowRightIcon className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* 4. Fakultas & Prodi */}
-            <div className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div className="space-y-2.5">
-                <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
-                  <BuildingOffice2Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
-                    Fakultas & Prodi
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                    Profil 6 fakultas dan 14 program studi sarjana terakreditasi di UNUSU.
-                  </p>
-                </div>
-              </div>
-              <a 
-                href="/fakultas" 
-                target="_blank" 
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
-              >
-                <span>Lihat Direktori</span>
-                <ArrowRightIcon className="w-3.5 h-3.5" />
-              </a>
-            </div>
+              ))
+            )}
           </div>
         </div>
 

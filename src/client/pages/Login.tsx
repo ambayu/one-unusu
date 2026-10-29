@@ -31,11 +31,27 @@ export const Login: React.FC = () => {
     setCaptchaAnswer('');
   };
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     generateCaptcha();
-  }, []);
 
-  const navigate = useNavigate();
+    // Jika sudah ada session token login, langsung arahkan ke panel yang sesuai
+    const existingToken = localStorage.getItem('one_unusu_token');
+    const existingUserStr = localStorage.getItem('one_unusu_user');
+    if (existingToken && existingUserStr) {
+      try {
+        const u = JSON.parse(existingUserStr);
+        if (u.role === 'SUPERADMIN') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      } catch (e) {
+        // Abaikan parse error
+      }
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +81,8 @@ export const Login: React.FC = () => {
         if (!userData.email || !userData.noHp) {
           // Arahkan ke halaman profil terlebih dahulu untuk melengkapi biodata
           navigate('/profil', { state: { requiredBio: true } });
+        } else if (userData.role === 'SUPERADMIN') {
+          navigate('/admin');
         } else {
           navigate('/dashboard');
         }
@@ -87,7 +105,11 @@ export const Login: React.FC = () => {
 
   const fillQuickAccount = (userVal: string) => {
     setIdentifier(userVal);
-    setPassword('password123');
+    if (userVal === 'admin') {
+      setPassword('AdminPassword123!');
+    } else {
+      setPassword('password123');
+    }
     setCaptchaAnswer(String(captchaNum1 + captchaNum2));
     setError(null);
   };

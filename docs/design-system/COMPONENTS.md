@@ -91,6 +91,11 @@ Seluruh komponen di bawah berada di `src/client/components/` dan wajib dipakai u
 ### `ui/Badge` dan `ui/ImagePlaceholder`
 - Badge status dan gambar pengganti untuk aset yang belum tersedia.
 
+### `components/NotificationModal.tsx`
+- Komponen dialog pop-up standar untuk semua notifikasi aksi sistem (`success`, `error`, `confirm`, `info`).
+- Menggantikan banner alert dan browser native alert/confirm.
+- Memiliki backdrop blur, icon tematik, tombol konfirmasi/batal berstatus loading, dan animasi modal card.
+
 ### `home/HeroSection` dan `home/DigitalServicesSection`
 - Section aktif pada beranda.
 

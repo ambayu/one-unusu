@@ -89,7 +89,7 @@ Catatan implementasi:
    - Layout induk untuk rute `/dashboard`, `/profil`, dan `/admin`.
    - Sidebar memakai permukaan putih dengan border `#D8E5DC`, item aktif berupa pill hijau `#15803D`, ornamen daun sebagai latar, badge `SSO Gateway V2`, dan tombol keluar.
    - Headbar sticky `h-16` berisi breadcrumb, tautan Portal Publik, dan dropdown profil.
-   - Menampilkan penanda `Lengkapi` pada menu Biodata jika email atau nomor WhatsApp belum diisi.
+   - Menampilkan titik penanda `#B45309` pada ikon menu Biodata (saat sidebar terlipat) jika email atau nomor WhatsApp belum diisi.
 2. **`src/client/pages/Dashboard.tsx`**
    - Banner sambutan `#F0FDF4` berisi identitas civitas.
    - Daftar identitas 2 kolom yang menyesuaikan peran: `MAHASISWA` (NIM, prodi, fakultas, status), `DOSEN` (NIDN/NUP, homebase, fakultas, status), `SUPERADMIN` (username, unit kerja, hak akses, status).
@@ -97,8 +97,10 @@ Catatan implementasi:
    - Direktori portal publik dan banner penutup.
 3. **`src/client/pages/Profile.tsx`**
    - Biodata adaptif per peran, form kontak, form keamanan akun, dan modal crop pasfoto 3x4 berlatar merah `#b91c1c`.
-4. **`src/client/pages/AdminPanel.tsx`**
-   - Statistik operasional, tab `Aplikasi SSO` dan `Data Akun Civitas`, tabel data, serta modal pendaftaran aplikasi dan akun baru.
+4. **`src/client/pages/admin/`** (`RegistrasiSso`, `ManajemenPengguna`, `Izin`, `Peran`)
+   - Empat halaman tata kelola SSO yang dibungkus `components/templates/AdminPanelTemplate.tsx`.
+   - Navigasi dan rute dibatasi izin `resource:action` melalui `lib/permissions.ts` dan `PermissionRoute` di `App.tsx`.
+   - Data bersama diambil dari hook `hooks/useAdminData.ts`.
 
 ### 3.2 Halaman Publik dan Autentikasi
 
@@ -119,4 +121,6 @@ Catatan implementasi:
      - `POST /api/v2/website/verify-token`
      - `GET /api/admin/stats`, `GET|POST /api/admin/users`
      - `GET|POST /api/admin/apps`, `PUT /api/admin/apps/:id`
-   - Model Prisma: `User`, `SsoApp`, `SsoAuthToken`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`.
+     - `GET /api/admin/permissions`, `GET|POST /api/admin/roles`, `PUT /api/admin/roles/:id`, `PUT /api/admin/roles/:id/permissions`, `DELETE /api/admin/roles/:id`
+   - Setiap endpoint admin dilindungi middleware `requirePermission(key)`; `permissions` pengguna dikirim pada `POST /api/auth/login` dan `GET /api/auth/me`.
+   - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`.

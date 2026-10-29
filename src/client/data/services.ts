@@ -12,6 +12,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-lms.png",
     badge: "Pembelajaran",
     targetRoles: ["DOSEN", "MAHASISWA"],
+    isSsoIntegrated: true,
   },
   {
     id: "esurat",
@@ -24,6 +25,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-esurat.png",
     badge: "Administrasi",
     targetRoles: ["DOSEN", "MAHASISWA", "TENDIK"],
+    isSsoIntegrated: true,
   },
   {
     id: "lpm",
@@ -36,6 +38,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-lpm.png",
     badge: "Penjaminan Mutu",
     targetRoles: ["DOSEN", "AUDITOR", "PIMPINAN"],
+    isSsoIntegrated: true,
   },
   {
     id: "lppm",
@@ -48,6 +51,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-lppm.png",
     badge: "Riset & PKM",
     targetRoles: ["DOSEN", "PENELITI"],
+    isSsoIntegrated: true,
   },
   {
     id: "sdm-sarpras",
@@ -60,6 +64,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-sarpras.png",
     badge: "Aset & Kepegawaian",
     targetRoles: ["DOSEN", "TENDIK", "BAGIAN UMUM"],
+    isSsoIntegrated: true,
   },
   {
     id: "akreditasi",
@@ -72,6 +77,7 @@ export const digitalServices: DigitalService[] = [
     image: "/assets/apps/app-akreditasi.png",
     badge: "Penjaminan Mutu",
     targetRoles: ["DOSEN", "AUDITOR", "PIMPINAN"],
+    isSsoIntegrated: true,
   },
   {
     id: "siakad",
@@ -82,8 +88,9 @@ export const digitalServices: DigitalService[] = [
     url: "https://siakad.unusu.ac.id",
     icon: "academic",
     image: "/assets/apps/app-siakad.png",
-    badge: "Akademik Eksternal",
+    badge: "Sistem Eksternal",
     targetRoles: ["DOSEN", "MAHASISWA"],
+    isSsoIntegrated: false,
   },
 ];
 

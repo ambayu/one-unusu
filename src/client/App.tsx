@@ -10,14 +10,57 @@ import { KeamananPage } from './pages/Keamanan';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
-import { AdminPanel } from './pages/AdminPanel';
+import { RegistrasiSso } from './pages/admin/RegistrasiSso';
+import { ManajemenPengguna } from './pages/admin/ManajemenPengguna';
+import { Izin } from './pages/admin/Izin';
+import { Peran } from './pages/admin/Peran';
+import { DirektoriPublik } from './pages/admin/DirektoriPublik';
+import { PERMISSIONS } from './lib/permissions';
+import type { UserProfile } from './services/api';
+
+const TOKEN_STORAGE_KEY = 'one_unusu_token';
+const USER_STORAGE_KEY = 'one_unusu_user';
+
+function readCachedUser(): UserProfile | null {
+  const raw = localStorage.getItem(USER_STORAGE_KEY);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as UserProfile;
+  } catch {
+    return null;
+  }
+}
 
 // Protected Route Guard untuk SSO Dashboard
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-  const token = localStorage.getItem('one_unusu_token');
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) {
     return <Navigate to="/login" replace />;
   }
+  return children;
+};
+
+interface PermissionRouteProps {
+  permission: string;
+  children: React.ReactElement;
+}
+
+/**
+ * Penjaga rute berbasis izin. Cache pengguna tanpa daftar izin dibiarkan lewat
+ * karena server tetap menolak request yang tidak berizin.
+ */
+const PermissionRoute = ({ permission, children }: PermissionRouteProps) => {
+  const cachedUser = readCachedUser();
+  const permissions = cachedUser?.permissions;
+
+  if (permissions && !permissions.includes(permission)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 
@@ -66,11 +109,55 @@ export function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Tata Kelola SSO */}
         <Route
           path="/admin"
           element={
             <ProtectedRoute>
-              <AdminPanel />
+              <PermissionRoute permission={PERMISSIONS.applicationMenu}>
+                <RegistrasiSso />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/pengguna"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={PERMISSIONS.userMenu}>
+                <ManajemenPengguna />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/izin"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={PERMISSIONS.permissionMenu}>
+                <Izin />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/peran"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={PERMISSIONS.roleMenu}>
+                <Peran />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/direktori"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={PERMISSIONS.directoryMenu}>
+                <DirektoriPublik />
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />

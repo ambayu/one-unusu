@@ -181,7 +181,7 @@ export const Profile: React.FC = () => {
 
   return (
     <SidebarLayout user={user}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="w-full space-y-6">
         
         {/* Banner Lengkapi Biodata Wajib */}
         {isRequiredBio && (!user?.email || !user?.noHp) && (

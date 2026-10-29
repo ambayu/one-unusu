@@ -50,8 +50,27 @@ export interface UserProfile {
   prodi?: string | null;
   avatar?: string | null;
   isActive: boolean;
+  permissions?: string[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PermissionItem {
+  id: number;
+  key: string;
+  resource: string;
+  action: string;
+  label: string;
+}
+
+export interface RoleItem {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  isSystem: boolean;
+  userCount: number;
+  permissionKeys: string[];
 }
 
 export interface SsoAppItem {
@@ -65,6 +84,18 @@ export interface SsoAppItem {
   targetRoles: string;
   isActive: boolean;
   order: number;
+}
+
+export interface DirectoryItem {
+  id: number;
+  nama: string;
+  kategori: string;
+  deskripsi: string | null;
+  urlTarget: string;
+  icon: string | null;
+  isExternal: boolean;
+  urutan: number;
+  active: boolean;
 }
 
 export interface AdminStats {
@@ -114,10 +145,52 @@ export const createAdminUser = (data: Partial<UserProfile> & { password: string 
 export const fetchAdminApps = () =>
   api.get<{ status: boolean; data: SsoAppItem[] }>('/admin/apps');
 
-export const createAdminApp = (data: Partial<SsoAppItem> & { clientKey: string }) =>
+export const createAdminApp = (data: Partial<SsoAppItem> & { clientKey: string; icon?: string }) =>
   api.post<{ status: boolean; message: string; data: SsoAppItem }>('/admin/apps', data);
 
 export const updateAdminApp = (id: number, data: Partial<SsoAppItem> & { clientKey?: string }) =>
   api.put<{ status: boolean; message: string; data: SsoAppItem }>(`/admin/apps/${id}`, data);
+
+export const deleteAdminApp = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/apps/${id}`);
+
+// ==========================================
+// PERMISSION & ROLE API
+// ==========================================
+export const fetchAdminPermissions = () =>
+  api.get<{ status: boolean; data: PermissionItem[] }>('/admin/permissions');
+
+export const fetchAdminRoles = () =>
+  api.get<{ status: boolean; data: RoleItem[] }>('/admin/roles');
+
+export const createAdminRole = (data: { code: string; name: string; description?: string }) =>
+  api.post<{ status: boolean; message: string }>('/admin/roles', data);
+
+export const updateAdminRole = (id: number, data: { name?: string; description?: string }) =>
+  api.put<{ status: boolean; message: string }>(`/admin/roles/${id}`, data);
+
+export const updateAdminRolePermissions = (id: number, permissionKeys: string[]) =>
+  api.put<{ status: boolean; message: string; data: { roleId: number; totalPermissions: number } }>(
+    `/admin/roles/${id}/permissions`,
+    { permissionKeys }
+  );
+
+export const deleteAdminRole = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/roles/${id}`);
+
+// ==========================================
+// DIREKTORI PUBLIK API
+// ==========================================
+export const fetchDirectories = () =>
+  api.get<{ status: boolean; data: DirectoryItem[] }>('/directories');
+
+export const createAdminDirectory = (data: Partial<DirectoryItem>) =>
+  api.post<{ status: boolean; message: string; data: DirectoryItem }>('/admin/directories', data);
+
+export const updateAdminDirectory = (id: number, data: Partial<DirectoryItem>) =>
+  api.put<{ status: boolean; message: string; data: DirectoryItem }>(`/admin/directories/${id}`, data);
+
+export const deleteAdminDirectory = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/directories/${id}`);
 
 export default api;

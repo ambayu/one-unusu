@@ -13,7 +13,12 @@ import {
   IdentificationIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
+  Squares2X2Icon,
+  UsersIcon,
+  KeyIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
+import { PERMISSIONS, hasPermission } from '../lib/permissions';
 
 interface SidebarLayoutProps {
   user: UserProfile | null;
@@ -47,6 +52,29 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
   const isProfileIncomplete = !user?.email || !user?.noHp;
 
   const isActive = (path: string) => location.pathname === path;
+
+  const primaryNavItems = [
+    { path: '/dashboard', label: 'Dashboard SSO', icon: HomeIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
+    { path: '/profil', label: 'Biodata', icon: UserCircleIcon as React.ElementType, permission: PERMISSIONS.profileMenu },
+  ].filter((item) => hasPermission(user, item.permission));
+
+  const governanceNavItems = [
+    { path: '/admin', label: 'Registrasi SSO', icon: Squares2X2Icon as React.ElementType, permission: PERMISSIONS.applicationMenu },
+    { path: '/admin/direktori', label: 'Direktori Publik', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.directoryMenu },
+    { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
+    { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
+    { path: '/admin/peran', label: 'Peran', icon: ShieldCheckIcon as React.ElementType, permission: PERMISSIONS.roleMenu },
+  ].filter((item) => hasPermission(user, item.permission));
+
+  const breadcrumbLabels: Record<string, string> = {
+    '/dashboard': 'Dashboard Layanan SSO',
+    '/profil': 'Biodata Pengguna',
+    '/admin': 'Registrasi SSO',
+    '/admin/direktori': 'Direktori Publik',
+    '/admin/pengguna': 'Manajemen Pengguna',
+    '/admin/izin': 'Izin',
+    '/admin/peran': 'Peran',
+  };
 
   const navItemClass = (path: string) =>
     `w-full flex items-center rounded-[12px] text-[13.5px] font-semibold transition-all ${
@@ -124,73 +152,54 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               </p>
             )}
 
-            {/* Dashboard SSO */}
-            <button
-              onClick={() => { navigate('/dashboard'); setMobileOpen(false); }}
-              title={isCollapsed ? 'Dashboard SSO' : undefined}
-              className={`${navItemClass('/dashboard')} ${
-                isCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
-              }`}
-            >
-              <span className={iconBoxClass('/dashboard')}>
-                <HomeIcon className="w-4 h-4" />
-              </span>
-              {!isCollapsed && <span>Dashboard SSO</span>}
-            </button>
-
-            {/* Biodata */}
-            <button
-              onClick={() => { navigate('/profil'); setMobileOpen(false); }}
-              title={isCollapsed ? 'Biodata' : undefined}
-              className={`${navItemClass('/profil')} ${
-                isCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3 py-2.5'
-              }`}
-            >
-              <div className={isCollapsed ? 'flex items-center' : 'flex items-center gap-3'}>
-                <span className={`${iconBoxClass('/profil')} relative`}>
-                  <UserCircleIcon className="w-4 h-4" />
-                  {isCollapsed && isProfileIncomplete && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#B45309] ring-2 ring-[#EEF7EF]" />
-                  )}
-                </span>
-                {!isCollapsed && <span>Biodata</span>}
-              </div>
-              {!isCollapsed && isProfileIncomplete && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
-                  Lengkapi
-                </span>
-              )}
-            </button>
+            {primaryNavItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => { navigate(item.path); setMobileOpen(false); }}
+                title={isCollapsed ? item.label : undefined}
+                className={`${navItemClass(item.path)} ${
+                  isCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                }`}
+              >
+                <div className={isCollapsed ? 'flex items-center' : 'flex items-center gap-3 truncate'}>
+                  <span className={`${iconBoxClass(item.path)} relative`}>
+                    <item.icon className="w-4 h-4" />
+                    {item.path === '/profil' && isCollapsed && isProfileIncomplete && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#B45309] ring-2 ring-[#EEF7EF]" />
+                    )}
+                  </span>
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                </div>
+              </button>
+            ))}
           </div>
 
-          {/* SUPERADMIN */}
-          {user?.role === 'SUPERADMIN' && (
-            <div className={`space-y-1.5 pt-4 border-t border-[#B8D0BD]`}>
+          {/* TATA KELOLA */}
+          {governanceNavItems.length > 0 && (
+            <div className="space-y-1.5 pt-4 border-t border-[#B8D0BD]">
               {!isCollapsed && (
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#9BB5A3]">
                   TATA KELOLA
                 </p>
               )}
 
-              <button
-                onClick={() => { navigate('/admin'); setMobileOpen(false); }}
-                title={isCollapsed ? 'Pengaturan Sistem' : undefined}
-                className={`${navItemClass('/admin')} ${
-                  isCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3 py-2.5'
-                }`}
-              >
-                <div className={isCollapsed ? 'flex items-center' : 'flex items-center gap-3 truncate'}>
-                  <span className={iconBoxClass('/admin')}>
-                    <Cog6ToothIcon className="w-4 h-4" />
-                  </span>
-                  {!isCollapsed && <span className="truncate">Pengaturan Sistem</span>}
-                </div>
-                {!isCollapsed && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] flex-shrink-0 ml-1">
-                    Admin
-                  </span>
-                )}
-              </button>
+              {governanceNavItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => { navigate(item.path); setMobileOpen(false); }}
+                  title={isCollapsed ? item.label : undefined}
+                  className={`${navItemClass(item.path)} ${
+                    isCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                  }`}
+                >
+                  <div className={isCollapsed ? 'flex items-center' : 'flex items-center gap-3 truncate'}>
+                    <span className={iconBoxClass(item.path)}>
+                      <item.icon className="w-4 h-4" />
+                    </span>
+                    {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -209,14 +218,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
             </span>
           </div>
         ) : (
-          <div className="px-3.5 py-2.5 rounded-[14px] bg-white border border-[#C5D9CA] flex items-center justify-between text-xs shadow-2xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
-              <span className="text-[#1E293B] font-bold">SSO Gateway V2</span>
-            </div>
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#BBF7D0] text-[#14532D]">
-              ONLINE
-            </span>
+          <div className="px-3.5 py-2.5 rounded-[14px] bg-white border border-[#C5D9CA] flex items-center gap-2 text-xs shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+            <span className="text-[#1E293B] font-bold">SSO Gateway V2</span>
           </div>
         )}
 
@@ -295,9 +299,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               <span className="font-bold text-[#1E293B]">ONE UNUSU</span>
               <span className="text-[#94A3B8]">/</span>
               <span className="text-[#475569] font-medium">
-                {location.pathname === '/dashboard' && 'Dashboard Layanan SSO'}
-                {location.pathname === '/profil' && 'Biodata Pengguna'}
-                {location.pathname === '/admin' && 'Pengaturan Sistem & User Management'}
+                {breadcrumbLabels[location.pathname] ?? 'Portal SSO'}
               </span>
             </div>
           </div>
@@ -350,13 +352,13 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
                       <IdentificationIcon className="w-4 h-4 text-[#166534]" />
                       <span>Biodata Saya</span>
                     </button>
-                    {user?.role === 'SUPERADMIN' && (
+                    {hasPermission(user, PERMISSIONS.applicationMenu) && (
                       <button
                         onClick={() => { navigate('/admin'); setProfileDropdownOpen(false); }}
                         className="w-full text-left px-3.5 py-2 text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] flex items-center gap-2.5 font-medium transition"
                       >
                         <Cog6ToothIcon className="w-4 h-4 text-[#166534]" />
-                        <span>Pengaturan & User Management</span>
+                        <span>Registrasi Aplikasi</span>
                       </button>
                     )}
                   </div>
@@ -376,7 +378,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
           </div>
         </header>
 
-        <main className="flex-1 p-5 sm:p-7 max-w-7xl w-full mx-auto">
+        <main className="flex-1 min-w-0 w-full p-5 sm:p-7">
           {children}
         </main>
 

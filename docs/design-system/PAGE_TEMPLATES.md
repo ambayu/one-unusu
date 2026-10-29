@@ -45,16 +45,18 @@ Setiap halaman di ONE UNUSU wajib mengadopsi template yang sesuai dengan jenis h
 ---
 
 ### Template C: Admin & Master Data Table Template (`AdminPanelTemplate`)
-- **Digunakan oleh**: Rute `/admin`
+- **Digunakan oleh**: Rute `/admin`, `/admin/pengguna`, `/admin/izin`, `/admin/peran`
 - **Tanggung Jawab**:
-  - Menyajikan statistik agregat, pendaftaran layanan SSO, dan manajemen akun civitas kampus.
+  - Menyajikan kerangka tata kelola SSO: registrasi layanan, manajemen akun civitas, matriks izin, dan pengelolaan peran.
+  - Membungkus `SidebarLayout` dengan header halaman (judul, deskripsi, tombol muat ulang) dan slot konten.
 - **Komposisi Layout**:
   1. `SidebarLayout` container.
-  2. 4-Card Operational Stats Grid (Aplikasi, User, Mahasiswa, Dosen).
-  3. Tab Switcher (`Aplikasi SSO` vs `Data Akun Civitas`).
-  4. Filter & Toolbar Toolbar (Search input + Role dropdown + Action button "Tambah").
-  5. Data Table Container (`bg-white rounded-[14px] border border-[#D8E5DC]` dengan `thead` berwarna `#F0FDF4`).
-  6. Modal Form pendaftaran aplikasi / penambahan user baru.
+  2. Header halaman: judul `#1E293B`, deskripsi `#64748B`, tombol "Muat Ulang" bergaya sekunder.
+  3. Slot konten bebas: stats grid, tabel data, kartu peran, atau matriks izin.
+  4. 4-Card Operational Stats Grid (khusus halaman yang menampilkan agregat).
+  5. Filter & Toolbar (Search input + Role dropdown + Action button "Tambah").
+  6. Data Table Container (`bg-white rounded-[14px] border border-[#D8E5DC]` dengan `thead` berwarna `#F0FDF4`).
+  7. Modal Form pendaftaran aplikasi / penambahan user / peran baru.
 
 ---
 

@@ -20,17 +20,16 @@ export function Footer() {
   ];
 
   return (
-    <footer id="kontak" className="relative scroll-mt-24 overflow-hidden bg-brand-950 text-brand-100/80">
-      <div aria-hidden="true" className="pattern-grid-dark absolute inset-0 opacity-60 pointer-events-none" />
+    <footer id="kontak" className="relative scroll-mt-24 overflow-hidden bg-brand-900 text-brand-100/90 border-t border-brand-800">
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/70 to-transparent"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/60 to-transparent"
       />
 
       <Container className="relative grid gap-12 py-16 lg:grid-cols-12 lg:py-20">
         <div className="lg:col-span-4">
           <Logo tone="dark" />
-          <p className="mt-6 max-w-sm text-sm leading-relaxed">
+          <p className="mt-6 max-w-sm text-sm leading-relaxed text-brand-100/80">
             {siteConfig.platformName} : {siteConfig.platformTagline}. Portal terpadu website
             universitas, fakultas, program studi, dan layanan digital {siteConfig.name}.
           </p>
@@ -41,7 +40,7 @@ export function Footer() {
                   href={item.href}
                   external
                   disabledHint="Akun belum dikonfigurasi"
-                  className="inline-flex rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:border-gold-400 hover:text-gold-300"
+                  className="inline-flex rounded-full border border-white/20 bg-brand-950/40 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:border-gold-400 hover:text-gold-300"
                   disabledClassName="inline-flex rounded-full border border-dashed border-white/15 px-3 py-1.5 text-xs text-brand-100/45"
                 >
                   {item.label}
@@ -54,7 +53,7 @@ export function Footer() {
         <FooterColumn title="Tautan Cepat" className="lg:col-span-2">
           {footerQuickLinks.map((link) => (
             <li key={link.label}>
-              <SmartLink href={link.href} className="text-sm transition-colors hover:text-gold-300">
+              <SmartLink href={link.href} className="text-sm transition-colors hover:text-gold-300 text-brand-100/90">
                 {link.label}
               </SmartLink>
             </li>
@@ -72,7 +71,7 @@ export function Footer() {
                 href={service.status === "available" ? service.url : null}
                 external={service.url?.startsWith("http")}
                 disabledHint={service.status === "available" ? "Tautan belum dikonfigurasi" : "Segera hadir"}
-                className="text-sm transition-colors hover:text-gold-300"
+                className="text-sm transition-colors hover:text-gold-300 text-brand-100/90"
                 disabledClassName="text-sm text-brand-100/45"
               >
                 {service.name}
@@ -83,8 +82,8 @@ export function Footer() {
 
         <FooterColumn title="Kontak" className="lg:col-span-3">
           {contactRows.map((row) => (
-            <li key={row.label} className="flex gap-3 text-sm">
-              <Icon name={row.icon} className="mt-0.5 size-4 shrink-0 text-gold-300" />
+            <li key={row.label} className="flex gap-3 text-sm text-brand-100/90">
+              <Icon name={row.icon} className="mt-0.5 size-4 shrink-0 text-gold-400" />
               <span>
                 <span className="sr-only">{row.label}: </span>
                 <PlaceholderValue value={row.value} fallback={`${row.label} menunggu data resmi`} />
@@ -94,8 +93,8 @@ export function Footer() {
         </FooterColumn>
       </Container>
 
-      <div className="relative border-t border-white/10">
-        <Container className="flex flex-col gap-2 py-6 text-xs text-brand-100/60 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative border-t border-brand-800 bg-brand-950/70">
+        <Container className="flex flex-col gap-2 py-6 text-xs text-brand-100/70 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {siteConfig.copyrightYear} {siteConfig.name}.
           </p>

@@ -1,5 +1,28 @@
 # Changelog — Admin Panel
 
+## [2026-10-29] - Pemecahan Panel Admin & Izin Berbasis Resource
+
+### Added
+- Halaman admin baru `/admin/direktori` (Direktori Publik) lengkap dengan manajemen CRUD (tambah, edit, hapus, urutan, ikon, dan tautan eksternal/internal) yang langsung terhubung dinamis ke Dashboard civitas.
+- Endpoint `GET /api/directories`, `POST/PUT/DELETE /api/admin/directories` dengan izin berbasis permission (`directory:menu`, `directory:view`, `directory:edit`, `directory:delete`).
+- Pemisahan tampilan `/aplikasi` publik menjadi 2 section terbuka: *Aplikasi Terintegrasi Single Sign-On (SSO)* dan *Aplikasi Mandiri & Eksternal (Non-SSO)*.
+- Fitur Edit dan Hapus aplikasi SSO pada halaman Registrasi SSO lengkap dengan modal form edit dan modal dialog konfirmasi hapus.
+- Endpoint `DELETE /api/admin/apps/:id` dengan perlindungan izin `application:delete` beserta pembersihan otomatis tiket SSO terkait.
+- Komponen dialog pop-up standar `NotificationModal` (`success`, `error`, `confirm`, `info`) untuk seluruh aksi dan konfirmasi sistem.
+- Dukungan upload gambar Base64 besar melalui kenaikan limit Express JSON parser menjadi `50mb` dan migrasi kolom `sso_apps.icon` menjadi MySQL `LONGTEXT`.
+- Empat sub-rute: `/admin` (Registrasi SSO), `/admin/pengguna` (Manajemen Pengguna), `/admin/izin` (matriks izin per peran), `/admin/peran` (CRUD peran).
+- Model `Permission`, `Role`, `RolePermission` beserta kolom `User.roleId`, dan enum Prisma `Role` diganti nama menjadi `UserRole` agar tidak bentrok dengan model baru.
+- Endpoint `GET /api/admin/permissions`, `GET/POST/PUT/DELETE /api/admin/roles`, `PUT /api/admin/roles/:id/permissions`.
+- Middleware `requirePermission` dan helper `getUserPermissionKeys`; `permissions` disertakan pada login dan `/api/auth/me`.
+- Komponen `AdminPanelTemplate`, hook `useAdminData`, helper `lib/permissions.ts` dan `lib/appRoles.ts`.
+
+### Changed
+- Seluruh endpoint admin dialihkan dari pemeriksaan peran ke pemeriksaan izin: `dashboard:view`, `user:view`, `user:edit`, `application:view`, `application:edit`, `permission:view`, `permission:edit`, `role:view`, `role:edit`, `role:delete`.
+- Navigasi sidebar dan breadcrumb disusun dari katalog menu (`dashboard`, `profile`, `application`, `user`, `permission`, `role`) dan hanya tampil bila izin menunya dimiliki.
+
+### Removed
+- Halaman monolit `src/client/pages/AdminPanel.tsx` serta middleware `requireSuperadmin`.
+
 ## [2026-10-29] - Penghapusan Warna Default Tailwind
 
 ### Changed

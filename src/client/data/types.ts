@@ -66,6 +66,7 @@ export type DigitalService = {
   image?: string;
   badge?: string;
   targetRoles?: string[];
+  isSsoIntegrated?: boolean;
 };
 
 export type IconName =

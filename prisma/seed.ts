@@ -226,6 +226,141 @@ async function main() {
     });
   }
 
+  // ==========================================
+  // 3. SEED PERMISSIONS & ROLES (resource:action)
+  // ==========================================
+  console.log("Seeding permissions & roles...");
+
+  const PERMISSION_CATALOG = [
+    { resource: "dashboard", label: "Dashboard SSO", actions: ["menu", "view"] },
+    { resource: "profile", label: "Biodata Pengguna", actions: ["menu", "view", "edit"] },
+    { resource: "application", label: "Registrasi SSO", actions: ["menu", "view", "edit", "delete"] },
+    { resource: "user", label: "Manajemen Pengguna", actions: ["menu", "view", "edit", "delete"] },
+    { resource: "permission", label: "Izin", actions: ["menu", "view", "edit"] },
+    { resource: "role", label: "Peran", actions: ["menu", "view", "edit", "delete"] },
+    { resource: "directory", label: "Direktori Publik", actions: ["menu", "view", "edit", "delete"] },
+  ] as const;
+
+  const ACTION_LABEL: Record<string, string> = {
+    menu: "Akses Menu",
+    view: "Lihat",
+    edit: "Ubah",
+    delete: "Hapus",
+  };
+
+  for (const group of PERMISSION_CATALOG) {
+    for (const action of group.actions) {
+      const key = `${group.resource}:${action}`;
+      await prisma.permission.upsert({
+        where: { key },
+        update: {
+          resource: group.resource,
+          action,
+          label: `${group.label} · ${ACTION_LABEL[action]}`,
+        },
+        create: {
+          key,
+          resource: group.resource,
+          action,
+          label: `${group.label} · ${ACTION_LABEL[action]}`,
+        },
+      });
+    }
+  }
+
+  const allPermissions = await prisma.permission.findMany({ select: { id: true, key: true } });
+  const permissionIdByKey = new Map(allPermissions.map((item) => [item.key, item.id]));
+
+  const roleDefinitions = [
+    {
+      code: "SUPERADMIN",
+      name: "Super Administrator",
+      description: "Pemegang kendali penuh atas registry SSO, akun civitas, izin, dan peran.",
+      isSystem: true,
+      permissionKeys: allPermissions.map((item) => item.key),
+    },
+    {
+      code: "DOSEN",
+      name: "Dosen",
+      description: "Akses dashboard, biodata pribadi, dan katalog aplikasi terintegrasi.",
+      isSystem: true,
+      permissionKeys: [
+        "dashboard:menu",
+        "dashboard:view",
+        "profile:menu",
+        "profile:view",
+        "profile:edit",
+        "application:menu",
+        "application:view",
+      ],
+    },
+    {
+      code: "MAHASISWA",
+      name: "Mahasiswa",
+      description: "Akses dashboard, biodata pribadi, dan katalog aplikasi terintegrasi.",
+      isSystem: true,
+      permissionKeys: [
+        "dashboard:menu",
+        "dashboard:view",
+        "profile:menu",
+        "profile:view",
+        "profile:edit",
+        "application:menu",
+        "application:view",
+      ],
+    },
+  ];
+
+  for (const role of roleDefinitions) {
+    const savedRole = await prisma.role.upsert({
+      where: { code: role.code },
+      update: {
+        name: role.name,
+        description: role.description,
+        isSystem: role.isSystem,
+      },
+      create: {
+        code: role.code,
+        name: role.name,
+        description: role.description,
+        isSystem: role.isSystem,
+      },
+    });
+
+    await prisma.rolePermission.deleteMany({ where: { roleId: savedRole.id } });
+
+    const permissionIds = role.permissionKeys
+      .map((key) => permissionIdByKey.get(key))
+      .filter((id): id is number => typeof id === "number");
+
+    if (permissionIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permissionIds.map((permissionId) => ({
+          roleId: savedRole.id,
+          permissionId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  const roleByCode = new Map(
+    (await prisma.role.findMany({ select: { id: true, code: true } })).map((role) => [role.code, role.id])
+  );
+
+  await prisma.user.updateMany({
+    where: { username: "admin" },
+    data: { role: "SUPERADMIN", roleId: roleByCode.get("SUPERADMIN") ?? null },
+  });
+  await prisma.user.updateMany({
+    where: { username: "0102038901" },
+    data: { role: "DOSEN", roleId: roleByCode.get("DOSEN") ?? null },
+  });
+  await prisma.user.updateMany({
+    where: { username: "2201010045" },
+    data: { role: "MAHASISWA", roleId: roleByCode.get("MAHASISWA") ?? null },
+  });
+
   console.log("Seeding SSO Pengguna & Aplikasi Selesai dengan sukses! 🤍");
 }
 
