@@ -596,13 +596,15 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
-    // Filter aplikasi yang diizinkan untuk role user
-    const accessibleApps = apps.filter(app => {
+    // Filter aplikasi yang diizinkan untuk role user (fail-closed: konfigurasi
+    // rusak tidak boleh membuka akses).
+    const accessibleApps = apps.filter((app) => {
       try {
-        const allowedRoles: string[] = JSON.parse(app.targetRoles);
-        return allowedRoles.includes(userRole);
+        const allowedRoles: unknown = JSON.parse(app.targetRoles);
+        return Array.isArray(allowedRoles) && allowedRoles.includes(userRole);
       } catch {
-        return true;
+        logServerError(`targetRoles tidak valid pada aplikasi ${app.clientId}`, app.targetRoles);
+        return false;
       }
     });
 
@@ -689,19 +691,31 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       redirectUrl
     });
   } catch (error: any) {
-    res.status(500).json({ status: false, message: "Terjadi kesalahan saat otorisasi SSO: " + error.message });
+    logServerError("GET /api/sso/app-client/:clientId/v2/redirect", error);
+    res.status(500).json({ status: false, message: "Terjadi kesalahan saat otorisasi SSO." });
   }
 });
 
 // POST /api/v2/website/verify-token (Dipanggil Server-to-Server oleh LMS, LPPM, E-Surat, dll.)
-app.post("/api/v2/website/verify-token", async (req: Request, res: Response) => {
+app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Request, res: Response) => {
   try {
-    const client_id = req.body?.client_id || req.query?.client_id;
-    const client_key = req.body?.client_key || req.query?.client_key;
-    const token = req.body?.token || req.query?.token;
+    const body = isPlainObject(req.body) ? req.body : {};
+    const client_id = body.client_id ?? req.query.client_id;
+    const client_key = body.client_key ?? req.query.client_key;
+    const token = body.token ?? req.query.token;
 
     // 1. Validasi Input Body
-    if (!client_id || !client_key || !token) {
+    if (
+      typeof client_id !== "string" ||
+      typeof client_key !== "string" ||
+      typeof token !== "string" ||
+      !client_id ||
+      !client_key ||
+      !token ||
+      client_id.length > 100 ||
+      client_key.length > 200 ||
+      token.length > 200
+    ) {
       return res.status(422).json({
         status: false,
         message: "Parameter tidak lengkap. client_id, client_key, dan token wajib disertakan."
@@ -753,11 +767,24 @@ app.post("/api/v2/website/verify-token", async (req: Request, res: Response) => 
       });
     }
 
-    // 4. Bakar Token (Single-Use Protection: isUsed = true)
-    await prisma.ssoAuthToken.update({
-      where: { id: authToken.id },
+    // 4. Bakar Token secara atomik (Single-Use Protection). Kondisi isUsed=false
+    // dan expiresAt ikut di dalam WHERE supaya dua request paralel tidak bisa
+    // memakai token yang sama.
+    const burnResult = await prisma.ssoAuthToken.updateMany({
+      where: {
+        id: authToken.id,
+        isUsed: false,
+        expiresAt: { gt: new Date() }
+      },
       data: { isUsed: true }
     });
+
+    if (burnResult.count !== 1) {
+      return res.status(401).json({
+        status: false,
+        message: "Token otentikasi sudah digunakan atau kedaluwarsa."
+      });
+    }
 
     // 5. Ambil Data Profil Pengguna Asli
     const user = await prisma.user.findUnique({
