@@ -17,6 +17,7 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 - Menambahkan tabel perintah npm, daftar variabel environment, dan tautan indeks dokumentasi `docs/`.
 - `prisma/seed.ts`: kata sandi superadmin kini punya nilai bawaan `password123` di dalam seeder, jadi `SEED_ADMIN_PASSWORD` tidak lagi wajib diisi. Bila variabel itu diset, nilainya tetap dipakai.
 - `prisma/seed.ts`: blok `update` pada `upsert` akun tidak lagi menyertakan field `password`, sehingga menjalankan ulang seed tidak menimpa kata sandi yang sudah diganti.
+- **Akun demo dihapus.** Tombol pintasan "Uji Coba" beserta konstanta `DEMO_PASSWORD` dibuang dari `Login.tsx`; `prisma/seed.ts` tidak lagi membuat akun dosen/mahasiswa contoh dan berhenti membaca `SEED_DEMO_PASSWORD`.
 
 ### Added
 - `src/client/lib/biodata.ts`: `isBiodataComplete()` sebagai sumber tunggal aturan kelengkapan biodata (email + nomor WhatsApp).
@@ -26,7 +27,7 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 - Seeder direktori aplikasi non-SSO: `prisma/directory.ts`, `prisma/seed-directory.ts`, dan skrip `npm run prisma:seed:directory` (entri awal: SIAKAD UNUSU dan PMB UNUSU).
 
 ### Fixed
-- **Kebocoran kredensial pada halaman login produksi.** Tombol pintasan "Uji Coba: Mahasiswa / Dosen / Superadmin" mengisi kata sandi secara otomatis tanpa pagar lingkungan, sehingga siapa pun dapat masuk sebagai `SUPERADMIN`. Blok tersebut kini dibungkus `import.meta.env.DEV` dan tidak ikut ke dalam build produksi.
+- **Kebocoran kredensial pada halaman login produksi.** Tombol pintasan "Uji Coba: Mahasiswa / Dosen / Superadmin" mengisi kata sandi secara otomatis tanpa pagar lingkungan, sehingga siapa pun dapat masuk sebagai `SUPERADMIN`. Blok tersebut dihapus seluruhnya dari `Login.tsx`.
 
 ## [2026-10-29]
 

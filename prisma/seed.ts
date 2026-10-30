@@ -49,17 +49,11 @@ const DEFAULT_ADMIN_PASSWORD = "password123";
 const ADMIN_PASSWORD =
   process.env.SEED_ADMIN_PASSWORD?.trim() || DEFAULT_ADMIN_PASSWORD;
 
-/** Akun demo (dosen & mahasiswa) hanya dibuat bila variabel ini diset. */
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "";
-
 async function main() {
   console.log("Seeding data ONE UNUSU SSO & Portal...");
 
   const saltRounds = 10;
   const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, saltRounds);
-  const demoPasswordHash = DEMO_PASSWORD
-    ? await bcrypt.hash(DEMO_PASSWORD, saltRounds)
-    : null;
 
   // ==========================================
   // 1. SEED MASTER AKUN PENGGUNA (SSO USERS)
@@ -85,52 +79,6 @@ async function main() {
       isActive: true,
     },
   });
-
-  // Akun demo hanya untuk lingkungan uji. Di produksi dibiarkan kosong
-  // supaya tidak ada kredensial bersama di server.
-  if (demoPasswordHash) {
-  // Dosen (Login menggunakan NIDN)
-  await prisma.user.upsert({
-    where: { username: "0102038901" },
-    update: {
-      role: "DOSEN",
-      isActive: true,
-    },
-    create: {
-      username: "0102038901",
-      password: demoPasswordHash,
-      nama: "Dr. H. Muhammad Ilyas, M.Kom.",
-      email: "ilyas@unusu.ac.id",
-      noHp: "081398765432",
-      role: "DOSEN",
-      nidn: "0102038901",
-      prodi: "S1 Sistem Informasi",
-      fakultas: "Fakultas Sains dan Teknologi",
-      isActive: true,
-    },
-  });
-
-  // Mahasiswa (Login menggunakan NIM)
-  await prisma.user.upsert({
-    where: { username: "2201010045" },
-    update: {
-      role: "MAHASISWA",
-      isActive: true,
-    },
-    create: {
-      username: "2201010045",
-      password: demoPasswordHash,
-      nama: "Siti Rahmah",
-      email: "siti.rahmah@mhs.unusu.ac.id",
-      noHp: "082165432109",
-      role: "MAHASISWA",
-      nim: "2201010045",
-      prodi: "S1 Sistem Informasi",
-      fakultas: "Fakultas Sains dan Teknologi",
-      isActive: true,
-    },
-  });
-  }
 
   // ==========================================
   // 2. SEED REGISTRY APLIKASI SSO (CABANG)

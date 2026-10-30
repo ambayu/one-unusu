@@ -11,15 +11,6 @@ import {
   ChevronLeftIcon,
 } from '@heroicons/react/24/outline';
 
-/**
- * Kata sandi akun uji coba untuk tombol pintasan di bawah formulir.
- *
- * Hanya dipakai saat `import.meta.env.DEV`; blok tombol beserta konstanta ini
- * dibuang dari build produksi. Nilainya mengikuti kata sandi bawaan seeder
- * (`DEFAULT_ADMIN_PASSWORD` di `prisma/seed.ts`) dan `SEED_DEMO_PASSWORD`.
- */
-const DEMO_PASSWORD = 'password123';
-
 export const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -123,13 +114,6 @@ export const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillQuickAccount = (userVal: string) => {
-    setIdentifier(userVal);
-    setPassword(DEMO_PASSWORD);
-    setCaptchaAnswer(String(captchaNum1 + captchaNum2));
-    setError(null);
   };
 
   return (
@@ -283,36 +267,6 @@ export const Login: React.FC = () => {
                 Lihat Katalog Layanan Tanpa Login
               </Link>
             </div>
-
-            {/* Akun demo cepat: hanya untuk pengembangan lokal. Di build
-                produksi blok ini dibuang Vite, sehingga kredensial uji tidak
-                pernah ikut terkirim ke browser pengunjung. */}
-            {import.meta.env.DEV && (
-              <div className="pt-4 border-t border-[#E8EFEA] flex items-center justify-center gap-2 text-xs">
-                <span className="text-[11px] text-[#94A3B8]">Uji Coba:</span>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('2201010045')}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
-                >
-                  Mahasiswa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('0102038901')}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
-                >
-                  Dosen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillQuickAccount('admin')}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#F1F5F2] hover:bg-[#DCFCE7] hover:text-[#166534] text-[#475569] text-[11px] font-medium transition"
-                >
-                  Superadmin
-                </button>
-              </div>
-            )}
           </form>
 
         </div>

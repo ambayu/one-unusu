@@ -7,9 +7,9 @@ Rute `/login` adalah pintu masuk tunggal ke panel SSO. Halaman ini memakai layar
 ## Fitur Utama
 
 - **Login terpusat**: mengirim `identifier` (NIM, NIDN, atau username) dan password ke `POST {API_BASE}/auth/login` melalui `loginSso`. `API_BASE` diambil dari `VITE_API_URL`, dengan default `http://localhost:5000/api`.
-- **Penyimpanan sesi**: token disimpan di `localStorage` dengan kunci `one_unusu_token`, data pengguna di `one_unusu_user`.
-- **Uji coba cepat**: tombol Mahasiswa, Dosen, dan Superadmin mengisi identifier akun demo pada form. Password tetap harus diketik.
-- **Redirect**: setelah login berhasil, pengguna diarahkan ke `/dashboard`.
+- **Penyimpanan sesi**: token sesi disimpan pada cookie `HttpOnly` yang dipasang server; hanya profil umum (`one_unusu_user`) yang disimpan di `localStorage`.
+- **Redirect**: setelah login berhasil, `SUPERADMIN` diarahkan ke `/admin` dan peran lain ke `/dashboard`. Kelengkapan biodata diperiksa saat membuka aplikasi SSO, bukan pada langkah login.
+- **Tanpa akun demo**: form login tidak menyediakan pintasan akun uji, dan seeder tidak lagi membuat akun dosen/mahasiswa contoh.
 
 ---
 
