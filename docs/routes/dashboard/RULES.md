@@ -18,7 +18,8 @@ Dokumentasi aturan khusus rute `/dashboard` (Portal SSO Gateway).
 1. Mengambil data paralel via `Promise.all([fetchMe(), fetchSsoApps()])`.
 2. Jika respons unauthorized (401/403), hapus `one_unusu_token` dan `one_unusu_user` dari `localStorage`, lalu redirect ke `/login`.
 3. Membuka aplikasi menggunakan `GET /api/sso/app-client/:clientId/v2/redirect` melalui `getSsoRedirectV2`, dengan state loading interaktif `redirectingAppId`.
-4. Jika profil civitas belum memiliki email atau WhatsApp, tampilkan warning banner pengingat biodata.
+4. **Gerbang biodata pada `handleLaunchApp`**: bila `isBiodataComplete(user)` bernilai `false` (email atau nomor WhatsApp kosong), jangan minta tiket SSO. Alihkan ke `/profil` dengan `state: { requiredBio: true }` agar halaman biodata menampilkan notifikasi modal. Pemeriksaan ini berjalan setelah pemeriksaan `isAllowed`.
+5. Jika profil civitas belum memiliki email atau WhatsApp, tampilkan warning banner pengingat biodata (tidak memblokir akses dashboard).
 
 ## 3. Aturan Identitas Civitas
 1. Daftar identitas wajib menyesuaikan peran: `MAHASISWA` (NIM, prodi, fakultas, status), `DOSEN` (NIDN/NUP, homebase, fakultas, status), `SUPERADMIN` (username, unit kerja, hak akses, status).

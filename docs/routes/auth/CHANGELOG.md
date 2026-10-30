@@ -1,5 +1,11 @@
 # Changelog - Autentikasi SSO
 
+## [2026-10-30] - Login Tidak Lagi Dipaksa ke Biodata
+
+### Changed
+- **Login selalu berakhir di panel.** Blok `else if (!userData.email || !userData.noHp) → navigate('/profil')` dihapus. Pengguna kini diarahkan ke `resolveLandingPath(role)` (`SUPERADMIN` → `/admin`, peran lain → `/dashboard`).
+- Pemeriksaan kelengkapan biodata dipindahkan ke `handleLaunchApp` pada Dashboard, sehingga katalog layanan tetap bisa dilihat sebelum biodata dilengkapi.
+
 ## [2026-10-30]
 
 ### Fixed

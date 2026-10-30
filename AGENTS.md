@@ -31,7 +31,7 @@ Universitas Nahdlatul Ulama Sumatera Utara
 1. **Icon Library**: Gunakan Heroicons (`@heroicons/react/24/outline` atau solid). Hindari icon Lucide atau library icon lain pada modul panel dashboard.
 2. **Anti-Sparkles Rule**: DILARANG keras menggunakan icon `sparkles` (`Sparkles`, `SparklesIcon`, `lucide-sparkles`, dsb). Gunakan icon fungsional yang spesifik dan relevan seperti `AcademicCapIcon`, `UserPlusIcon`, `BookOpenIcon`, atau `BeakerIcon`.
 3. **Responsive Sidebar**: Setiap halaman panel manajemen / dashboard terautentikasi wajib menyertakan sidebar responsif lengkap dengan navigasi Dashboard, Biodata & Profil, dan tautan sesuai peran user.
-4. **Mandatory Biodata Completion**: Pengguna yang baru login SSO dan belum melengkapi nomor WhatsApp maupun email wajib diarahkan ke halaman pengisian biodata profil terlebih dahulu.
+4. **Biodata Gate on App Launch**: Pengguna yang baru login SSO selalu diarahkan ke panel (dashboard/admin), bukan ke halaman biodata. Kelengkapan nomor WhatsApp dan email diperiksa saat pengguna membuka aplikasi SSO: bila belum lengkap, arahkan ke `/profil` dengan notifikasi modal dan jangan terbitkan tiket SSO.
 
 ## Development Guidelines
 1. Gunakan komponen React modular, accessible, dan responsif.

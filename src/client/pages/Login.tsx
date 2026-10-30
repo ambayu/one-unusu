@@ -97,12 +97,11 @@ export const Login: React.FC = () => {
         const userData = res.data.data;
 
         // Alur SSO dari aplikasi cabang: lanjutkan ke tujuan semula agar
-        // pengguna tidak berhenti di panel portal.
+        // pengguna tidak berhenti di panel portal. Selain itu pengguna selalu
+        // masuk ke panel; kelengkapan biodata diperiksa saat membuka aplikasi
+        // SSO, bukan pada langkah login.
         if (nextPath) {
           navigate(nextPath);
-        } else if (!userData.email || !userData.noHp) {
-          // Arahkan ke halaman profil terlebih dahulu untuk melengkapi biodata
-          navigate('/profil', { state: { requiredBio: true } });
         } else {
           navigate(resolveLandingPath(userData.role));
         }

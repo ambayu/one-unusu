@@ -48,7 +48,7 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 
 ## 4. Aturan Fungsional & Bisnis SSO
 
-1. **Mandatory Biodata Completion**: Pengguna yang belum mengisi email atau WhatsApp akan menerima warning banner dan diarahkan untuk melengkapi kontak di halaman `/profil`.
+1. **Biodata Gate on App Launch**: Pengguna yang baru login SSO selalu diarahkan ke panel (`/dashboard` untuk DOSEN & MAHASISWA, `/admin` untuk SUPERADMIN), bukan ke halaman biodata. Kelengkapan Email dan nomor WhatsApp diperiksa saat pengguna membuka aplikasi SSO: bila belum lengkap, pengguna dialihkan ke `/profil` dengan notifikasi modal dan tiket SSO tidak diterbitkan. Dashboard tetap menampilkan warning banner selama biodata belum lengkap.
 2. **Pasfoto Resmi 3x4 Merah**: Mahasiswa dan dosen wajib memiliki pasfoto 3x4 dengan latar belakang merah pekat (`#b91c1c` / red-700) yang dapat di-crop interaktif di browser.
 3. **Pemisahan Peran Civitas**:
    - `MAHASISWA`: Menampilkan data NIM, Program Studi, Fakultas, dan link perkuliahan.

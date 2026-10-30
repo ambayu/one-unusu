@@ -20,6 +20,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
+import { isBiodataComplete } from '../lib/biodata';
 
 interface SidebarLayoutProps {
   user: UserProfile | null;
@@ -56,7 +57,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const isProfileIncomplete = !user?.email || !user?.noHp;
+  const isProfileIncomplete = !isBiodataComplete(user);
 
   const isActive = (path: string) => location.pathname === path;
 

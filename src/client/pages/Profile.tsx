@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchMe, updateProfile, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
 import { SidebarLayout } from '../components/SidebarLayout';
+import { NotificationModal } from '../components/NotificationModal';
+import { isBiodataComplete } from '../lib/biodata';
 import {
   ShieldCheckIcon,
   CheckCircleIcon,
@@ -46,6 +48,12 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isRequiredBio = Boolean((location.state as any)?.requiredBio);
+
+  // Notifikasi sekali tampil saat pengguna dilempar ke sini karena mencoba
+  // membuka aplikasi SSO dengan biodata yang belum lengkap.
+  const [bioNoticeDismissed, setBioNoticeDismissed] = useState(false);
+  const showBioNotice =
+    isRequiredBio && Boolean(user) && !isBiodataComplete(user) && !bioNoticeDismissed;
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -184,7 +192,7 @@ export const Profile: React.FC = () => {
       <div className="w-full space-y-6">
         
         {/* Banner Lengkapi Biodata Wajib */}
-        {isRequiredBio && (!user?.email || !user?.noHp) && (
+        {isRequiredBio && !isBiodataComplete(user) && (
           <div className="p-4 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] flex items-start gap-3 text-xs">
             <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0 mt-0.5" />
             <div>
@@ -580,6 +588,14 @@ export const Profile: React.FC = () => {
             </div>
           </div>
         )}
+
+        <NotificationModal
+          isOpen={showBioNotice}
+          type="info"
+          title="Lengkapi Biodata Dulu"
+          message="Email dan nomor WhatsApp Anda belum lengkap. Lengkapi biodata terlebih dahulu agar aplikasi SSO dapat dibuka."
+          onClose={() => setBioNoticeDismissed(true)}
+        />
 
       </div>
     </SidebarLayout>

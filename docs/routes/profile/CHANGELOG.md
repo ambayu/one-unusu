@@ -1,5 +1,11 @@
 # Changelog — Profile & Biodata
 
+## [2026-10-30] - Notifikasi Modal Saat Dialihkan dari Dashboard
+
+### Added
+- `NotificationModal` bertipe `info` tampil sekali saat pengguna tiba di `/profil` dengan `state.requiredBio = true` dan biodata masih belum lengkap. Modal dapat ditutup; warning banner tetap tampil sebagai pengingat persisten.
+- Kelengkapan biodata kini dihitung lewat `isBiodataComplete()` (`src/client/lib/biodata.ts`), bukan ekspresi `!user?.email || !user?.noHp` yang diduplikasi.
+
 ## [2026-10-29] - Penghapusan Warna Default Tailwind
 
 ### Changed

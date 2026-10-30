@@ -1,5 +1,15 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-10-30] - Gerbang Biodata Dipindah ke Pembukaan Aplikasi
+
+### Changed
+- **Dashboard tidak lagi dilewati setelah login.** Pengguna dengan email/WhatsApp kosong tetap masuk ke `/dashboard`; sebelumnya `Login.tsx` langsung mengalihkan ke `/profil` dengan `state.requiredBio`.
+- **`handleLaunchApp` memeriksa kelengkapan biodata lebih dulu.** Bila `isBiodataComplete(user)` bernilai `false`, tiket SSO tidak diminta dan pengguna dialihkan ke `/profil` dengan `state.requiredBio`. Pemeriksaan berjalan setelah pemeriksaan `isAllowed`.
+
+### Added
+- Warning banner `#FEF3C7` / border `#FDE68A` di antara kartu identitas dan daftar aplikasi, berisi tombol "Lengkapi Biodata" yang menuju `/profil`. Banner hanya tampil selama email atau nomor WhatsApp masih kosong.
+- Helper `isBiodataComplete()` pada `src/client/lib/biodata.ts` dipakai bersama oleh Dashboard, Profile, dan `SidebarLayout`.
+
 ## [2026-10-30] - Semua Aplikasi Tampil, Akses Tetap Dibatasi Peran
 
 ### Changed

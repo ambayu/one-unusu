@@ -11,6 +11,7 @@ import {
 } from '../services/api';
 import { SidebarLayout } from '../components/SidebarLayout';
 import { isImageSource } from '../lib/appIcon';
+import { isBiodataComplete } from '../lib/biodata';
 import { assetUrl } from '../lib/assets';
 import {
   ShieldCheckIcon,
@@ -99,6 +100,13 @@ export const Dashboard: React.FC = () => {
     // Peran tidak sesuai: jangan minta token, langsung arahkan ke landing page.
     if (app.isAllowed === false) {
       navigate('/');
+      return;
+    }
+
+    // Gerbang biodata: tiket SSO hanya diterbitkan bila email dan nomor
+    // WhatsApp sudah terisi. Pengguna diarahkan ke profil dengan notifikasi.
+    if (!isBiodataComplete(user)) {
+      navigate('/profil', { state: { requiredBio: true } });
       return;
     }
 
@@ -259,6 +267,27 @@ export const Dashboard: React.FC = () => {
             ))}
           </dl>
         </div>
+
+        {/* Pengingat biodata: tidak memblokir dashboard, tetapi menandai bahwa
+            aplikasi SSO belum bisa dibuka sampai email & WhatsApp terisi. */}
+        {user && !isBiodataComplete(user) && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[16px] border border-[#FDE68A] bg-[#FEF3C7] px-4 py-3.5">
+            <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-[#92400E]">Biodata belum lengkap</p>
+              <p className="text-xs text-[#B45309] leading-relaxed mt-0.5">
+                Email dan nomor WhatsApp wajib diisi sebelum membuka aplikasi SSO.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/profil', { state: { requiredBio: true } })}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-semibold transition flex-shrink-0"
+            >
+              Lengkapi Biodata
+            </button>
+          </div>
+        )}
 
         {/* =========================================================================
             3. WRAP KARTU TERPADU: LAYANAN SSO & AKSES KAMPUS (DENGAN GAMBAR PREVIEW)

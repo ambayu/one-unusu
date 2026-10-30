@@ -20,3 +20,11 @@ Dokumentasi aturan teknis dan desain untuk rute `/profil` (Biodata Civitas).
 - `MAHASISWA`: Menampilkan kartu khusus Data Akademik (NIM, Prodi S1, Fakultas).
 - `DOSEN`: Menampilkan kartu khusus Data Ketenagaan (NIDN/NUP, Homebase Prodi, Fakultas Induk).
 - `SUPERADMIN`: Menampilkan kartu Otoritas Sistem & Unit Kerja PUSTIK UNUSU.
+
+---
+
+## 4. Aturan Akses Biodata
+1. Halaman ini **tidak lagi** menjadi tujuan pertama setelah login. Pengguna masuk ke panel terlebih dahulu.
+2. Rute ini menjadi tujuan pengalihan ketika pengguna membuka aplikasi SSO dengan biodata belum lengkap (`state.requiredBio = true`).
+3. Saat `state.requiredBio` aktif dan email atau nomor WhatsApp masih kosong, tampilkan `NotificationModal` bertipe `info` sekali (dapat ditutup) **dan** warning banner persisten di atas kartu.
+4. Kelengkapan biodata dihitung oleh `isBiodataComplete()` di `src/client/lib/biodata.ts`; dilarang menduplikasi logika `!email || !noHp` di tempat lain.
