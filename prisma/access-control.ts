@@ -43,7 +43,7 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
   {
     code: "DOSEN",
     name: "Dosen",
-    description: "Akses dashboard, biodata pribadi, dan katalog aplikasi terintegrasi.",
+    description: "Akses dashboard dan biodata pribadi.",
     isSystem: true,
     permissionKeys: [
       "dashboard:menu",
@@ -51,14 +51,12 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       "profile:menu",
       "profile:view",
       "profile:edit",
-      "application:menu",
-      "application:view",
     ],
   },
   {
     code: "MAHASISWA",
     name: "Mahasiswa",
-    description: "Akses dashboard, biodata pribadi, dan katalog aplikasi terintegrasi.",
+    description: "Akses dashboard dan biodata pribadi.",
     isSystem: true,
     permissionKeys: [
       "dashboard:menu",
@@ -66,8 +64,6 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       "profile:menu",
       "profile:view",
       "profile:edit",
-      "application:menu",
-      "application:view",
     ],
   },
 ];
@@ -119,6 +115,13 @@ async function syncRoles(prisma: PrismaClient): Promise<void> {
     await prisma.rolePermission.createMany({
       data: permissionIds.map((permissionId) => ({ roleId: savedRole.id, permissionId })),
       skipDuplicates: true,
+    });
+
+    // Peran sistem selalu mengikuti katalog di atas: izin yang tidak lagi
+    // tercantum dicabut, supaya penyempitan hak akses benar-benar berlaku
+    // saat seed dijalankan ulang (bukan hanya menambah).
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: savedRole.id, permissionId: { notIn: permissionIds } },
     });
   }
 }
