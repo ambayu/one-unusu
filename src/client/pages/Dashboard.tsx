@@ -34,6 +34,7 @@ export const Dashboard: React.FC = () => {
   const [directories, setDirectories] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [redirectingAppId, setRedirectingAppId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [accessDeniedModal, setAccessDeniedModal] = useState<{
     show: boolean;
     appName: string;
