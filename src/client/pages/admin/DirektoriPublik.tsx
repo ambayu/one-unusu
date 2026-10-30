@@ -254,8 +254,8 @@ export const DirektoriPublik: React.FC = () => {
 
       {/* Tabel Data Direktori */}
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-xs">
             <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
               <tr>
                 <th className="py-3 px-4 w-12 text-center">Urutan</th>

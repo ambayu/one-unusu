@@ -174,7 +174,7 @@ export function Navbar({ items, registerUrl }: NavbarProps) {
             className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50/80 hover:bg-brand-100 text-brand-900 px-3.5 py-2 text-xs font-bold transition shadow-xs"
           >
             <Icon name="shield" className="size-3.5 text-brand-700" />
-            <span>Login SSO</span>
+            <span>Masuk</span>
           </Link>
 
           <RegisterButton href={registerUrl} className="hidden sm:inline-flex" />
@@ -268,7 +268,7 @@ export function Navbar({ items, registerUrl }: NavbarProps) {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white"
             >
               <Icon name="shield" className="size-4" />
-              Masuk Portal SSO
+              Masuk
             </Link>
             <RegisterButton href={registerUrl} className="flex w-full" />
           </div>
