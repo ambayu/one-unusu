@@ -89,7 +89,7 @@ export function App() {
         {/* SSO Authentication & Portal Routes */}
         <Route path="/login" element={<Login />} />
         {/* Titik masuk SSO dari aplikasi cabang (LMS, E-Surat, Akreditasi, dll.) */}
-        <Route path="/sso/authorize" element={<SsoAuthorize />} />
+        <Route path="/authorize" element={<SsoAuthorize />} />
         <Route
           path="/dashboard"
           element={

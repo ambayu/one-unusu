@@ -3,6 +3,7 @@ import { Container } from "../ui/Container";
 import { Icon } from "../ui/Icon";
 import { SectionHeading } from "../ui/SectionHeading";
 import { siteConfig } from "../../data/site";
+import { assetUrl } from "../../lib/assets";
 
 const highlights = [
   "Satu kredensial, akses ke semua aplikasi",
@@ -50,7 +51,7 @@ export function ProfileSection() {
           <div className="relative mx-auto flex max-w-md items-end justify-center">
             <div className="absolute inset-x-2 bottom-0 h-[78%] rounded-[32px] bg-gradient-to-tr from-brand-100 via-gold-100/60 to-transparent" />
             <img
-              src="/assets/profil-mahasiswa.png"
+              src={assetUrl("/assets/profil-mahasiswa.png")}
               alt="Mahasiswa menggunakan layanan digital ONE UNUSU"
               className="relative z-10 block w-full max-w-[380px] h-auto object-contain drop-shadow-[0_20px_40px_rgba(6,34,23,0.16)]"
               loading="lazy"

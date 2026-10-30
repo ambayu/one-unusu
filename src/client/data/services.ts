@@ -1,4 +1,5 @@
 import type { DigitalService } from "./types";
+import { assetUrl } from "../lib/assets";
 
 export const digitalServices: DigitalService[] = [
   {
@@ -9,7 +10,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/lms/",
     icon: "monitor",
-    image: "/assets/apps/app-lms.png",
+    image: assetUrl("/assets/apps/app-lms.png"),
     badge: "Pembelajaran",
     targetRoles: ["DOSEN", "MAHASISWA"],
     isSsoIntegrated: true,
@@ -22,7 +23,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/esurat/",
     icon: "mail",
-    image: "/assets/apps/app-esurat.png",
+    image: assetUrl("/assets/apps/app-esurat.png"),
     badge: "Administrasi",
     targetRoles: ["DOSEN", "MAHASISWA", "TENDIK"],
     isSsoIntegrated: true,
@@ -35,7 +36,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/lpm/",
     icon: "shield",
-    image: "/assets/apps/app-lpm.png",
+    image: assetUrl("/assets/apps/app-lpm.png"),
     badge: "Penjaminan Mutu",
     targetRoles: ["DOSEN", "AUDITOR", "PIMPINAN"],
     isSsoIntegrated: true,
@@ -48,7 +49,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/lppm/",
     icon: "research",
-    image: "/assets/apps/app-lppm.png",
+    image: assetUrl("/assets/apps/app-lppm.png"),
     badge: "Riset & PKM",
     targetRoles: ["DOSEN", "PENELITI"],
     isSsoIntegrated: true,
@@ -61,7 +62,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/sarpras/",
     icon: "building",
-    image: "/assets/apps/app-sarpras.png",
+    image: assetUrl("/assets/apps/app-sarpras.png"),
     badge: "Aset & Kepegawaian",
     targetRoles: ["DOSEN", "TENDIK", "BAGIAN UMUM"],
     isSsoIntegrated: true,
@@ -74,7 +75,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "/akreditasi/",
     icon: "shield",
-    image: "/assets/apps/app-akreditasi.png",
+    image: assetUrl("/assets/apps/app-akreditasi.png"),
     badge: "Penjaminan Mutu",
     targetRoles: ["DOSEN", "AUDITOR", "PIMPINAN"],
     isSsoIntegrated: true,
@@ -87,7 +88,7 @@ export const digitalServices: DigitalService[] = [
     status: "available",
     url: "https://siakad.unusu.ac.id",
     icon: "academic",
-    image: "/assets/apps/app-siakad.png",
+    image: assetUrl("/assets/apps/app-siakad.png"),
     badge: "Sistem Eksternal",
     targetRoles: ["DOSEN", "MAHASISWA"],
     isSsoIntegrated: false,

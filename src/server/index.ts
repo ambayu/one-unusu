@@ -189,7 +189,7 @@ app.use("/api", globalLimiter);
 // Serve static frontend build files when in production
 const clientDistPath = path.resolve(process.cwd(), "dist/client");
 app.use(express.static(clientDistPath));
-app.use("/portal", express.static(clientDistPath));
+app.use("/sso", express.static(clientDistPath));
 
 // Health check
 app.get("/api/health", (req: Request, res: Response) => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { UserProfile, logoutSession } from '../services/api';
+import { assetUrl } from '../lib/assets';
 import {
   HomeIcon,
   UserCircleIcon,
@@ -101,7 +102,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
       <div
         className="absolute -bottom-6 -left-6 w-[460px] h-[420px] pointer-events-none z-0"
         style={{
-          backgroundImage: "url('/assets/sidebar-leaves.svg')",
+          backgroundImage: `url('${assetUrl('/assets/sidebar-leaves.svg')}')`,
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'bottom left',
           backgroundSize: 'cover',
@@ -119,7 +120,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
           <Link to="/dashboard" className="flex items-center gap-3" title="ONE UNUSU">
             <div className="w-11 h-11 rounded-[14px] bg-white border border-[#A5DCB9] p-1 shadow-2xs flex-shrink-0 flex items-center justify-center">
               <img
-                src="/assets/pai/logo-unusu.jpg"
+                src={assetUrl("/assets/pai/logo-unusu.jpg")}
                 alt="Logo UNUSU"
                 className="w-full h-full object-contain"
               />

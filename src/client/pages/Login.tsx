@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
+import { assetUrl } from '../lib/assets';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -321,7 +322,7 @@ export const Login: React.FC = () => {
         
         {/* Foto Wallpaper Kampus Jernih */}
         <img
-          src="/assets/campus-login.png"
+          src={assetUrl("/assets/campus-login.png")}
           alt="Kampus Universitas Nahdlatul Ulama Sumatera Utara"
           className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.82]"
         />

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // Aplikasi ini dipasang di sub-path produksi (PROD_BASE). Saat mode dev,
 // base dikembalikan ke '/' supaya alamat lokal tetap nyaman.
 // PROD_BASE harus identik dengan basename router dan prefix location nginx.
-const PROD_BASE = '/portal/'
+const PROD_BASE = '/sso/'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({

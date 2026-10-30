@@ -11,6 +11,7 @@ import {
 } from '../services/api';
 import { SidebarLayout } from '../components/SidebarLayout';
 import { isImageSource } from '../lib/appIcon';
+import { assetUrl } from '../lib/assets';
 import {
   ShieldCheckIcon,
   AcademicCapIcon,
@@ -130,13 +131,13 @@ export const Dashboard: React.FC = () => {
     if (isImageSource(app.icon)) return app.icon as string;
 
     const id = app.clientId.toLowerCase();
-    if (id.includes('lms')) return '/assets/apps/app-lms.png';
-    if (id.includes('esurat') || id.includes('e-surat')) return '/assets/apps/app-esurat.png';
-    if (id.includes('siakad')) return '/assets/apps/app-siakad.png';
-    if (id.includes('sarpras')) return '/assets/apps/app-sarpras.png';
-    if (id.includes('lpm')) return '/assets/apps/app-lpm.png';
-    if (id.includes('lppm')) return '/assets/apps/app-lppm.png';
-    return '/assets/apps/app-lms.png';
+    if (id.includes('lms')) return assetUrl('/assets/apps/app-lms.png');
+    if (id.includes('esurat') || id.includes('e-surat')) return assetUrl('/assets/apps/app-esurat.png');
+    if (id.includes('siakad')) return assetUrl('/assets/apps/app-siakad.png');
+    if (id.includes('sarpras')) return assetUrl('/assets/apps/app-sarpras.png');
+    if (id.includes('lpm')) return assetUrl('/assets/apps/app-lpm.png');
+    if (id.includes('lppm')) return assetUrl('/assets/apps/app-lppm.png');
+    return assetUrl('/assets/apps/app-lms.png');
   };
 
   const statusLabel = user ? (user.isActive ? 'Aktif' : 'Nonaktif') : 'Belum tersedia';
@@ -206,7 +207,7 @@ export const Dashboard: React.FC = () => {
           <div 
             className="absolute top-0 right-0 h-full w-1/2 pointer-events-none opacity-85 hidden sm:block bg-no-repeat bg-right bg-cover"
             style={{
-              backgroundImage: `url('/assets/campus-banner.png')`,
+              backgroundImage: `url('${assetUrl('/assets/campus-banner.png')}')`,
               maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)',
               WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)'
             }}
@@ -215,7 +216,7 @@ export const Dashboard: React.FC = () => {
           <div className="relative z-10 flex items-center gap-5">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-xs flex-shrink-0 flex items-center justify-center">
               <img 
-                src="/assets/pai/logo-unusu.jpg" 
+                src={assetUrl("/assets/pai/logo-unusu.jpg")} 
                 alt="UNUSU Logo" 
                 className="w-full h-full object-contain"
               />
@@ -455,7 +456,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center gap-6">
               <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 hidden sm:flex items-center justify-center">
                 <img 
-                  src="/assets/sso-laptop.png" 
+                  src={assetUrl("/assets/sso-laptop.png")} 
                   alt="SSO Laptop Illustration" 
                   className="w-full h-full object-contain drop-shadow-sm"
                 />

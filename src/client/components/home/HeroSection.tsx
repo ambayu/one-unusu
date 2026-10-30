@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { Container } from "../ui/Container";
+import { assetUrl } from "../../lib/assets";
 
 const heroSlides = [
   {
     id: 1,
-    image: "/assets/hero/hero-campus-1.png",
-    imageMobile: "/assets/hero/hero-campus-1-mobile.png",
+    image: assetUrl("/assets/hero/hero-campus-1.png"),
+    imageMobile: assetUrl("/assets/hero/hero-campus-1-mobile.png"),
     title: "Kampus Terpadu - Gedung Rektorat Gaperta",
   },
   {
     id: 2,
-    image: "/assets/hero/hero-students-2.png",
-    imageMobile: "/assets/hero/hero-students-2-mobile.png",
+    image: assetUrl("/assets/hero/hero-students-2.png"),
+    imageMobile: assetUrl("/assets/hero/hero-students-2-mobile.png"),
     title: "Aktivitas Akademik - Kolaborasi Mahasiswa",
   },
   {
     id: 3,
-    image: "/assets/hero/hero-digital-3.png",
-    imageMobile: "/assets/hero/hero-digital-3-mobile.png",
+    image: assetUrl("/assets/hero/hero-digital-3.png"),
+    imageMobile: assetUrl("/assets/hero/hero-digital-3-mobile.png"),
     title: "Fasilitas Teknologi - Laboratorium Komputasi",
   },
   {
     id: 4,
-    image: "/assets/hero/hero-library-4.png",
-    imageMobile: "/assets/hero/hero-library-4-mobile.png",
+    image: assetUrl("/assets/hero/hero-library-4.png"),
+    imageMobile: assetUrl("/assets/hero/hero-library-4-mobile.png"),
     title: "Pusat Literasi - Perpustakaan Kampus",
   },
 ];

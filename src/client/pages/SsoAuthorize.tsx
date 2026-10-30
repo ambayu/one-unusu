@@ -6,7 +6,7 @@ import { getSsoRedirectV2 } from '../services/api';
 
 /**
  * Titik masuk SSO dari aplikasi cabang.
- * Aplikasi cabang mengarahkan pengguna ke /sso/authorize?client_id=... lalu
+ * Aplikasi cabang mengarahkan pengguna ke /authorize?client_id=... lalu
  * halaman ini meminta tiket sekali pakai ke server dan meneruskan pengguna ke
  * callback aplikasi tujuan. Tanpa alur ini, pengguna hanya berhenti di panel
  * portal dan tidak pernah kembali ke aplikasi asal.
@@ -40,8 +40,8 @@ export const SsoAuthorize: React.FC = () => {
 
         // Sesi portal belum ada: lanjutkan ke login lalu kembali ke halaman ini.
         if (axios.isAxiosError(err) && err.response?.status === 401) {
-          const next = `/sso/authorize?client_id=${encodeURIComponent(clientId)}`;
-          window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+          const next = `/authorize?client_id=${encodeURIComponent(clientId)}`;
+          window.location.replace(`${import.meta.env.BASE_URL}login?next=${encodeURIComponent(next)}`);
           return;
         }
 
