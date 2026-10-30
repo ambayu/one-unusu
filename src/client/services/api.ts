@@ -62,7 +62,17 @@ api.interceptors.response.use(
   }
 );
 
-export type UserRole = 'SUPERADMIN' | 'DOSEN' | 'MAHASISWA';
+export type UserRole =
+  | 'SUPERADMIN'
+  | 'ADMIN_SSO'
+  | 'ADMIN_LPM'
+  | 'ADMIN_LPPM'
+  | 'ADMIN_ESURAT'
+  | 'ADMIN_SARPRAS'
+  | 'ADMIN_AKREDITASI'
+  | 'ADMIN_LMS'
+  | 'DOSEN'
+  | 'MAHASISWA';
 
 export interface UserProfile {
   id: number;

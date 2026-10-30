@@ -34,7 +34,15 @@ export const Dashboard: React.FC = () => {
   const [directories, setDirectories] = useState<DirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [redirectingAppId, setRedirectingAppId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [accessDeniedModal, setAccessDeniedModal] = useState<{
+    show: boolean;
+    appName: string;
+    message: string;
+  }>({
+    show: false,
+    appName: '',
+    message: '',
+  });
 
   const navigate = useNavigate();
 
@@ -97,9 +105,13 @@ export const Dashboard: React.FC = () => {
   }, [navigate]);
 
   const handleLaunchApp = async (app: SsoAppItem) => {
-    // Peran tidak sesuai: jangan minta token, langsung arahkan ke landing page.
+    // Peran tidak sesuai: tampilkan modal penolakan resmi
     if (app.isAllowed === false) {
-      navigate('/');
+      setAccessDeniedModal({
+        show: true,
+        appName: app.nameApp,
+        message: `Akun Anda dengan peran ${user?.role || 'Pengguna'} tidak memiliki hak akses ke panel/aplikasi ${app.nameApp}. Akses diisolasi khusus untuk pengelola dan peran yang ditentukan.`,
+      });
       return;
     }
 
@@ -121,9 +133,15 @@ export const Dashboard: React.FC = () => {
     } catch (err: any) {
       console.error('SSO Redirect error:', err);
 
-      // Peran tidak berhak atas aplikasi ini: langsung ke landing page.
+      // Peran tidak berhak atas aplikasi ini: tampilkan modal penolakan
       if (err.response?.status === 403) {
-        navigate('/');
+        setAccessDeniedModal({
+          show: true,
+          appName: app.nameApp,
+          message:
+            err.response?.data?.message ||
+            `Akses ditolak. Anda tidak memiliki izin untuk mengakses aplikasi ${app.nameApp}.`,
+        });
         return;
       }
 
@@ -396,12 +414,12 @@ export const Dashboard: React.FC = () => {
                 {/* Tombol Aksi Buka Aplikasi */}
                 <div className="p-4 sm:p-5 pt-0">
                   <button
-                    onClick={() => (isAllowed ? handleLaunchApp(app) : navigate('/'))}
+                    onClick={() => handleLaunchApp(app)}
                     disabled={isAllowed && redirectingAppId === app.id}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
                       isAllowed
                         ? 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
-                        : 'bg-white border border-[#D8E5DC] text-[#64748B] hover:bg-[#F7FBF8] hover:text-[#166534]'
+                        : 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:text-rose-800'
                     }`}
                   >
                     <span>
@@ -409,7 +427,7 @@ export const Dashboard: React.FC = () => {
                         ? redirectingAppId === app.id
                           ? 'Mengarahkan SSO...'
                           : 'Buka Aplikasi'
-                        : 'Buka Beranda'}
+                        : 'Akses Ditolak'}
                     </span>
                     <ArrowRightIcon className="w-3.5 h-3.5" />
                   </button>
@@ -513,6 +531,46 @@ export const Dashboard: React.FC = () => {
             </a>
           </div>
         </div>
+
+        {/* Modal Notifikasi Penolakan Akses SSO */}
+        {accessDeniedModal.show && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white w-full max-w-md rounded-[24px] shadow-2xl border border-slate-200 p-6 sm:p-7 text-center animate-in fade-in zoom-in duration-200">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 ring-4 ring-rose-100/70">
+                <ExclamationCircleIcon className="w-8 h-8" />
+              </div>
+
+              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100/80 text-rose-800 mb-2">
+                Hak Akses Terbatas
+              </span>
+
+              <h3 className="text-lg font-bold text-slate-900">
+                Akses ke {accessDeniedModal.appName} Ditolak
+              </h3>
+
+              <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed text-left bg-slate-50 border border-slate-200 rounded-xl p-4">
+                {accessDeniedModal.message}
+              </p>
+
+              <div className="mt-6 flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setAccessDeniedModal({ show: false, appName: '', message: '' })}
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs"
+                >
+                  Saya Mengerti
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/profil')}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition"
+                >
+                  Periksa Profil & Peran Saya
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </SidebarLayout>

@@ -19,10 +19,28 @@ interface FeedbackMessage {
   text: string;
 }
 
-const ROLE_OPTIONS: UserRole[] = ['MAHASISWA', 'DOSEN', 'SUPERADMIN'];
+const ROLE_OPTIONS: UserRole[] = [
+  'SUPERADMIN',
+  'ADMIN_SSO',
+  'ADMIN_LPM',
+  'ADMIN_LPPM',
+  'ADMIN_ESURAT',
+  'ADMIN_SARPRAS',
+  'ADMIN_AKREDITASI',
+  'ADMIN_LMS',
+  'DOSEN',
+  'MAHASISWA',
+];
 
 const ROLE_BADGE: Record<UserRole, string> = {
   SUPERADMIN: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
+  ADMIN_SSO: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  ADMIN_LPM: 'bg-blue-50 text-blue-800 border-blue-200',
+  ADMIN_LPPM: 'bg-purple-50 text-purple-800 border-purple-200',
+  ADMIN_ESURAT: 'bg-amber-50 text-amber-800 border-amber-200',
+  ADMIN_SARPRAS: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+  ADMIN_AKREDITASI: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+  ADMIN_LMS: 'bg-orange-50 text-orange-800 border-orange-200',
   DOSEN: 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]',
   MAHASISWA: 'bg-[#F1F5F2] text-[#475569] border-[#D8E5DC]',
 };

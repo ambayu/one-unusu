@@ -1,11 +1,29 @@
-export const APP_ROLES = ['MAHASISWA', 'DOSEN', 'SUPERADMIN'] as const;
+export const APP_ROLES = [
+  'SUPERADMIN',
+  'ADMIN_SSO',
+  'ADMIN_LPM',
+  'ADMIN_LPPM',
+  'ADMIN_ESURAT',
+  'ADMIN_SARPRAS',
+  'ADMIN_AKREDITASI',
+  'ADMIN_LMS',
+  'DOSEN',
+  'MAHASISWA',
+] as const;
 
 export type AppRole = (typeof APP_ROLES)[number];
 
 export const ROLE_LABEL: Record<AppRole, string> = {
-  MAHASISWA: 'Mahasiswa',
-  DOSEN: 'Dosen',
   SUPERADMIN: 'Superadmin',
+  ADMIN_SSO: 'Admin ONE UNUSU',
+  ADMIN_LPM: 'Admin LPM',
+  ADMIN_LPPM: 'Admin LPPM',
+  ADMIN_ESURAT: 'Admin E-Surat',
+  ADMIN_SARPRAS: 'Admin Sarpras',
+  ADMIN_AKREDITASI: 'Admin Akreditasi',
+  ADMIN_LMS: 'Admin LMS',
+  DOSEN: 'Dosen',
+  MAHASISWA: 'Mahasiswa',
 };
 
 export function isAppRole(value: unknown): value is AppRole {

@@ -61,25 +61,98 @@ async function main() {
   // ==========================================
   console.log("Creating default SSO Users...");
 
-  // Superadmin
-  await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {
-      role: "SUPERADMIN",
-      isActive: true,
-    },
-    create: {
+  // Superadmin & Admin Spesifik Aplikasi
+  const defaultAdminUsers = [
+    {
       username: "admin",
-      password: adminPasswordHash,
+      role: "SUPERADMIN" as const,
       nama: "Super Administrator ONE UNUSU",
       email: "admin@unusu.ac.id",
-      noHp: "081234567890",
-      role: "SUPERADMIN",
       prodi: "Pusat Teknologi Informasi dan Komunikasi",
       fakultas: "Rektorat UNUSU",
-      isActive: true,
     },
-  });
+    {
+      username: "admin_sso",
+      role: "ADMIN_SSO" as const,
+      nama: "Administrator Portal SSO",
+      email: "admin.sso@unusu.ac.id",
+      prodi: "Pusat Teknologi Informasi dan Komunikasi",
+      fakultas: "Rektorat UNUSU",
+    },
+    {
+      username: "admin_lpm",
+      role: "ADMIN_LPM" as const,
+      nama: "Administrator LPM UNUSU",
+      email: "admin.lpm@unusu.ac.id",
+      prodi: "Lembaga Penjaminan Mutu",
+      fakultas: "Rektorat UNUSU",
+    },
+    {
+      username: "admin_lppm",
+      role: "ADMIN_LPPM" as const,
+      nama: "Administrator LPPM UNUSU",
+      email: "admin.lppm@unusu.ac.id",
+      prodi: "Lembaga Penelitian & Pengabdian",
+      fakultas: "Rektorat UNUSU",
+    },
+    {
+      username: "admin_esurat",
+      role: "ADMIN_ESURAT" as const,
+      nama: "Administrator E-Surat UNUSU",
+      email: "admin.esurat@unusu.ac.id",
+      prodi: "Bagian Tata Usaha & Kearsipan",
+      fakultas: "Biro Administrasi Umum",
+    },
+    {
+      username: "admin_sarpras",
+      role: "ADMIN_SARPRAS" as const,
+      nama: "Administrator SDM & Sarpras",
+      email: "admin.sarpras@unusu.ac.id",
+      prodi: "Bagian Sarana & Kepegawaian",
+      fakultas: "Biro Administrasi Umum",
+    },
+    {
+      username: "admin_akreditasi",
+      role: "ADMIN_AKREDITASI" as const,
+      nama: "Administrator Akreditasi",
+      email: "admin.akreditasi@unusu.ac.id",
+      prodi: "Pusat Penilaian Mutu & Akreditasi",
+      fakultas: "Rektorat UNUSU",
+    },
+    {
+      username: "admin_lms",
+      role: "ADMIN_LMS" as const,
+      nama: "Administrator LMS UNUSU",
+      email: "admin.lms@unusu.ac.id",
+      prodi: "Pusat Pembelajaran Digital",
+      fakultas: "Biro Akademik",
+    },
+  ];
+
+  for (const adminUser of defaultAdminUsers) {
+    await prisma.user.upsert({
+      where: { username: adminUser.username },
+      update: {
+        role: adminUser.role,
+        nama: adminUser.nama,
+        email: adminUser.email,
+        prodi: adminUser.prodi,
+        fakultas: adminUser.fakultas,
+        isActive: true,
+      },
+      create: {
+        username: adminUser.username,
+        password: adminPasswordHash,
+        nama: adminUser.nama,
+        email: adminUser.email,
+        noHp: "081234567890",
+        role: adminUser.role,
+        prodi: adminUser.prodi,
+        fakultas: adminUser.fakultas,
+        isActive: true,
+      },
+    });
+  }
 
   // ==========================================
   // 2. SEED REGISTRY APLIKASI SSO (CABANG)
@@ -98,7 +171,7 @@ async function main() {
       icon: "GraduationCap",
       badge: "Pembelajaran",
       urlRedirect: `${PUBLIC_BASE_URL}/lms/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_LMS", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 1,
       isActive: true,
     },
@@ -110,7 +183,7 @@ async function main() {
       icon: "FlaskConical",
       badge: "Penelitian",
       urlRedirect: `${PUBLIC_BASE_URL}/lppm/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_LPPM", "DOSEN", "SUPERADMIN"]),
       order: 2,
       isActive: true,
     },
@@ -122,7 +195,7 @@ async function main() {
       icon: "Award",
       badge: "Penjaminan Mutu",
       urlRedirect: `${PUBLIC_BASE_URL}/lpm/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_LPM", "DOSEN", "SUPERADMIN"]),
       order: 3,
       isActive: true,
     },
@@ -134,7 +207,7 @@ async function main() {
       icon: "MailCheck",
       badge: "Administrasi",
       urlRedirect: `${PUBLIC_BASE_URL}/esurat/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_ESURAT", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 4,
       isActive: true,
     },
@@ -146,7 +219,7 @@ async function main() {
       icon: "Building2",
       badge: "Kepegawaian",
       urlRedirect: `${PUBLIC_BASE_URL}/sarpras/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_SARPRAS", "DOSEN", "SUPERADMIN"]),
       order: 5,
       isActive: true,
     },
@@ -158,7 +231,7 @@ async function main() {
       icon: "ClipboardCheck",
       badge: "Penjaminan Mutu",
       urlRedirect: `${PUBLIC_BASE_URL}/akreditasi/sso/callback`,
-      targetRoles: JSON.stringify(["DOSEN", "SUPERADMIN"]),
+      targetRoles: JSON.stringify(["ADMIN_AKREDITASI", "DOSEN", "SUPERADMIN"]),
       order: 6,
       isActive: true,
     },
