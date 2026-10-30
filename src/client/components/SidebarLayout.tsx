@@ -18,6 +18,7 @@ import {
   UsersIcon,
   KeyIcon,
   ShieldCheckIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
 import { isBiodataComplete } from '../lib/biodata';
@@ -79,6 +80,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
   const governanceNavItems = [
     { path: '/admin', label: 'Registrasi SSO', icon: Squares2X2Icon as React.ElementType, permission: PERMISSIONS.applicationMenu },
+    { path: '/admin/slider', label: 'Slider Hero', icon: PhotoIcon as React.ElementType, permission: PERMISSIONS.sliderMenu },
     { path: '/admin/direktori', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.directoryMenu },
     { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
     { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
@@ -89,6 +91,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/dashboard': 'Dashboard Layanan SSO',
     '/profil': 'Biodata Pengguna',
     '/admin': 'Registrasi SSO',
+    '/admin/slider': 'Slider Hero',
     '/admin/direktori': 'Aplikasi Non-SSO',
     '/admin/pengguna': 'Manajemen Pengguna',
     '/admin/izin': 'Izin',

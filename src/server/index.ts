@@ -1650,6 +1650,192 @@ app.delete("/api/admin/directories/:id", authenticateToken, requirePermission("d
   }
 });
 
+// ==========================================
+// 6. MANAJEMEN FOTO SLIDER HERO (BannerSlider)
+// ==========================================
+
+function isValidImageUrl(val: any): boolean {
+  if (typeof val !== "string" || !val.trim()) return false;
+  const s = val.trim();
+  if (s.startsWith("data:image/") || s.startsWith("/") || s.startsWith("http://") || s.startsWith("https://")) {
+    return true;
+  }
+  return false;
+}
+
+// GET /api/sliders (Daftar slider aktif untuk landing page publik)
+app.get("/api/sliders", async (req: Request, res: Response) => {
+  try {
+    const sliders = await prisma.bannerSlider.findMany({
+      where: { active: true },
+      orderBy: { urutan: "asc" },
+      select: {
+        id: true,
+        judul: true,
+        subjudul: true,
+        gambarUrl: true,
+        gambarMobileUrl: true,
+        linkUrl: true,
+        urutan: true,
+        active: true,
+      },
+    });
+    res.json({ status: true, data: sliders });
+  } catch (error: any) {
+    logServerError("GET /api/sliders", error);
+    res.status(500).json({ status: false, message: "Gagal memuat foto slider." });
+  }
+});
+
+// GET /api/admin/sliders (Seluruh slider hero termasuk non-aktif)
+app.get("/api/admin/sliders", authenticateToken, requirePermission("slider:view"), async (req: AuthRequest, res: Response) => {
+  try {
+    const sliders = await prisma.bannerSlider.findMany({
+      orderBy: { urutan: "asc" },
+    });
+    res.json({ status: true, data: sliders });
+  } catch (error: any) {
+    logServerError("GET /api/admin/sliders", error);
+    res.status(500).json({ status: false, message: "Gagal memuat daftar slider." });
+  }
+});
+
+// POST /api/admin/sliders (Tambah foto slider hero baru)
+app.post("/api/admin/sliders", authenticateToken, requirePermission("slider:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { judul, subjudul, gambarUrl, gambarMobileUrl, linkUrl, urutan, active } = body;
+
+    if (typeof judul !== "string" || !judul.trim()) {
+      return res.status(400).json({ status: false, message: "Judul slider wajib diisi." });
+    }
+    if (judul.trim().length > 150) {
+      return res.status(400).json({ status: false, message: "Judul slider maksimal 150 karakter." });
+    }
+
+    if (!isValidImageUrl(gambarUrl)) {
+      return res.status(400).json({ status: false, message: "Gambar desktop wajib diunggah atau berupa URL gambar yang valid." });
+    }
+
+    if (gambarMobileUrl && !isValidImageUrl(gambarMobileUrl)) {
+      return res.status(400).json({ status: false, message: "Format gambar mobile tidak valid." });
+    }
+
+    let parsedUrutan = 0;
+    if (urutan !== undefined && urutan !== null && urutan !== "") {
+      const parsed = Number.parseInt(String(urutan), 10);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return res.status(400).json({ status: false, message: "Urutan harus berupa angka positif." });
+      }
+      parsedUrutan = parsed;
+    }
+
+    const created = await prisma.bannerSlider.create({
+      data: {
+        judul: judul.trim(),
+        subjudul: typeof subjudul === "string" && subjudul.trim() ? subjudul.trim().slice(0, 255) : null,
+        gambarUrl: String(gambarUrl).trim(),
+        gambarMobileUrl: gambarMobileUrl ? String(gambarMobileUrl).trim() : null,
+        linkUrl: typeof linkUrl === "string" && linkUrl.trim() ? linkUrl.trim() : null,
+        urutan: parsedUrutan,
+        active: active === undefined ? true : Boolean(active),
+      },
+    });
+
+    res.status(201).json({ status: true, message: "Foto slider hero berhasil ditambahkan.", data: created });
+  } catch (error: any) {
+    logServerError("POST /api/admin/sliders", error);
+    res.status(500).json({ status: false, message: "Gagal menambahkan foto slider." });
+  }
+});
+
+// PUT /api/admin/sliders/:id (Update foto slider hero)
+app.put("/api/admin/sliders/:id", authenticateToken, requirePermission("slider:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID slider tidak valid." });
+    }
+
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { judul, subjudul, gambarUrl, gambarMobileUrl, linkUrl, urutan, active } = body;
+
+    const existing = await prisma.bannerSlider.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ status: false, message: "Data slider tidak ditemukan." });
+    }
+
+    const updateData: any = {};
+
+    if (judul !== undefined) {
+      if (typeof judul !== "string" || !judul.trim()) {
+        return res.status(400).json({ status: false, message: "Judul slider tidak boleh kosong." });
+      }
+      updateData.judul = judul.trim().slice(0, 150);
+    }
+
+    if (subjudul !== undefined) {
+      updateData.subjudul = typeof subjudul === "string" && subjudul.trim() ? subjudul.trim().slice(0, 255) : null;
+    }
+
+    if (gambarUrl !== undefined) {
+      if (!isValidImageUrl(gambarUrl)) {
+        return res.status(400).json({ status: false, message: "Gambar desktop tidak valid." });
+      }
+      updateData.gambarUrl = String(gambarUrl).trim();
+    }
+
+    if (gambarMobileUrl !== undefined) {
+      if (gambarMobileUrl && !isValidImageUrl(gambarMobileUrl)) {
+        return res.status(400).json({ status: false, message: "Gambar mobile tidak valid." });
+      }
+      updateData.gambarMobileUrl = gambarMobileUrl ? String(gambarMobileUrl).trim() : null;
+    }
+
+    if (linkUrl !== undefined) {
+      updateData.linkUrl = typeof linkUrl === "string" && linkUrl.trim() ? linkUrl.trim() : null;
+    }
+
+    if (urutan !== undefined) {
+      const parsed = Number.parseInt(String(urutan), 10);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return res.status(400).json({ status: false, message: "Urutan harus berupa angka positif." });
+      }
+      updateData.urutan = parsed;
+    }
+
+    if (active !== undefined) {
+      updateData.active = Boolean(active);
+    }
+
+    const updated = await prisma.bannerSlider.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json({ status: true, message: "Foto slider hero berhasil diperbarui.", data: updated });
+  } catch (error: any) {
+    logServerError("PUT /api/admin/sliders/:id", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui slider." });
+  }
+});
+
+// DELETE /api/admin/sliders/:id (Hapus foto slider hero)
+app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slider:delete"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID slider tidak valid." });
+    }
+
+    await prisma.bannerSlider.delete({ where: { id } });
+    res.json({ status: true, message: "Foto slider hero berhasil dihapus." });
+  } catch (error: any) {
+    logServerError("DELETE /api/admin/sliders/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus slider." });
+  }
+});
+
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });

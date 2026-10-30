@@ -16,6 +16,7 @@ import { ManajemenPengguna } from './pages/admin/ManajemenPengguna';
 import { Izin } from './pages/admin/Izin';
 import { Peran } from './pages/admin/Peran';
 import { DirektoriPublik } from './pages/admin/DirektoriPublik';
+import { ManajemenSlider } from './pages/admin/ManajemenSlider';
 import { PERMISSIONS } from './lib/permissions';
 import type { UserProfile } from './services/api';
 
@@ -152,6 +153,16 @@ export function App() {
             <ProtectedRoute>
               <PermissionRoute permission={PERMISSIONS.roleMenu}>
                 <Peran />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/slider"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={PERMISSIONS.sliderMenu}>
+                <ManajemenSlider />
               </PermissionRoute>
             </ProtectedRoute>
           }

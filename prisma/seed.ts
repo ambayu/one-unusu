@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { seedAccessControl } from "./access-control.js";
 import { seedDirectory } from "./directory.js";
+import { seedSliders } from "./seed-sliders.js";
 
 dotenv.config();
 
@@ -192,6 +193,12 @@ async function main() {
   // ==========================================
   console.log("Seeding direktori aplikasi non-SSO...");
   await seedDirectory(prisma);
+
+  // ==========================================
+  // 5. SEED FOTO SLIDER HERO
+  // ==========================================
+  console.log("Seeding foto slider hero...");
+  await seedSliders(prisma);
 
   console.log("Seeding SSO Pengguna & Aplikasi Selesai dengan sukses! 🤍");
 }

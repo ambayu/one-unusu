@@ -33,6 +33,11 @@ export const PERMISSIONS = {
   directoryView: 'directory:view',
   directoryEdit: 'directory:edit',
   directoryDelete: 'directory:delete',
+
+  sliderMenu: 'slider:menu',
+  sliderView: 'slider:view',
+  sliderEdit: 'slider:edit',
+  sliderDelete: 'slider:delete',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

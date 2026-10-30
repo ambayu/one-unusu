@@ -13,6 +13,7 @@ export const PERMISSION_CATALOG = [
   { resource: "permission", label: "Izin", actions: ["menu", "view", "edit"] },
   { resource: "role", label: "Peran", actions: ["menu", "view", "edit", "delete"] },
   { resource: "directory", label: "Direktori Publik", actions: ["menu", "view", "edit", "delete"] },
+  { resource: "slider", label: "Slider Hero", actions: ["menu", "view", "edit", "delete"] },
 ] as const;
 
 const ACTION_LABEL: Record<string, string> = {

@@ -16,7 +16,8 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:access": "tsx prisma/seed-access.ts",
     "prisma:sso-dev-urls": "tsx prisma/dev-sso-urls.ts",
-    "prisma:seed:directory": "tsx prisma/seed-directory.ts"
+    "prisma:seed:directory": "tsx prisma/seed-directory.ts",
+    "prisma:seed:sliders": "tsx prisma/seed-sliders.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

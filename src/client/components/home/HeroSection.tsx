@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Container } from "../ui/Container";
 import { assetUrl } from "../../lib/assets";
+import { fetchSliders } from "../../services/api";
 
-const heroSlides = [
+const defaultHeroSlides = [
   {
     id: 1,
     image: assetUrl("/assets/hero/hero-campus-1.png"),
@@ -29,15 +30,54 @@ const heroSlides = [
   },
 ];
 
+const resolveImageUrl = (url?: string | null, fallback = "") => {
+  if (!url) return fallback;
+  const trimmed = url.trim();
+  if (trimmed.startsWith("data:") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return assetUrl(trimmed);
+};
+
 export function HeroSection() {
+  const [slides, setSlides] = useState(defaultHeroSlides);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
+    let isMounted = true;
+    fetchSliders()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.data?.status && Array.isArray(res.data.data) && res.data.data.length > 0) {
+          const mapped = res.data.data.map((item) => {
+            const imgDesktop = resolveImageUrl(item.gambarUrl);
+            const imgMobile = item.gambarMobileUrl ? resolveImageUrl(item.gambarMobileUrl, imgDesktop) : imgDesktop;
+            return {
+              id: item.id,
+              image: imgDesktop,
+              imageMobile: imgMobile,
+              title: item.judul,
+            };
+          });
+          setSlides(mapped);
+        }
+      })
+      .catch(() => {
+        // Fallback ke defaultHeroSlides bila API offline / belum ada
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   return (
     <section
@@ -49,7 +89,7 @@ export function HeroSection() {
         Desktop: banner menutupi seluruh section (full-bleed) memakai aset 16:9.
       */}
       <div className="relative aspect-square w-full overflow-hidden md:absolute md:inset-0 md:aspect-auto md:h-full">
-        {heroSlides.map((item, index) => (
+        {slides.map((item, index) => (
           <div
             key={item.id}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
@@ -79,7 +119,7 @@ export function HeroSection() {
         <Container>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5">
-              {heroSlides.map((item, idx) => (
+              {slides.map((item, idx) => (
                 <button
                   key={item.id}
                   type="button"
@@ -93,38 +133,35 @@ export function HeroSection() {
               ))}
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentSlide((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1))
-                }
-                aria-label="Slide sebelumnya"
-                className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-brand-950/70 text-white transition-colors hover:bg-brand-950"
-              >
-                <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentSlide((prev) => (prev + 1) % heroSlides.length)}
-                aria-label="Slide berikutnya"
-                className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-brand-950/70 text-white transition-colors hover:bg-brand-950"
-              >
-                <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+            {slides.length > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1))
+                  }
+                  aria-label="Slide sebelumnya"
+                  className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-brand-950/70 text-white transition-colors hover:bg-brand-950"
+                >
+                  <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
+                  aria-label="Slide berikutnya"
+                  className="flex size-8 items-center justify-center rounded-lg border border-white/20 bg-brand-950/70 text-white transition-colors hover:bg-brand-950"
+                >
+                  <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </Container>
       </div>
-
-      {/* Garis Aksen Bawah */}
-      <div aria-hidden="true" className="h-1 bg-gradient-to-r from-brand-700 via-gold-400 to-brand-700" />
     </section>
   );
 }
-
-export default HeroSection;

@@ -127,6 +127,17 @@ export interface DirectoryItem {
   active: boolean;
 }
 
+export interface BannerSliderItem {
+  id: number;
+  judul: string;
+  subjudul?: string | null;
+  gambarUrl: string;
+  gambarMobileUrl?: string | null;
+  linkUrl?: string | null;
+  urutan: number;
+  active: boolean;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalMahasiswa: number;
@@ -227,5 +238,23 @@ export const updateAdminDirectory = (id: number, data: Partial<DirectoryItem>) =
 
 export const deleteAdminDirectory = (id: number) =>
   api.delete<{ status: boolean; message: string }>(`/admin/directories/${id}`);
+
+// ==========================================
+// FOTO SLIDER HERO (BannerSlider)
+// ==========================================
+export const fetchSliders = () =>
+  api.get<{ status: boolean; data: BannerSliderItem[] }>('/sliders');
+
+export const fetchAdminSliders = () =>
+  api.get<{ status: boolean; data: BannerSliderItem[] }>('/admin/sliders');
+
+export const createAdminSlider = (data: Partial<BannerSliderItem>) =>
+  api.post<{ status: boolean; message: string; data: BannerSliderItem }>('/admin/sliders', data);
+
+export const updateAdminSlider = (id: number, data: Partial<BannerSliderItem>) =>
+  api.put<{ status: boolean; message: string; data: BannerSliderItem }>(`/admin/sliders/${id}`, data);
+
+export const deleteAdminSlider = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/sliders/${id}`);
 
 export default api;
