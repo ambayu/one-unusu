@@ -18,6 +18,7 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 - `prisma/seed.ts`: kata sandi superadmin kini punya nilai bawaan `password123` di dalam seeder, jadi `SEED_ADMIN_PASSWORD` tidak lagi wajib diisi. Bila variabel itu diset, nilainya tetap dipakai.
 - `prisma/seed.ts`: blok `update` pada `upsert` akun tidak lagi menyertakan field `password`, sehingga menjalankan ulang seed tidak menimpa kata sandi yang sudah diganti.
 - **Akun demo dihapus.** Tombol pintasan "Uji Coba" beserta konstanta `DEMO_PASSWORD` dibuang dari `Login.tsx`; `prisma/seed.ts` tidak lagi membuat akun dosen/mahasiswa contoh dan berhenti membaca `SEED_DEMO_PASSWORD`.
+- Tombol **"Portal Publik UNUSU"** pada topbar panel sebelumnya memakai `href="/"`, yang di produksi membuka akar domain (portal lama), bukan halaman depan ONE UNUSU. Tautan kini diambil dari `VITE_PUBLIC_PORTAL_URL` dengan fallback `import.meta.env.BASE_URL`.
 
 ### Added
 - `src/client/lib/biodata.ts`: `isBiodataComplete()` sebagai sumber tunggal aturan kelengkapan biodata (email + nomor WhatsApp).

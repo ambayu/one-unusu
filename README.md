@@ -69,6 +69,7 @@ DATABASE_URL="mysql://root:@localhost:3306/one_unusu_db"
 JWT_SECRET="..."
 CORS_ORIGIN="http://localhost:5173"
 VITE_API_URL="http://localhost:5000/api"
+VITE_PUBLIC_PORTAL_URL="/sso/"   # opsional; default: halaman depan aplikasi
 ```
 
 ### 3. Setup Prisma

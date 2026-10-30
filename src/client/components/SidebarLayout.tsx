@@ -22,6 +22,17 @@ import {
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
 import { isBiodataComplete } from '../lib/biodata';
 
+/**
+ * Tautan "Portal Publik UNUSU" pada topbar.
+ *
+ * Diambil dari env supaya bisa diarahkan ke situs kampus utama tanpa menyentuh
+ * kode. Bila tidak diset, yang dibuka adalah halaman depan aplikasi ini,
+ * mengikuti base hasil build (mis. "/sso/") — bukan akar domain yang dulu
+ * menampung portal lama.
+ */
+const PUBLIC_PORTAL_URL =
+  import.meta.env.VITE_PUBLIC_PORTAL_URL?.trim() || import.meta.env.BASE_URL;
+
 interface SidebarLayoutProps {
   user: UserProfile | null;
   children: React.ReactNode;
@@ -314,7 +325,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
           <div className="flex items-center gap-3">
             <a
-              href="/"
+              href={PUBLIC_PORTAL_URL}
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#D8E5DC] bg-white text-[#1E293B] hover:bg-[#F0FDF4] hover:text-[#166534] text-xs font-semibold transition shadow-2xs"
