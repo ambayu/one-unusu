@@ -15,6 +15,8 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 - Bagian "Modul Ekosistem Terkait" yang menyebut repositori di luar workspace (`lms-unusu`, `esurat-unusu`, `sdm-sarpras-unusu`, `lpm-lppm-unusu`) diganti tabel **Aplikasi yang Terdaftar di Repositori Ini** berisi 7 entri: 6 aplikasi SSO dari `prisma/seed.ts` dan `siakad` (tautan eksternal non-SSO) dari `src/client/data/services.ts`.
 - Klaim "seeder 6 Fakultas & 14 Prodi" dihapus; diganti penjelasan bahwa konten fakultas, prodi, layanan, berita, dan banner dibaca dari `src/client/data/` dan model Prisma terkait belum memiliki seeder.
 - Menambahkan tabel perintah npm, daftar variabel environment, dan tautan indeks dokumentasi `docs/`.
+- `prisma/seed.ts`: kata sandi superadmin kini punya nilai bawaan `password123` di dalam seeder, jadi `SEED_ADMIN_PASSWORD` tidak lagi wajib diisi. Bila variabel itu diset, nilainya tetap dipakai.
+- `prisma/seed.ts`: blok `update` pada `upsert` akun tidak lagi menyertakan field `password`, sehingga menjalankan ulang seed tidak menimpa kata sandi yang sudah diganti.
 
 ### Added
 - `src/client/lib/biodata.ts`: `isBiodataComplete()` sebagai sumber tunggal aturan kelengkapan biodata (email + nomor WhatsApp).
@@ -22,6 +24,9 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 - Penyelarasan dokumen aturan: `AGENTS.md` poin 4, `docs/PROJECT_RULES.md` 4.1, `docs/routes/auth/RULES.md`, `docs/routes/dashboard/RULES.md`, `docs/routes/profile/RULES.md`.
 - Catatan penyiapan akses via `npm run prisma:seed:access` bila tabel izin/peran belum terisi.
 - Seeder direktori aplikasi non-SSO: `prisma/directory.ts`, `prisma/seed-directory.ts`, dan skrip `npm run prisma:seed:directory` (entri awal: SIAKAD UNUSU dan PMB UNUSU).
+
+### Fixed
+- **Kebocoran kredensial pada halaman login produksi.** Tombol pintasan "Uji Coba: Mahasiswa / Dosen / Superadmin" mengisi kata sandi secara otomatis tanpa pagar lingkungan, sehingga siapa pun dapat masuk sebagai `SUPERADMIN`. Blok tersebut kini dibungkus `import.meta.env.DEV` dan tidak ikut ke dalam build produksi.
 
 ## [2026-10-29]
 

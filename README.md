@@ -79,7 +79,9 @@ npx prisma migrate dev --name init
 npm run prisma:seed
 ```
 
-`prisma:seed` membutuhkan `SSO_CLIENT_KEY_*`, `SEED_PUBLIC_BASE_URL`, dan `SEED_ADMIN_PASSWORD`. Akun demo dosen/mahasiswa hanya dibuat bila `SEED_DEMO_PASSWORD` diset.
+`prisma:seed` membutuhkan `SSO_CLIENT_KEY_*` dan `SEED_PUBLIC_BASE_URL`. Kata sandi superadmin punya nilai bawaan `password123` di `prisma/seed.ts` (`DEFAULT_ADMIN_PASSWORD`); set `SEED_ADMIN_PASSWORD` bila ingin memakai yang lain. Akun demo dosen/mahasiswa hanya dibuat bila `SEED_DEMO_PASSWORD` diset.
+
+Menjalankan ulang seed **tidak** menimpa kata sandi akun yang sudah ada: field `password` hanya dipakai saat akun pertama kali dibuat. Untuk mengganti kata sandi, pakai panel admin atau `PUT /api/auth/profile`.
 
 Bila hanya perlu menyiapkan katalog izin dan peran sistem (gejala: sidebar hanya menampilkan judul "MENU UTAMA" tanpa item), jalankan:
 

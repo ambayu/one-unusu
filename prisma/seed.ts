@@ -34,12 +34,20 @@ const SSO_CLIENT_KEYS = {
 } as const;
 
 /**
- * Konfigurasi seed khusus lingkungan. Tidak ada nilai default untuk password:
- * seed menolak berjalan bila env belum diset, supaya tidak pernah ada akun
- * dengan kata sandi bawaan di server produksi.
+ * Konfigurasi seed khusus lingkungan.
+ *
+ * Kata sandi superadmin ditentukan di sini supaya seed cukup dijalankan tanpa
+ * menyiapkan variabel tambahan. SEED_ADMIN_PASSWORD tetap dibaca bila ada,
+ * untuk lingkungan yang ingin memakai kata sandi berbeda.
+ *
+ * Yang penting: kata sandi hanya dipakai saat akun benar-benar dibuat. Blok
+ * update tidak menyertakan field password, sehingga menjalankan ulang seed
+ * tidak menimpa kata sandi yang sudah diganti lewat panel admin.
  */
 const PUBLIC_BASE_URL = requireEnv("SEED_PUBLIC_BASE_URL").replace(/\/+$/, "");
-const ADMIN_PASSWORD = requireEnv("SEED_ADMIN_PASSWORD");
+const DEFAULT_ADMIN_PASSWORD = "password123";
+const ADMIN_PASSWORD =
+  process.env.SEED_ADMIN_PASSWORD?.trim() || DEFAULT_ADMIN_PASSWORD;
 
 /** Akun demo (dosen & mahasiswa) hanya dibuat bila variabel ini diset. */
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "";
@@ -62,7 +70,6 @@ async function main() {
   await prisma.user.upsert({
     where: { username: "admin" },
     update: {
-      password: adminPasswordHash,
       role: "SUPERADMIN",
       isActive: true,
     },
@@ -86,7 +93,6 @@ async function main() {
   await prisma.user.upsert({
     where: { username: "0102038901" },
     update: {
-      password: demoPasswordHash,
       role: "DOSEN",
       isActive: true,
     },
@@ -108,7 +114,6 @@ async function main() {
   await prisma.user.upsert({
     where: { username: "2201010045" },
     update: {
-      password: demoPasswordHash,
       role: "MAHASISWA",
       isActive: true,
     },
