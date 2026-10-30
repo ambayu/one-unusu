@@ -331,7 +331,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#D8E5DC] bg-white text-[#1E293B] hover:bg-[#F0FDF4] hover:text-[#166534] text-xs font-semibold transition shadow-2xs"
             >
               <GlobeAltIcon className="w-4 h-4 text-[#166534]" />
-              <span>Portal Publik UNUSU</span>
+              <span>Halaman Depan</span>
             </a>
 
             <div className="relative" ref={dropdownRef}>
