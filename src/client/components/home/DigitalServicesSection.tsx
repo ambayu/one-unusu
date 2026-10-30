@@ -41,7 +41,7 @@ export function DigitalServicesSection() {
         {/* Master-Detail Showcase: Menu di Kiri, Full Wallpaper di Kanan */}
         <div className="mt-14 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-xl grid lg:grid-cols-12 min-h-[580px]">
           {/* Kolom Kiri: Side Menu Daftar Aplikasi */}
-          <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-stone-200 p-4 sm:p-6 bg-stone-50/60 flex flex-col justify-between">
+          <div className="min-w-0 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-stone-200 p-4 sm:p-6 bg-stone-50/60 flex flex-col justify-between">
             <div>
               <div className="px-3 pb-3 flex items-center justify-between border-b border-stone-200/80 mb-3">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
@@ -128,7 +128,7 @@ export function DigitalServicesSection() {
           </div>
 
           {/* Kolom Kanan: Full Wallpaper & Detail Aplikasi Aktif */}
-          <div className="lg:col-span-7 relative min-h-[420px] lg:min-h-full bg-brand-950 flex flex-col justify-between overflow-hidden">
+          <div className="min-w-0 lg:col-span-7 relative min-h-[420px] lg:min-h-full bg-brand-950 flex flex-col justify-between overflow-hidden">
             {/* Wallpaper Gambar Aplikasi Full Height & Width */}
             {activeService?.image ? (
               <img

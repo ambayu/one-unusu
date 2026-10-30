@@ -28,6 +28,7 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ### Fixed
 - **Kebocoran kredensial pada halaman login produksi.** Tombol pintasan "Uji Coba: Mahasiswa / Dosen / Superadmin" mengisi kata sandi secara otomatis tanpa pagar lingkungan, sehingga siapa pun dapat masuk sebagai `SUPERADMIN`. Blok tersebut dihapus seluruhnya dari `Login.tsx`.
+- **Kartu "Aplikasi Terintegrasi" meluber di layar mobile.** Item grid memakai `min-width: auto` bawaan sehingga lebar track mengikuti min-content anaknya (380.9px) padahal kartu hanya 356px; ditambahkan `min-w-0` pada kedua kolom `DigitalServicesSection`.
 
 ## [2026-10-29]
 
