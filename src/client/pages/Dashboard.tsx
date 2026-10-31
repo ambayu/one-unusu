@@ -10,11 +10,11 @@ import {
   DirectoryItem,
 } from '../services/api';
 import { SidebarLayout } from '../components/SidebarLayout';
+import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isImageSource } from '../lib/appIcon';
 import { isBiodataComplete } from '../lib/biodata';
 import { assetUrl } from '../lib/assets';
 import {
-  ShieldCheckIcon,
   AcademicCapIcon,
   BuildingOffice2Icon,
   Squares2X2Icon,
@@ -24,8 +24,6 @@ import {
   UserIcon,
   LinkIcon,
   ArrowRightIcon,
-  ChevronRightIcon,
-  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
@@ -35,13 +33,14 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [redirectingAppId, setRedirectingAppId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [accessDeniedModal, setAccessDeniedModal] = useState<{
-    show: boolean;
-    appName: string;
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
     message: string;
   }>({
-    show: false,
-    appName: '',
+    isOpen: false,
+    type: 'error',
     message: '',
   });
 
@@ -106,20 +105,22 @@ export const Dashboard: React.FC = () => {
   }, [navigate]);
 
   const handleLaunchApp = async (app: SsoAppItem) => {
-    // Peran tidak sesuai: tampilkan modal penolakan resmi
-    if (app.isAllowed === false) {
-      setAccessDeniedModal({
-        show: true,
-        appName: app.nameApp,
-        message: `Akun Anda dengan peran ${user?.role || 'Pengguna'} tidak memiliki hak akses ke panel/aplikasi ${app.nameApp}. Akses diisolasi khusus untuk pengelola dan peran yang ditentukan.`,
-      });
-      return;
-    }
-
     // Gerbang biodata: tiket SSO hanya diterbitkan bila email dan nomor
     // WhatsApp sudah terisi. Pengguna diarahkan ke profil dengan notifikasi.
     if (!isBiodataComplete(user)) {
       navigate('/profil', { state: { requiredBio: true } });
+      return;
+    }
+
+    // Otorisasi peran: bila akun tidak memiliki izin ke aplikasi ini,
+    // tampilkan modal notifikasi tanpa menyebut nama peran pengguna.
+    if (app.isAllowed === false) {
+      setNotify({
+        isOpen: true,
+        type: 'denied',
+        title: 'Akses Ditolak',
+        message: 'Akses ditolak. Anda tidak memiliki akses ke aplikasi ini.',
+      });
       return;
     }
 
@@ -129,24 +130,24 @@ export const Dashboard: React.FC = () => {
       if (res.data.status && res.data.redirectUrl) {
         window.location.href = res.data.redirectUrl;
       } else {
-        alert(res.data.message || 'Gagal membuat tiket SSO.');
+        setNotify({
+          isOpen: true,
+          type: 'denied',
+          title: 'Akses Ditolak',
+          message: res.data.message || 'Akses ditolak. Anda tidak memiliki akses ke aplikasi ini.',
+        });
       }
     } catch (err: any) {
       console.error('SSO Redirect error:', err);
-
-      // Peran tidak berhak atas aplikasi ini: tampilkan modal penolakan
-      if (err.response?.status === 403) {
-        setAccessDeniedModal({
-          show: true,
-          appName: app.nameApp,
-          message:
-            err.response?.data?.message ||
-            `Akses ditolak. Anda tidak memiliki izin untuk mengakses aplikasi ${app.nameApp}.`,
-        });
-        return;
-      }
-
-      alert(err.response?.data?.message || 'Gagal mengarahkan ke aplikasi cabang.');
+      const isForbidden = err.response?.status === 403;
+      setNotify({
+        isOpen: true,
+        type: isForbidden ? 'denied' : 'error',
+        title: isForbidden ? 'Akses Ditolak' : 'Gagal Membuka Aplikasi',
+        message: isForbidden
+          ? 'Akses ditolak. Anda tidak memiliki akses ke aplikasi ini.'
+          : err.response?.data?.message || 'Gagal mengarahkan ke aplikasi cabang.',
+      });
     } finally {
       setRedirectingAppId(null);
     }
@@ -362,10 +363,7 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {apps.map((app) => {
-              const isAllowed = app.isAllowed !== false;
-
-              return (
+            {apps.map((app) => (
               <div
                 key={app.id}
                 className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] hover:border-[#166534] bg-white shadow-xs hover:shadow-md transition-all duration-200"
@@ -376,9 +374,7 @@ export const Dashboard: React.FC = () => {
                     <img
                       src={getAppPreviewImage(app)}
                       alt={`Gambar aplikasi ${app.nameApp}`}
-                      className={`w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103 ${
-                        isAllowed ? '' : 'grayscale opacity-70'
-                      }`}
+                      className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
@@ -389,15 +385,9 @@ export const Dashboard: React.FC = () => {
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      {isAllowed ? (
-                        <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                          Terkoneksi
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                          Akses Terbatas
-                        </span>
-                      )}
+                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                        Terkoneksi
+                      </span>
                     </div>
                   </div>
 
@@ -416,26 +406,17 @@ export const Dashboard: React.FC = () => {
                 <div className="p-4 sm:p-5 pt-0">
                   <button
                     onClick={() => handleLaunchApp(app)}
-                    disabled={isAllowed && redirectingAppId === app.id}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
-                      isAllowed
-                        ? 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
-                        : 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:text-rose-800'
-                    }`}
+                    disabled={redirectingAppId === app.id}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm"
                   >
                     <span>
-                      {isAllowed
-                        ? redirectingAppId === app.id
-                          ? 'Mengarahkan SSO...'
-                          : 'Buka Aplikasi'
-                        : 'Akses Ditolak'}
+                      {redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi'}
                     </span>
                     <ArrowRightIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
           )}
         </div>
@@ -533,45 +514,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal Notifikasi Penolakan Akses SSO */}
-        {accessDeniedModal.show && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-            <div className="bg-white w-full max-w-md rounded-[24px] shadow-2xl border border-slate-200 p-6 sm:p-7 text-center animate-in fade-in zoom-in duration-200">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 ring-4 ring-rose-100/70">
-                <ExclamationCircleIcon className="w-8 h-8" />
-              </div>
-
-              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100/80 text-rose-800 mb-2">
-                Hak Akses Terbatas
-              </span>
-
-              <h3 className="text-lg font-bold text-slate-900">
-                Akses ke {accessDeniedModal.appName} Ditolak
-              </h3>
-
-              <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed text-left bg-slate-50 border border-slate-200 rounded-xl p-4">
-                {accessDeniedModal.message}
-              </p>
-
-              <div className="mt-6 flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setAccessDeniedModal({ show: false, appName: '', message: '' })}
-                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs"
-                >
-                  Saya Mengerti
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/profil')}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition"
-                >
-                  Periksa Profil & Peran Saya
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modal Notifikasi Galat Pembukaan SSO */}
+        <NotificationModal
+          isOpen={notify.isOpen}
+          type={notify.type}
+          title={notify.title}
+          message={notify.message}
+          onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
+        />
 
       </div>
     </SidebarLayout>

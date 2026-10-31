@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  ShieldExclamationIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
-export type NotificationType = 'success' | 'error' | 'confirm' | 'info';
+export type NotificationType =
+  | 'success'
+  | 'error'
+  | 'confirm'
+  | 'info'
+  | 'denied'
+  | 'warning'
+  | 'danger';
 
 export interface NotificationModalProps {
   isOpen: boolean;
@@ -32,79 +40,196 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   onClose,
   loading = false,
 }) => {
+  const titleId = useId();
+  const descId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, loading, onClose]);
+
   if (!isOpen) return null;
 
   const defaultTitle = {
-    success: 'Berhasil!',
+    success: 'Berhasil',
     error: 'Terjadi Kesalahan',
+    danger: 'Terjadi Kesalahan',
+    warning: 'Perhatian',
     confirm: 'Konfirmasi Tindakan',
-    info: 'Informasi',
-  }[type];
+    info: 'Informasi Sistem',
+    denied: 'Akses Ditolak',
+  }[type] || 'Informasi Sistem';
 
-  const config = {
+  const configMap = {
     success: {
       icon: CheckCircleIcon,
+      badge: 'Notifikasi Sistem',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#166534]',
       iconBg: 'bg-[#DCFCE7]',
       iconBorder: 'border-[#BBF7D0]',
       iconColor: 'text-[#166534]',
-      btnBg: 'bg-[#166534] hover:bg-[#14532D]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
     },
-    error: {
-      icon: ExclamationCircleIcon,
-      iconBg: 'bg-[#FEE2E2]',
-      iconBorder: 'border-[#FECACA]',
-      iconColor: 'text-[#B91C1C]',
-      btnBg: 'bg-[#B91C1C] hover:bg-[#991B1B]',
-    },
-    confirm: {
-      icon: ExclamationTriangleIcon,
-      iconBg: 'bg-[#FEF3C7]',
-      iconBorder: 'border-[#FDE68A]',
-      iconColor: 'text-[#B45309]',
-      btnBg: 'bg-[#B91C1C] hover:bg-[#991B1B]',
+    denied: {
+      icon: ShieldExclamationIcon,
+      badge: 'Keamanan SSO UNUSU',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#166534]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconBorder: 'border-[#BBF7D0]',
+      iconColor: 'text-[#166534]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
     },
     info: {
       icon: InformationCircleIcon,
-      iconBg: 'bg-[#EFF6FF]',
-      iconBorder: 'border-[#BFDBFE]',
-      iconColor: 'text-[#1D4ED8]',
-      btnBg: 'bg-[#166534] hover:bg-[#14532D]',
+      badge: 'Informasi Layanan',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#15803D]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconBorder: 'border-[#BBF7D0]',
+      iconColor: 'text-[#166534]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
     },
-  }[type];
+    warning: {
+      icon: ExclamationTriangleIcon,
+      badge: 'Perhatian',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#166534]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconBorder: 'border-[#BBF7D0]',
+      iconColor: 'text-[#166534]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
+    },
+    error: {
+      icon: ExclamationCircleIcon,
+      badge: 'Peringatan Sistem',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#166534]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconBorder: 'border-[#BBF7D0]',
+      iconColor: 'text-[#166534]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
+    },
+    danger: {
+      icon: ExclamationCircleIcon,
+      badge: 'Peringatan Sistem',
+      headerBg: 'bg-[#F0FDF4]',
+      headerBorder: 'border-[#D8E5DC]',
+      accentBar: 'bg-[#166534]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconBorder: 'border-[#BBF7D0]',
+      iconColor: 'text-[#166534]',
+      badgeBg: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
+      btnBg: 'bg-[#166534] hover:bg-[#14532D] focus-visible:ring-[#166534]',
+    },
+    confirm: {
+      icon: ExclamationTriangleIcon,
+      badge: 'Konfirmasi Tindakan',
+      headerBg: 'bg-[#FEF3C7]/45',
+      headerBorder: 'border-[#FDE68A]',
+      accentBar: 'bg-[#B45309]',
+      iconBg: 'bg-[#FEF3C7]',
+      iconBorder: 'border-[#FDE68A]',
+      iconColor: 'text-[#B45309]',
+      badgeBg: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]',
+      btnBg: 'bg-[#B91C1C] hover:bg-[#991B1B] focus-visible:ring-[#B91C1C]',
+    },
+  };
+
+  const config = configMap[type] ?? configMap.info;
 
   const IconComponent = config.icon;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#1E293B]/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-start justify-between">
-          <div
-            className={`w-12 h-12 rounded-[14px] ${config.iconBg} border ${config.iconBorder} flex items-center justify-center flex-shrink-0 ${config.iconColor}`}
-          >
-            <IconComponent className="w-7 h-7" />
+    <div
+      className="fixed inset-0 z-[100] bg-[#1E293B]/60 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6"
+      onClick={() => {
+        if (!loading) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-[20px] max-w-lg w-full overflow-hidden shadow-2xl border border-[#D8E5DC] transition-all duration-150"
+      >
+        {/* Garis aksen atas kelembagaan */}
+        <div className={`h-1.5 w-full ${config.accentBar}`} />
+
+        {/* Header visual hijau lembut */}
+        <div
+          className={`${config.headerBg} border-b ${config.headerBorder} px-6 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6 flex items-start justify-between gap-4`}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] ${config.iconBg} border ${config.iconBorder} flex items-center justify-center flex-shrink-0 ${config.iconColor} shadow-2xs`}
+            >
+              <IconComponent className="w-8 h-8 sm:w-9 sm:h-9" aria-hidden="true" />
+            </div>
+            <div className="space-y-1.5">
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-bold border ${config.badgeBg}`}
+              >
+                {config.badge}
+              </span>
+              <h3
+                id={titleId}
+                className="font-extrabold text-[#1E293B] text-lg sm:text-xl tracking-tight leading-snug"
+              >
+                {title || defaultTitle}
+              </h3>
+            </div>
           </div>
+
           <button
+            type="button"
+            aria-label="Tutup dialog notifikasi"
             onClick={onClose}
             disabled={loading}
-            className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2] transition disabled:opacity-50"
+            className="w-9 h-9 rounded-[10px] inline-flex items-center justify-center text-[#64748B] hover:text-[#166534] bg-white/80 hover:bg-white border border-[#D8E5DC] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
           >
-            <XMarkIcon className="w-4 h-4" />
+            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
-        <div>
-          <h3 className="font-bold text-[#1E293B] text-base">{title || defaultTitle}</h3>
-          <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">{message}</p>
+        {/* Isi pesan notifikasi */}
+        <div className="px-6 py-6 sm:px-8 sm:py-7">
+          <p
+            id={descId}
+            className="text-sm sm:text-[15px] text-[#475569] leading-relaxed font-medium"
+          >
+            {message}
+          </p>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-[#E8EFEA]">
+        {/* Footer aksi */}
+        <div className="px-6 py-4 sm:px-8 sm:py-5 bg-[#F1F5F2]/70 border-t border-[#E8EFEA] flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
           {type === 'confirm' ? (
             <>
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 rounded-[8px] text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs transition disabled:opacity-50"
+                className="min-h-[44px] px-5 py-2.5 rounded-[10px] text-[#475569] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] font-semibold text-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
               >
                 {cancelLabel}
               </button>
@@ -112,7 +237,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 type="button"
                 onClick={onConfirm}
                 disabled={loading}
-                className={`px-4 py-2 rounded-[8px] text-white ${config.btnBg} font-semibold text-xs shadow-xs transition disabled:opacity-50`}
+                className={`min-h-[44px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
               >
                 {loading ? 'Memproses...' : confirmLabel}
               </button>
@@ -121,9 +246,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`w-full py-2.5 rounded-[8px] text-white ${config.btnBg} font-semibold text-xs shadow-xs transition`}
+              className={`min-h-[44px] w-full sm:w-auto sm:min-w-[160px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-xs transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
             >
-              Tutup
+              Mengerti & Tutup
             </button>
           )}
         </div>

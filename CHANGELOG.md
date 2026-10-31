@@ -4,6 +4,14 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ---
 
+## [2026-10-31]
+
+### Changed
+- **Dashboard `/dashboard` selalu menampilkan tombol "Buka Aplikasi"** pada seluruh kartu layanan SSO aktif tanpa memblokir dengan label/modal "Akses Ditolak" di dashboard.
+- **Penegakan hak akses peran dipindah ke saat aplikasi tujuan dikunjungi**: `GET /api/sso/app-client/:clientId/v2/redirect` mengarahkan pengguna ke callback aplikasi cabang, lalu `POST /api/v2/website/verify-token` (beserta verifikasi peran di aplikasi cabang) menolak penukaran tiket dengan pesan **Akses ditolak** apabila peran pengguna tidak termasuk dalam `targetRoles`.
+
+---
+
 ## [2026-10-30]
 
 ### Changed

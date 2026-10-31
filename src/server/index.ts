@@ -691,9 +691,9 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
-    // Seluruh aplikasi aktif dikirim ke dashboard. Penanda `isAllowed` dipakai
-    // UI untuk menonaktifkan kartu yang perannya tidak sesuai; penegakan akses
-    // tetap dilakukan pada endpoint penerbitan token di bawah (fail-closed).
+    // Seluruh aplikasi aktif dikirim ke dashboard agar pengguna dapat
+    // membuka aplikasi tujuan. Penegakan izin peran dilakukan saat pengguna
+    // mengunjungi dan menukar tiket SSO pada aplikasi tujuan (fail-closed).
     const appsWithAccess = apps.map((app) => {
       try {
         const allowedRoles: unknown = JSON.parse(app.targetRoles);
@@ -712,7 +712,9 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
 });
 
 // GET /api/sso/app-client/:clientId/v2/redirect
-// Menerbitkan token sekali pakai (single-use 64 char) dan menghasilkan URL Callback
+// Menerbitkan token sekali pakai (single-use 64 char) dan menghasilkan URL Callback.
+// Pengecekan otorisasi peran dilakukan secara fail-closed sebelum tiket diterbitkan
+// serta diverifikasi ulang saat aplikasi cabang menukar tiket via verify-token.
 app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { clientId } = req.params;
@@ -722,7 +724,7 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       return res.status(400).json({ status: false, message: "Client ID tidak valid." });
     }
 
-    // Role dan status akun dibaca dari database, bukan dari isi token.
+    // Status akun dibaca dari database, bukan dari isi token.
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true, isActive: true }
@@ -732,8 +734,6 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       return res.status(403).json({ status: false, message: "Akun tidak aktif atau tidak ditemukan." });
     }
 
-    const userRole = currentUser.role;
-
     const ssoApp = await prisma.ssoApp.findUnique({
       where: { clientId }
     });
@@ -742,11 +742,17 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       return res.status(404).json({ status: false, message: "Aplikasi cabang tidak ditemukan atau sedang tidak aktif." });
     }
 
-    // Cek otorisasi role
+    // Validasi integritas konfigurasi targetRoles & otorisasi peran (fail-closed)
     try {
-      const allowedRoles: string[] = JSON.parse(ssoApp.targetRoles);
-      if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ status: false, message: `Akun dengan peran ${userRole} tidak memiliki izin akses ke ${ssoApp.nameApp}.` });
+      const allowedRoles: unknown = JSON.parse(ssoApp.targetRoles);
+      if (!Array.isArray(allowedRoles)) {
+        throw new Error("targetRoles bukan array");
+      }
+      if (!allowedRoles.includes(currentUser.role)) {
+        return res.status(403).json({
+          status: false,
+          message: "Akses ditolak. Anda tidak memiliki akses ke aplikasi ini."
+        });
       }
     } catch (e) {
       logServerError(`targetRoles tidak valid pada aplikasi ${ssoApp.clientId}`, e);
@@ -895,7 +901,24 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
       });
     }
 
-    // 6. Return Payload Profil Terpercaya (Sesuai Format SSO Diskominfo Medan)
+    // 6. Penegakan Otorisasi Peran pada Aplikasi Tujuan (Fail-Closed)
+    try {
+      const allowedRoles: unknown = JSON.parse(ssoApp.targetRoles);
+      if (!Array.isArray(allowedRoles) || !allowedRoles.includes(user.role)) {
+        return res.status(403).json({
+          status: false,
+          message: "Akses ditolak. Anda tidak memiliki akses ke aplikasi ini."
+        });
+      }
+    } catch (e) {
+      logServerError(`targetRoles tidak valid pada aplikasi ${ssoApp.clientId}`, e);
+      return res.status(500).json({
+        status: false,
+        message: "Konfigurasi hak akses aplikasi tidak valid."
+      });
+    }
+
+    // 7. Return Payload Profil Terpercaya (Sesuai Format SSO Diskominfo Medan)
     res.json({
       status: true,
       message: "Autentikasi SSO v2 Berhasil",

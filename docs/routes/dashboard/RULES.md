@@ -17,8 +17,8 @@ Dokumentasi aturan khusus rute `/dashboard` (Portal SSO Gateway).
 ## 2. Aturan Bisnis & Integrasi
 1. Mengambil data paralel via `Promise.all([fetchMe(), fetchSsoApps()])`.
 2. Jika respons unauthorized (401/403), hapus `one_unusu_token` dan `one_unusu_user` dari `localStorage`, lalu redirect ke `/login`.
-3. Membuka aplikasi menggunakan `GET /api/sso/app-client/:clientId/v2/redirect` melalui `getSsoRedirectV2`, dengan state loading interaktif `redirectingAppId`.
-4. **Gerbang biodata pada `handleLaunchApp`**: bila `isBiodataComplete(user)` bernilai `false` (email atau nomor WhatsApp kosong), jangan minta tiket SSO. Alihkan ke `/profil` dengan `state: { requiredBio: true }` agar halaman biodata menampilkan notifikasi modal. Pemeriksaan ini berjalan setelah pemeriksaan `isAllowed`.
+3. Membuka aplikasi menggunakan `GET /api/sso/app-client/:clientId/v2/redirect` melalui `getSsoRedirectV2`, dengan state loading interaktif `redirectingAppId`. Seluruh kartu aplikasi aktif menampilkan tombol **Buka Aplikasi**; penegakan hak akses peran dilakukan saat aplikasi cabang menukar tiket SSO (`POST /api/v2/website/verify-token`), sehingga notifikasi **Akses Ditolak** muncul ketika pengguna mengunjungi aplikasi tujuan.
+4. **Gerbang biodata pada `handleLaunchApp`**: bila `isBiodataComplete(user)` bernilai `false` (email atau nomor WhatsApp kosong), jangan minta tiket SSO. Alihkan ke `/profil` dengan `state: { requiredBio: true }` agar halaman biodata menampilkan notifikasi modal.
 5. Jika profil civitas belum memiliki email atau WhatsApp, tampilkan warning banner pengingat biodata (tidak memblokir akses dashboard).
 
 ## 3. Aturan Identitas Civitas

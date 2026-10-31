@@ -1,5 +1,13 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-10-31] - Tombol Tetap Buka Aplikasi, Penolakan Akses di Aplikasi Tujuan
+
+### Changed
+- **Kartu aplikasi di `/dashboard` selalu menampilkan tombol "Buka Aplikasi"** (tanpa tombol merah "Akses Ditolak", tanpa badge "Akses Terbatas", dan tanpa modal penolakan di dashboard).
+- **`GET /api/sso/app-client/:clientId/v2/redirect`** menerbitkan tiket single-use dan mengarahkan browser ke callback aplikasi tujuan tanpa memblokir berdasarkan `targetRoles` di halaman dashboard.
+- **`POST /api/v2/website/verify-token`** menegakkan validasi `targetRoles` secara *fail-closed* (HTTP 403 `Akses ditolak...`) saat aplikasi tujuan menukar tiket, sehingga notifikasi **Akses Ditolak** tampil langsung ketika pengguna mengunjungi aplikasi tersebut.
+- Umpan balik galat jaringan/server pada `handleLaunchApp` menggunakan `NotificationModal` standar menggantikan `alert()`.
+
 ## [2026-10-30] - Gerbang Biodata Dipindah ke Pembukaan Aplikasi
 
 ### Changed
