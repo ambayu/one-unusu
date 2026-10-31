@@ -7,8 +7,9 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 ## [2026-10-31]
 
 ### Changed
-- **Dashboard `/dashboard` selalu menampilkan tombol "Buka Aplikasi"** pada seluruh kartu layanan SSO aktif tanpa memblokir dengan label/modal "Akses Ditolak" di dashboard.
-- **Penegakan hak akses peran dipindah ke saat aplikasi tujuan dikunjungi**: `GET /api/sso/app-client/:clientId/v2/redirect` mengarahkan pengguna ke callback aplikasi cabang, lalu `POST /api/v2/website/verify-token` (beserta verifikasi peran di aplikasi cabang) menolak penukaran tiket dengan pesan **Akses ditolak** apabila peran pengguna tidak termasuk dalam `targetRoles`.
+- **Pesan penolakan akses SSO disederhanakan tanpa menyebut peran pengguna**: pesan pada `GET /api/sso/app-client/:clientId/v2/redirect`, `POST /api/v2/website/verify-token`, `Dashboard.tsx`, dan `SsoAuthorize.tsx` diseragamkan menjadi `"Akses ditolak. Anda tidak memiliki akses ke aplikasi ini."`.
+- **Modal notifikasi diperbesar dan dipercantik dengan nuansa hijau kelembagaan**: `NotificationModal.tsx` kini menggunakan ukuran lebih lega (`max-w-lg`), header `#F0FDF4` dengan garis aksen hijau `#166534`, badge status, wadah ikon Heroicons `ShieldExclamationIcon` hijau lembut (`#DCFCE7` / `#BBF7D0`), tipografi lebih jelas, serta tombol tutup hijau `#166534` yang ramah aksesibilitas keyboard (`Escape`).
+- **Dashboard `/dashboard` selalu menampilkan tombol "Buka Aplikasi"** pada seluruh kartu layanan SSO aktif, dan menampilkan modal notifikasi hijau **Akses Ditolak** ketika pengguna membuka aplikasi yang tidak sesuai hak aksesnya.
 
 ---
 

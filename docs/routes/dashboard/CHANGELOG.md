@@ -1,12 +1,11 @@
 # Changelog Route: Dashboard SSO
 
-## [2026-10-31] - Tombol Tetap Buka Aplikasi, Penolakan Akses di Aplikasi Tujuan
+## [2026-10-31] - Modal Akses Ditolak Hijau & Pesan Tanpa Nama Peran
 
 ### Changed
-- **Kartu aplikasi di `/dashboard` selalu menampilkan tombol "Buka Aplikasi"** (tanpa tombol merah "Akses Ditolak", tanpa badge "Akses Terbatas", dan tanpa modal penolakan di dashboard).
-- **`GET /api/sso/app-client/:clientId/v2/redirect`** menerbitkan tiket single-use dan mengarahkan browser ke callback aplikasi tujuan tanpa memblokir berdasarkan `targetRoles` di halaman dashboard.
-- **`POST /api/v2/website/verify-token`** menegakkan validasi `targetRoles` secara *fail-closed* (HTTP 403 `Akses ditolak...`) saat aplikasi tujuan menukar tiket, sehingga notifikasi **Akses Ditolak** tampil langsung ketika pengguna mengunjungi aplikasi tersebut.
-- Umpan balik galat jaringan/server pada `handleLaunchApp` menggunakan `NotificationModal` standar menggantikan `alert()`.
+- **Pesan penolakan akses tanpa menyebut peran**: pesan penolakan akses pada `Dashboard.tsx`, `GET /api/sso/app-client/:clientId/v2/redirect`, dan `POST /api/v2/website/verify-token` diubah menjadi `"Akses ditolak. Anda tidak memiliki akses ke aplikasi ini."`.
+- **`NotificationModal` diperbesar dan dipercantik bernuansa hijau**: lebar modal ditingkatkan ke `max-w-lg`, dilengkapi header `#F0FDF4`, aksen hijau `#166534`, ikon `ShieldExclamationIcon` dalam kotak `#DCFCE7`, serta tombol aksi hijau `#166534`.
+- **Kartu aplikasi di `/dashboard` tetap menampilkan tombol "Buka Aplikasi"**; apabila `isAllowed === false` atau server mengembalikan HTTP `403`, modal notifikasi hijau **Akses Ditolak** langsung ditampilkan.
 
 ## [2026-10-30] - Gerbang Biodata Dipindah ke Pembukaan Aplikasi
 
