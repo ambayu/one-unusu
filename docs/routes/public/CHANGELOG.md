@@ -1,6 +1,12 @@
 # Changelog - Portal Publik
 
-## [2026-10-30]
+## [2026-11-01]
+
+### Fixed
+- **Navigasi Tombol Aksi Landing Page Sesuai Sesi & Otoritas Peran**:
+  - Memperbaiki pengalihan aksi tombol pada `DigitalServicesSection` (`Hero Quick SSO Link`, `Akses Modul Aktif`, dan `Banner Ajakan Masuk SSO`): kini membaca sesi pengguna dari `one_unusu_user` dan menyesuaikan rute target (`/admin` untuk `SUPERADMIN`, `/dashboard` untuk peran civitas reguler, dan `/login` untuk tamu/anonim).
+  - Menghilangkan potensi salah arah ke `/admin` bagi pengguna tamu (guest) atau peran reguler (dosen/mahasiswa/tendik).
+  - Teks label tombol secara dinamis menyesuaikan peran ("Buka Panel Admin" untuk superadmin, "Buka Dashboard SSO" untuk pengguna login reguler, atau "Masuk Portal SSO Sekarang" / "Masuk dengan NIM / NIDN" untuk tamu).
 
 ### Changed
 - **Section Profil Landing Page**: `ProfileSection` diubah fokusnya dari profil universitas menjadi profil platform **ONE UNUSU** — eyebrow "Tentang Platform", judul "Mengenal ONE UNUSU", narasi tentang gateway identitas digital tunggal, serta daftar keunggulan (satu kredensial, token SSO single-use, kendali akses berbasis peran).

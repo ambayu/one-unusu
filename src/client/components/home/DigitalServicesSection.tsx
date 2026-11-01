@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "../ui/Badge";
 import { Container } from "../ui/Container";
@@ -10,6 +10,31 @@ export function DigitalServicesSection() {
   const [activeServiceId, setActiveServiceId] = useState<string>(
     digitalServices[0]?.id || ""
   );
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem("one_unusu_user");
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        setIsLoggedIn(true);
+        setUserRole(userObj?.role ?? null);
+      } else {
+        setIsLoggedIn(false);
+        setUserRole(null);
+      }
+    } catch {
+      setIsLoggedIn(false);
+      setUserRole(null);
+    }
+  }, []);
+
+  const authTargetUrl = isLoggedIn
+    ? userRole === "SUPERADMIN"
+      ? "/admin"
+      : "/dashboard"
+    : "/login";
 
   const activeService =
     digitalServices.find((s) => s.id === activeServiceId) || digitalServices[0];
@@ -117,11 +142,18 @@ export function DigitalServicesSection() {
             {/* Quick SSO Link di bawah side menu */}
             <div className="pt-4 mt-4 border-t border-stone-200">
               <Link
-                to="/login"
+                to={authTargetUrl}
+                data-testid="hero-masuk-button"
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-800 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-xs"
               >
                 <Icon name="shield" className="size-4 text-gold-300" />
-                <span>Masuk Portal SSO Sekarang</span>
+                <span>
+                  {isLoggedIn
+                    ? userRole === "SUPERADMIN"
+                      ? "Buka Panel Admin"
+                      : "Buka Dashboard SSO"
+                    : "Masuk Portal SSO Sekarang"}
+                </span>
                 <Icon name="arrow-right" className="size-3.5" />
               </Link>
             </div>
@@ -190,7 +222,7 @@ export function DigitalServicesSection() {
               {/* Action Jump */}
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <Link
-                  to="/login"
+                  to={authTargetUrl}
                   className="inline-flex items-center gap-2 rounded-xl bg-gold-400 hover:bg-gold-300 text-brand-950 px-6 py-3 text-xs font-bold shadow-lg transition-all hover:-translate-y-0.5"
                 >
                   <Icon name="shield" className="size-4" />
@@ -219,15 +251,21 @@ export function DigitalServicesSection() {
               Siap Mengakses Layanan Kampus Anda?
             </h3>
             <p className="text-sm text-brand-100/90 max-w-xl mx-auto leading-relaxed">
-              Login sekali untuk melompat langsung ke LMS, E-Surat, LPM, LPPM, dan Sarpras tanpa repot mengingat banyak kata sandi.
+              Login sekali untuk melompat langsung ke LMS, E-Surat, LPM, LPPM, Akreditasi, dan Sarpras tanpa repot mengingat banyak kata sandi.
             </p>
             <div className="pt-2">
               <Link
-                to="/login"
+                to={authTargetUrl}
                 className="inline-flex items-center gap-2 rounded-xl bg-gold-400 hover:bg-gold-300 text-brand-950 px-8 py-3.5 text-sm font-bold transition-all shadow-lg hover:-translate-y-0.5"
               >
                 <Icon name="shield" className="size-4" />
-                <span>Masuk dengan NIM / NIDN</span>
+                <span>
+                  {isLoggedIn
+                    ? userRole === "SUPERADMIN"
+                      ? "Buka Panel Admin"
+                      : "Buka Dashboard SSO"
+                    : "Masuk dengan NIM / NIDN"}
+                </span>
                 <Icon name="arrow-right" className="size-4" />
               </Link>
             </div>

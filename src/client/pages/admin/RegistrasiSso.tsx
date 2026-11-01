@@ -271,8 +271,8 @@ export const RegistrasiSso: React.FC = () => {
   return (
     <AdminPanelTemplate
       user={currentUser}
-      title="Registrasi SSO"
-      description="Daftarkan aplikasi kampus dan kelola kredensial integrasi Single Sign-On UNUSU."
+      title="Dashboard Layanan SSO"
+      description="Dashboard ringkasan layanan, pemantauan aplikasi kampus, dan status Single Sign-On UNUSU."
       onRefresh={reload}
       refreshing={loading}
     >

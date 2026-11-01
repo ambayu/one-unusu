@@ -417,8 +417,90 @@ const requirePermission = (permissionKey: string) => {
 };
 
 // ==========================================
-// 1. AUTHENTICATION (LOGIN NIM / NIDN)
+// SSO INITIATION & CALLBACK HANDLERS
 // ==========================================
+
+/**
+ * GET /sso/login / GET /api/sso/login
+ * Endpoint inisiasi login SSO ONE UNUSU.
+ * Memastikan request diarahkan ke SSO login prompt dengan parameter mode 'login' (bukan register),
+ * serta mendukung parameter redirect / return_to / next untuk diteruskan ke proses autentikasi.
+ */
+app.get(["/sso/login", "/api/sso/login"], (req: Request, res: Response) => {
+  const returnUrl = req.query.return_to || req.query.redirect_to || req.query.redirect || req.query.next;
+  const queryParams = new URLSearchParams();
+  queryParams.set("mode", "login");
+
+  if (typeof returnUrl === "string" && returnUrl.trim()) {
+    queryParams.set("next", returnUrl.trim());
+  }
+
+  const target = `/login?${queryParams.toString()}`;
+  return res.redirect(302, target);
+});
+
+/**
+ * GET /sso/callback / GET /api/sso/callback
+ * Handler callback setelah autentikasi SSO berhasil atau penukaran sesi eksternal.
+ * Menetapkan / memvalidasi sesi HttpOnly cookie dan mengarahkan seluruh civitas
+ * secara konsisten ke /dashboard civitas setelah autentikasi sukses.
+ */
+app.get(["/sso/callback", "/api/sso/callback"], async (req: Request, res: Response) => {
+  try {
+    const rawToken = req.query.token || req.query.code || req.query.auth_token;
+    let sessionToken = typeof rawToken === "string" ? rawToken.trim() : null;
+    let verifiedPayload: AuthRequest["user"] | null = null;
+
+    // Jika token disediakan di query params callback, verifikasi token JWT
+    if (sessionToken) {
+      try {
+        const decoded = jwt.verify(sessionToken, JWT_SECRET as string, { algorithms: ["HS256"] });
+        if (isAuthPayload(decoded)) {
+          verifiedPayload = decoded;
+          // Tetapkan cookie HttpOnly untuk sesi pengguna
+          res.cookie(AUTH_COOKIE_NAME, sessionToken, authCookieOptions);
+        } else {
+          return res.redirect(302, "/login?mode=login&error=invalid_token");
+        }
+      } catch (err) {
+        logServerError("SSO Callback Token Invalid", err);
+        return res.redirect(302, "/login?mode=login&error=token_expired");
+      }
+    } else {
+      // Periksa apakah pengguna sudah memiliki cookie sesi aktif
+      const existingToken = readSessionToken(req);
+      if (!existingToken) {
+        // Jika belum login atau sesi kosong, arahkan ke login prompt dengan mode login
+        return res.redirect(302, "/login?mode=login&next=" + encodeURIComponent("/dashboard"));
+      }
+      try {
+        const decoded = jwt.verify(existingToken, JWT_SECRET as string, { algorithms: ["HS256"] });
+        if (isAuthPayload(decoded)) {
+          verifiedPayload = decoded;
+        } else {
+          return res.redirect(302, "/login?mode=login&error=session_invalid");
+        }
+      } catch (err) {
+        return res.redirect(302, "/login?mode=login&error=session_expired");
+      }
+    }
+
+    // Periksa tujuan redirect: prioritaskan /dashboard civitas untuk seluruh civitas/role
+    const requestedNext = typeof req.query.next === "string" && req.query.next.startsWith("/") && !req.query.next.startsWith("//")
+      ? req.query.next
+      : null;
+
+    let nextDestination = "/dashboard";
+    if (requestedNext && requestedNext !== "/login" && requestedNext !== "/register") {
+      nextDestination = requestedNext;
+    }
+
+    return res.redirect(302, nextDestination);
+  } catch (error: any) {
+    logServerError("GET /sso/callback", error);
+    return res.redirect(302, "/login?mode=login");
+  }
+});
 
 // POST /api/auth/login
 app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) => {
@@ -1862,6 +1944,16 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });
+});
+
+// Root route handler ('/') - pastikan user publik atau unauthenticated guest
+// selalu menerima index.html (SPA landing page) dan TIDAK diarahkan ke /admin atau /dashboard secara otomatis.
+app.get("/", (req: Request, res: Response) => {
+  res.sendFile(path.join(clientDistPath, "index.html"), (err) => {
+    if (err) {
+      res.status(200).send("ONE UNUSU SSO Server Running. Build the client to serve the UI.");
+    }
+  });
 });
 
 // Fallback all non-API routes to index.html (SPA History Fallback)

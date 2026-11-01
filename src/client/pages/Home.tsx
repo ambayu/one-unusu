@@ -10,7 +10,7 @@ import { externalUrls } from "../data/site";
 
 export const Home: React.FC = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white" data-testid="landing-page-root">
       <Topbar />
       <Navbar items={mainNavigation} registerUrl={externalUrls.pmb} />
       <main className="flex-1">

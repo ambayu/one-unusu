@@ -95,13 +95,22 @@ export const SsoAuthorize: React.FC = () => {
             </div>
             <div className="px-6 py-4 sm:px-8 sm:py-5 bg-[#F1F5F2]/70 border-t border-[#E8EFEA] flex flex-col sm:flex-row sm:justify-end gap-2.5">
               <Link
+                to="/"
+                data-testid="link-kembali-beranda"
+                className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-[10px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-sm font-semibold transition"
+              >
+                Halaman Depan
+              </Link>
+              <Link
                 to="/login"
+                data-testid="link-login-ulang"
                 className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-[10px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-sm font-semibold transition"
               >
                 Masuk dengan Akun Lain
               </Link>
               <Link
                 to="/dashboard"
+                data-testid="link-kembali-dashboard"
                 className="min-h-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-[10px] bg-[#166534] hover:bg-[#14532D] text-white text-sm font-bold shadow-xs transition"
               >
                 Kembali ke Portal ONE UNUSU

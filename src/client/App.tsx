@@ -8,6 +8,7 @@ import { ProdiPage } from './pages/Prodi';
 import { LayananPage } from './pages/Layanan';
 import { KeamananPage } from './pages/Keamanan';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { SsoAuthorize } from './pages/SsoAuthorize';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
@@ -20,8 +21,14 @@ import { ManajemenSlider } from './pages/admin/ManajemenSlider';
 import { PERMISSIONS } from './lib/permissions';
 import type { UserProfile } from './services/api';
 
+// Kunci localStorage untuk menyimpan data profil pengguna yang terautentikasi
 const USER_STORAGE_KEY = 'one_unusu_user';
 
+/**
+ * Membaca data pengguna dari cache lokal (localStorage).
+ *
+ * @returns Data profil pengguna yang tersimpan di cache atau null jika tidak ada / tidak valid
+ */
 function readCachedUser(): UserProfile | null {
   const raw = localStorage.getItem(USER_STORAGE_KEY);
 
@@ -44,6 +51,30 @@ function readCachedUser(): UserProfile | null {
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
   if (!readCachedUser()) {
     return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+/**
+ * Route guard untuk root ('/'):
+ * Memastikan rute root selalu merender tampilan landing page publik (<Home />) untuk semua pengunjung,
+ * baik pengunjung anonim maupun pengguna yang sudah login (admin, dosen, mahasiswa).
+ * Landing page publik tidak boleh memicu redirection otomatis ke /admin atau /dashboard.
+ */
+const RootRoute = () => {
+  return <Home />;
+};
+
+/**
+ * Route guard untuk autentikasi/registrasi ('/register' atau '/auth/register'):
+ * Hanya dapat dibuka jika berstatus guest. Jika user sudah memiliki session,
+ * dialihkan langsung ke dashboard/panel.
+ */
+const GuestOnlyRoute = ({ children }: { children: React.ReactElement }) => {
+  const cachedUser = readCachedUser();
+  if (cachedUser) {
+    const landingPath = cachedUser.role === 'SUPERADMIN' ? '/admin' : '/dashboard';
+    return <Navigate to={landingPath} replace />;
   }
   return children;
 };
@@ -79,7 +110,7 @@ export function App() {
     <Router basename={routerBasename}>
       <Routes>
         {/* Landing Page & Dedicated Subpages */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<RootRoute />} />
         <Route path="/aplikasi" element={<AplikasiPage />} />
         <Route path="/bantuan" element={<BantuanPage />} />
         <Route path="/fakultas" element={<FakultasPage />} />
@@ -88,7 +119,30 @@ export function App() {
         <Route path="/keamanan" element={<KeamananPage />} />
 
         {/* SSO Authentication & Portal Routes */}
-        <Route path="/login" element={<Login />} />
+        <Route
+          path="/login"
+          element={
+            <GuestOnlyRoute>
+              <Login />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestOnlyRoute>
+              <Register />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/auth/register"
+          element={
+            <GuestOnlyRoute>
+              <Register />
+            </GuestOnlyRoute>
+          }
+        />
         {/* Titik masuk SSO dari aplikasi cabang (LMS, E-Surat, Akreditasi, dll.) */}
         <Route path="/authorize" element={<SsoAuthorize />} />
         <Route

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, FocusEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Container } from "../ui/Container";
 import { Icon } from "../ui/Icon";
 import { Logo } from "../ui/Logo";
@@ -16,10 +16,40 @@ const disabledHintFor = (link: NavLink) =>
   link.external ? "Tautan belum dikonfigurasi" : "Halaman segera hadir";
 
 export function Navbar({ items, registerUrl }: NavbarProps) {
+  const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem("one_unusu_user");
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        setIsLoggedIn(true);
+        setUserRole(userObj?.role ?? null);
+      } else {
+        setIsLoggedIn(false);
+        setUserRole(null);
+      }
+    } catch {
+      setIsLoggedIn(false);
+      setUserRole(null);
+    }
+  }, []);
+
+  const loginTargetUrl = isLoggedIn
+    ? "/dashboard"
+    : "/login";
+
+  const handleLoginClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeAll();
+    navigate(loginTargetUrl);
+  };
 
   const navRef = useRef<HTMLElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
@@ -170,11 +200,13 @@ export function Navbar({ items, registerUrl }: NavbarProps) {
         <div className="flex items-center gap-2">
           {/* SSO Portal Button */}
           <Link
-            to="/login"
+            to={loginTargetUrl}
+            onClick={handleLoginClick}
+            data-testid="nav-masuk-button"
             className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50/80 hover:bg-brand-100 text-brand-900 px-3.5 py-2 text-xs font-bold transition shadow-xs"
           >
             <Icon name="shield" className="size-3.5 text-brand-700" />
-            <span>Masuk</span>
+            <span>{isLoggedIn ? "Dashboard" : "Masuk"}</span>
           </Link>
 
           <RegisterButton href={registerUrl} className="hidden sm:inline-flex" />
@@ -263,12 +295,13 @@ export function Navbar({ items, registerUrl }: NavbarProps) {
           </nav>
           <div className="mt-4 pt-4 border-t border-stone-100 flex flex-col gap-2">
             <Link
-              to="/login"
-              onClick={closeAll}
+              to={loginTargetUrl}
+              onClick={handleLoginClick}
+              data-testid="nav-masuk-button-mobile"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white"
             >
               <Icon name="shield" className="size-4" />
-              Masuk
+              {isLoggedIn ? "Dashboard" : "Masuk"}
             </Link>
             <RegisterButton href={registerUrl} className="flex w-full" />
           </div>

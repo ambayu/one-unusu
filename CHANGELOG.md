@@ -4,6 +4,45 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ---
 
+## [2026-11-02]
+
+### Documentation
+- **Dokumentasi JSDoc `normalizeExternalUrl` (`src/client/lib/urls.ts`)**:
+  - Menambahkan JSDoc komprehensif pada fungsi `normalizeExternalUrl` yang menjelaskan validasi/normalisasi URL eksternal http/https dan pengembalian nilai `null` untuk URL tidak valid tanpa mengubah logika fungsi.
+- **Dokumentasi JSDoc `readCachedUser` (`src/client/App.tsx`)**:
+  - Menambahkan JSDoc pada fungsi `readCachedUser` yang mendokumentasikan pembacaan data sesi pengguna dari cache lokal (`localStorage`) tanpa memodifikasi implementasi fungsi.
+
+---
+
+## [2026-11-01]
+
+### Fixed
+- **Audit & Penyelarasan Navigasi Tombol Aksi Landing Page (`/`)**:
+  - Tombol-tombol aksi di landing page (`DigitalServicesSection` & `Navbar`) diaudit dan diperbaiki alur navigasinya agar tidak salah mengarahkan tamu/guest atau pengguna reguler ke panel `/admin`.
+  - Target navigasi kini konsisten dengan sesi `one_unusu_user`: tamu diarahkan ke `/login`, pengguna reguler (dosen, mahasiswa, tendik) ke `/dashboard`, dan superadmin ke `/admin`.
+  - Label teks CTA tombol aksi diperbarui secara kontekstual sesuai hak akses pengguna.
+
+---
+
+## [2026-10-31]
+
+### Verified & Fixed
+- **Verifikasi End-to-End Alur Login dan Routing SSO**:
+  - Memverifikasi tombol 'Masuk' dari landing page (`Navbar.tsx` desktop/mobile, serta `DigitalServicesSection.tsx`): mengarahkan pengguna secara tepat ke form login SSO (`/login`), bukan form registrasi (`/register` / PMB external).
+  - Memvalidasi proteksi `GuestOnlyRoute` pada `/login` dan `/register` di mana user yang telah memiliki sesi aktif (`one_unusu_user`) langsung dialihkan ke dashboard/panel admin (`/admin` untuk SUPERADMIN, `/dashboard` untuk civitas umum) tanpa prompt atau pengisian formulir berulang.
+  - Memvalidasi alur pasca-login sukses pada `Login.tsx`: sesi disimpan dan user diarahkan ke rute target sesuai peran (`SUPERADMIN` ke `/admin`, mahasiswa/dosen/tendik ke `/dashboard`) atau parameter internal `next`.
+  - Menambahkan penanda `data-testid` pada tombol 'Masuk' (`nav-masuk-button`, `nav-masuk-button-mobile`, `hero-masuk-button`) dan elemen form login (`login-identifier-input`, `login-submit-button`) untuk kepatuhan otomasi E2E testing.
+  - Memverifikasi seluruh skenario pengujian dengan automated script E2E simulation dan build check (`npm run build`).
+
+- **Verifikasi Alur Navigasi & Redirect Landing Page**:
+  - Memverifikasi tombol 'Halaman Depan' dan tombol 'Kembali' di seluruh halaman aplikasi (`Login`, `Register`, `SsoAuthorize`, `SidebarLayout`).
+  - Menyelaraskan teks dan atribut navigasi tombol kembali pada halaman `Login.tsx` (`Kembali ke Halaman Depan` dengan `data-testid="link-kembali-beranda"` dan `title="Kembali ke Halaman Depan"`).
+  - Menambahkan pengenal atribut `data-testid` pada tombol kembali dan halaman depan di `Register.tsx` (`link-kembali-beranda`, `link-kembali-login`) serta `SsoAuthorize.tsx` (`link-kembali-beranda`, `link-kembali-dashboard`, `link-login-ulang`).
+  - Memastikan seluruh skenario navigasi (langsung via URL, antar-halaman, serta tombol kembali) mengarah mulus ke root publik (`/`) tanpa redirect loop atau error 404/mental.
+  - Memvalidasi build TypeScript dan Vite (`npm run build`) berhasil 100% tanpa error linter maupun compiler.
+
+---
+
 ## [2026-10-31]
 
 ### Changed

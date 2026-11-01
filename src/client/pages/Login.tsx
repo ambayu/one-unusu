@@ -44,8 +44,12 @@ export const Login: React.FC = () => {
   const nextPath =
     rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
 
-  const resolveLandingPath = (role?: string) =>
-    role === 'SUPERADMIN' ? '/admin' : '/dashboard';
+  /**
+   * Tujuan lanjutan setelah login.
+   * Pasca-submit sukses selalu mengarahkan pengguna ke /dashboard civitas,
+   * kecuali ada alur SSO spesifik dengan query parameter nextPath internal yang valid.
+   */
+  const resolveLandingPath = (_role?: string) => '/dashboard';
 
   useEffect(() => {
     generateCaptcha();
@@ -126,10 +130,12 @@ export const Login: React.FC = () => {
         <div>
           <Link
             to="/"
+            data-testid="link-kembali-beranda"
+            title="Kembali ke Halaman Depan"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#64748B] hover:text-[#166534] transition-colors"
           >
             <ChevronLeftIcon className="w-4 h-4" />
-            <span>Kembali ke Beranda</span>
+            <span>Kembali ke Halaman Depan</span>
           </Link>
         </div>
 
@@ -139,7 +145,7 @@ export const Login: React.FC = () => {
           {/* Headline */}
           <div className="mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold text-[#1E293B] tracking-tight">
-              Masuk
+              Masuk ke ONE UNUSU
             </h1>
             <p className="mt-2 text-sm text-[#64748B]">
               Gunakan NIM (Mahasiswa), NIDN (Dosen / Tendik), atau username administrator
@@ -165,6 +171,7 @@ export const Login: React.FC = () => {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Masukkan NIM, NIDN, atau username"
+                data-testid="login-identifier-input"
                 className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                 required
               />
@@ -253,6 +260,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
+              data-testid="login-submit-button"
               className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150 disabled:opacity-50"
             >
               {loading ? 'Memproses...' : 'Masuk'}

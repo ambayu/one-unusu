@@ -132,7 +132,12 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
             isCollapsed ? 'justify-center px-0' : 'justify-between px-5'
           }`}
         >
-          <Link to="/dashboard" className="flex items-center gap-3" title="ONE UNUSU">
+          <Link
+            to="/"
+            className="flex items-center gap-3"
+            title="ONE UNUSU - Halaman Depan"
+            data-testid="link-brand-home"
+          >
             <div className="w-11 h-11 rounded-[14px] bg-white border border-[#A5DCB9] p-1 shadow-2xs flex-shrink-0 flex items-center justify-center">
               <img
                 src={assetUrl("/assets/pai/logo-unusu.jpg")}
@@ -327,15 +332,15 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
           </div>
 
           <div className="flex items-center gap-3">
-            <a
-              href={PUBLIC_PORTAL_URL}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              to="/"
+              data-testid="link-halaman-depan"
+              title="Kembali ke Halaman Depan ONE UNUSU"
               className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#D8E5DC] bg-white text-[#1E293B] hover:bg-[#F0FDF4] hover:text-[#166534] text-xs font-semibold transition shadow-2xs"
             >
               <GlobeAltIcon className="w-4 h-4 text-[#166534]" />
               <span>Halaman Depan</span>
-            </a>
+            </Link>
 
             <div className="relative" ref={dropdownRef}>
               <button
