@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   AcademicCapIcon,
   BriefcaseIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
+  KeyIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   ShieldCheckIcon,
@@ -12,7 +14,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
-import { createAdminUser, UserRole } from '../../services/api';
+import {
+  createAdminUser,
+  fetchUserAppAccess,
+  updateUserAppAccess,
+  UserAppAccessSummary,
+  UserProfile,
+  UserRole,
+} from '../../services/api';
 
 interface FeedbackMessage {
   type: 'success' | 'error';
@@ -45,12 +54,97 @@ const ROLE_BADGE: Record<UserRole, string> = {
   MAHASISWA: 'bg-[#F1F5F2] text-[#475569] border-[#D8E5DC]',
 };
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  SUPERADMIN: 'Superadmin',
+  ADMIN_SSO: 'Admin SSO',
+  ADMIN_LPM: 'Admin LPM',
+  ADMIN_LPPM: 'Admin LPPM',
+  ADMIN_ESURAT: 'Admin E-Surat',
+  ADMIN_SARPRAS: 'Admin Sarpras',
+  ADMIN_AKREDITASI: 'Admin Akreditasi',
+  ADMIN_LMS: 'Admin LMS',
+  DOSEN: 'Dosen',
+  MAHASISWA: 'Mahasiswa',
+};
+
 export const ManajemenPengguna: React.FC = () => {
   const { currentUser, stats, users, loading, reload } = useAdminData();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const roleParam = searchParams.get('role');
+  const validRoleFilter: 'ALL' | UserRole =
+    roleParam && (ROLE_OPTIONS.includes(roleParam as UserRole) || roleParam === 'ALL')
+      ? (roleParam as 'ALL' | UserRole)
+      : 'ALL';
 
   const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState<'ALL' | UserRole>('ALL');
+  const [filterRole, setFilterRoleState] = useState<'ALL' | UserRole>(validRoleFilter);
   const [message, setMessage] = useState<FeedbackMessage | null>(null);
+
+  type StatusFilter = 'ALL' | 'AKTIF' | 'NONAKTIF';
+  const statusParam = searchParams.get('status');
+  const validStatusFilter: StatusFilter =
+    statusParam === 'aktif' ? 'AKTIF' : statusParam === 'nonaktif' ? 'NONAKTIF' : 'ALL';
+  const [filterStatus, setFilterStatusState] = useState<StatusFilter>(validStatusFilter);
+
+  // Sinkronisasi jika query param URL berubah dari luar
+  React.useEffect(() => {
+    setFilterRoleState(validRoleFilter);
+  }, [roleParam]);
+
+  React.useEffect(() => {
+    setFilterStatusState(validStatusFilter);
+  }, [statusParam]);
+
+  const updateStatusFilter = (newStatus: StatusFilter) => {
+    setFilterStatusState(newStatus);
+    const newParams = new URLSearchParams(searchParams);
+    if (newStatus === 'ALL') {
+      newParams.delete('status');
+    } else {
+      newParams.set('status', newStatus === 'AKTIF' ? 'aktif' : 'nonaktif');
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const resetFilters = () => {
+    setFilterRoleState('ALL');
+    setFilterStatusState('ALL');
+    setSearch('');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('role');
+    newParams.delete('status');
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const updateRoleFilter = (newFilter: 'ALL' | UserRole) => {
+    setFilterRoleState(newFilter);
+    const newParams = new URLSearchParams(searchParams);
+    if (newFilter === 'ALL') {
+      newParams.delete('role');
+    } else {
+      newParams.set('role', newFilter);
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const handleCardClick = (role: 'ALL' | UserRole) => {
+    // Klik card yang sama = toggle off (reset), klik card lain = ganti filter.
+    const nextFilter: 'ALL' | UserRole = filterRole === role && role !== 'ALL' ? 'ALL' : role;
+
+    setFilterRoleState(nextFilter);
+    // Filter status direset agar hasil dari card peran konsisten
+    setFilterStatusState('ALL');
+
+    const params = new URLSearchParams(searchParams);
+    params.delete('status');
+    if (nextFilter === 'ALL') {
+      params.delete('role');
+    } else {
+      params.set('role', nextFilter);
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   const [showModal, setShowModal] = useState(false);
   const [newRole, setNewRole] = useState<UserRole>('MAHASISWA');
@@ -63,11 +157,83 @@ export const ManajemenPengguna: React.FC = () => {
   const [newFakultas, setNewFakultas] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ---- Kunci admin per aplikasi (UserAppAccess) ----
+  const [accessTarget, setAccessTarget] = useState<UserProfile | null>(null);
+  const [accessSummary, setAccessSummary] = useState<UserAppAccessSummary | null>(null);
+  const [accessSelected, setAccessSelected] = useState<number[]>([]);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
+
+  const openAccessModal = async (user: UserProfile) => {
+    setAccessTarget(user);
+    setAccessSummary(null);
+    setAccessSelected([]);
+    setAccessError(null);
+    setAccessLoading(true);
+
+    try {
+      const res = await fetchUserAppAccess(user.id);
+      if (res.data.status) {
+        setAccessSummary(res.data.data);
+        setAccessSelected(res.data.data.apps.filter((app) => app.granted).map((app) => app.id));
+      } else {
+        setAccessError('Gagal memuat kunci akses aplikasi.');
+      }
+    } catch {
+      setAccessError('Gagal memuat kunci akses aplikasi. Coba lagi.');
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const closeAccessModal = () => {
+    setAccessTarget(null);
+    setAccessSummary(null);
+    setAccessSelected([]);
+    setAccessError(null);
+  };
+
+  const toggleAccessApp = (appId: number) => {
+    setAccessSelected((prev) =>
+      prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId],
+    );
+  };
+
+  const saveAccess = async () => {
+    if (!accessTarget) return;
+
+    try {
+      setAccessSaving(true);
+      setAccessError(null);
+      const res = await updateUserAppAccess(accessTarget.id, accessSelected);
+
+      if (res.data.status) {
+        setAccessSummary(res.data.data);
+        setMessage({ type: 'success', text: res.data.message || 'Kunci akses aplikasi disimpan.' });
+        closeAccessModal();
+      } else {
+        setAccessError('Gagal menyimpan kunci akses aplikasi.');
+      }
+    } catch (error: unknown) {
+      const text =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
+          : '';
+      setAccessError(text || 'Gagal menyimpan kunci akses aplikasi.');
+    } finally {
+      setAccessSaving(false);
+    }
+  };
+
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
 
     return users.filter((user) => {
       const matchRole = filterRole === 'ALL' || user.role === filterRole;
+      const matchStatus =
+        filterStatus === 'ALL' ||
+        (filterStatus === 'AKTIF' ? user.isActive : !user.isActive);
       const matchSearch =
         !term ||
         user.username.toLowerCase().includes(term) ||
@@ -75,9 +241,9 @@ export const ManajemenPengguna: React.FC = () => {
         (user.prodi ?? '').toLowerCase().includes(term) ||
         (user.email ?? '').toLowerCase().includes(term);
 
-      return matchRole && matchSearch;
+      return matchRole && matchStatus && matchSearch;
     });
-  }, [users, search, filterRole]);
+  }, [users, search, filterRole, filterStatus]);
 
   const openModal = () => {
     setNewRole('MAHASISWA');
@@ -133,52 +299,198 @@ export const ManajemenPengguna: React.FC = () => {
       onRefresh={reload}
       refreshing={loading}
     >
+      {/* Cards Statistik Interaktif */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => handleCardClick('ALL')}
+          aria-pressed={filterRole === 'ALL'}
+          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
+            filterRole === 'ALL'
+              ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
+              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-xs'
+          }`}
+        >
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-[#64748B]">Total Pengguna</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-[#64748B]">Total Pengguna</span>
+              {filterRole === 'ALL' && (
+                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#166534] text-white">
+                  Aktif
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalUsers ?? 0}</p>
-            <p className="text-[11px] text-[#64748B] mt-0.5">Akun terdaftar</p>
+            <p className="text-[11px] text-[#64748B] mt-0.5">Semua akun terdaftar</p>
           </div>
-          <div className="w-13 h-13 rounded-[14px] bg-[#F0FDF4] border border-[#BBF7D0] flex items-center justify-center flex-shrink-0 text-[#166534]">
+          <div
+            className={`w-13 h-13 rounded-[14px] border flex items-center justify-center flex-shrink-0 transition-colors ${
+              filterRole === 'ALL'
+                ? 'bg-[#166534] border-[#166534] text-white'
+                : 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
+            }`}
+          >
             <UsersIcon className="w-8 h-8" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => handleCardClick('MAHASISWA')}
+          aria-pressed={filterRole === 'MAHASISWA'}
+          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
+            filterRole === 'MAHASISWA'
+              ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
+              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-xs'
+          }`}
+        >
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-[#64748B]">Mahasiswa</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-[#64748B]">Mahasiswa</span>
+              {filterRole === 'MAHASISWA' && (
+                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#166534] text-white">
+                  Terpilih
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalMahasiswa ?? 0}</p>
             <p className="text-[11px] text-[#64748B] mt-0.5">Identitas NIM</p>
           </div>
-          <div className="w-13 h-13 rounded-[14px] bg-[#F0FDF4] border border-[#BBF7D0] flex items-center justify-center flex-shrink-0 text-[#166534]">
+          <div
+            className={`w-13 h-13 rounded-[14px] border flex items-center justify-center flex-shrink-0 transition-colors ${
+              filterRole === 'MAHASISWA'
+                ? 'bg-[#166534] border-[#166534] text-white'
+                : 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
+            }`}
+          >
             <AcademicCapIcon className="w-8 h-8" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => handleCardClick('DOSEN')}
+          aria-pressed={filterRole === 'DOSEN'}
+          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#B45309] ${
+            filterRole === 'DOSEN'
+              ? 'bg-[#FEFCE8] border-[#B45309] shadow-sm ring-1 ring-[#B45309]'
+              : 'bg-white border-[#D8E5DC] hover:border-[#FDE68A] hover:bg-[#FFFDF5] shadow-xs'
+          }`}
+        >
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-[#64748B]">Dosen</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-[#64748B]">Dosen</span>
+              {filterRole === 'DOSEN' && (
+                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#B45309] text-white">
+                  Terpilih
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalDosen ?? 0}</p>
             <p className="text-[11px] text-[#64748B] mt-0.5">Identitas NIDN</p>
           </div>
-          <div className="w-13 h-13 rounded-[14px] bg-[#FEF3C7] border border-[#FDE68A] flex items-center justify-center flex-shrink-0 text-[#B45309]">
+          <div
+            className={`w-13 h-13 rounded-[14px] border flex items-center justify-center flex-shrink-0 transition-colors ${
+              filterRole === 'DOSEN'
+                ? 'bg-[#B45309] border-[#B45309] text-white'
+                : 'bg-[#FEF3C7] border-[#FDE68A] text-[#B45309]'
+            }`}
+          >
             <BriefcaseIcon className="w-8 h-8" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => handleCardClick('SUPERADMIN')}
+          aria-pressed={filterRole === 'SUPERADMIN'}
+          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] ${
+            filterRole === 'SUPERADMIN'
+              ? 'bg-[#EFF6FF] border-[#1D4ED8] shadow-sm ring-1 ring-[#1D4ED8]'
+              : 'bg-white border-[#D8E5DC] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] shadow-xs'
+          }`}
+        >
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-[#64748B]">Administrator</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-[#64748B]">Superadmin</span>
+              {filterRole === 'SUPERADMIN' && (
+                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1D4ED8] text-white">
+                  Terpilih
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">
               {users.filter((user) => user.role === 'SUPERADMIN').length}
             </p>
             <p className="text-[11px] text-[#64748B] mt-0.5">Akses tata kelola</p>
           </div>
-          <div className="w-13 h-13 rounded-[14px] bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0 text-[#1D4ED8]">
+          <div
+            className={`w-13 h-13 rounded-[14px] border flex items-center justify-center flex-shrink-0 transition-colors ${
+              filterRole === 'SUPERADMIN'
+                ? 'bg-[#1D4ED8] border-[#1D4ED8] text-white'
+                : 'bg-[#EFF6FF] border-[#BFDBFE] text-[#1D4ED8]'
+            }`}
+          >
             <ShieldCheckIcon className="w-8 h-8" />
           </div>
+        </button>
+      </div>
+
+      {/* Filter status keaktifan — chip ringkas, target sentuh >= 44px */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
+            Status Akun
+          </span>
+          {([
+            { key: 'ALL' as StatusFilter, label: 'Semua', count: users.length },
+            {
+              key: 'AKTIF' as StatusFilter,
+              label: 'Aktif',
+              count: users.filter((user) => user.isActive).length,
+            },
+            {
+              key: 'NONAKTIF' as StatusFilter,
+              label: 'Nonaktif',
+              count: users.filter((user) => !user.isActive).length,
+            },
+          ]).map((item) => {
+            const isActive = filterStatus === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateStatusFilter(isActive ? 'ALL' : item.key)}
+                aria-pressed={isActive}
+                className={`inline-flex items-center gap-1.5 min-h-[44px] px-3 text-[11px] font-semibold rounded-full border transition ${
+                  isActive
+                    ? 'bg-[#166534] border-[#166534] text-white shadow-xs'
+                    : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4] hover:border-[#86EFAC]'
+                }`}
+              >
+                <span>{item.label}</span>
+                <span
+                  className={`px-1.5 rounded-full text-[10px] font-bold ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-[#F1F5F2] text-[#64748B]'
+                  }`}
+                >
+                  {item.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
+
+        {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="self-start sm:self-auto inline-flex items-center gap-1 min-h-[44px] px-3 text-[11px] font-semibold text-[#B91C1C] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-[8px] transition"
+          >
+            <XMarkIcon className="w-3.5 h-3.5" />
+            Reset Semua Filter
+          </button>
+        )}
       </div>
 
       {message && (
@@ -216,28 +528,100 @@ export const ManajemenPengguna: React.FC = () => {
             />
           </div>
 
-          <select
-            value={filterRole}
-            onChange={(event) => setFilterRole(event.target.value as 'ALL' | UserRole)}
-            className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
-          >
-            <option value="ALL">Semua Peran</option>
-            <option value="MAHASISWA">Mahasiswa</option>
-            <option value="DOSEN">Dosen</option>
-            <option value="SUPERADMIN">Superadmin</option>
-          </select>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={filterRole}
+              onChange={(event) => updateRoleFilter(event.target.value as 'ALL' | UserRole)}
+              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
+            >
+              <option value="ALL">Semua Peran</option>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABEL[role]}
+                </option>
+              ))}
+            </select>
+
+            {filterRole !== 'ALL' && (
+              <button
+                type="button"
+                onClick={() => updateRoleFilter('ALL')}
+                title="Reset filter peran"
+                className="inline-flex items-center gap-1 px-2 py-2 text-xs font-semibold text-[#64748B] hover:text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
+              >
+                <XMarkIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={openModal}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
-        >
-          <PlusIcon className="w-3.5 h-3.5" />
-          <span>Tambah Akun Baru</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            to="/admin/akses-aplikasi"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs transition"
+          >
+            <KeyIcon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Kunci Aplikasi</span>
+          </Link>
+
+          <button
+            onClick={openModal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+            <span>Tambah Akun Baru</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[#E8EFEA] bg-[#F9FDFB]">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-[#1E293B]">
+              Daftar Pengguna
+              <span className="ml-1.5 text-[#64748B] font-normal">
+                ({filteredUsers.length} dari {users.length} akun)
+              </span>
+            </span>
+            {filterRole !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
+                Filter: {ROLE_LABEL[filterRole as UserRole] ?? filterRole}
+                <button
+                  type="button"
+                  onClick={() => updateRoleFilter('ALL')}
+                  aria-label="Hapus filter peran"
+                  className="hover:text-[#B91C1C]"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterStatus !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
+                Status: {filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}
+                <button
+                  type="button"
+                  onClick={() => updateStatusFilter('ALL')}
+                  aria-label="Hapus filter status"
+                  className="hover:text-[#B91C1C]"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+          {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="self-start sm:self-auto inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
+            >
+              <XMarkIcon className="w-3.5 h-3.5" />
+              Tampilkan Semua
+            </button>
+          )}
+        </div>
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
@@ -248,13 +632,29 @@ export const ManajemenPengguna: React.FC = () => {
                 <th className="py-3 px-4">Program Studi</th>
                 <th className="py-3 px-4">Kontak</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Kunci Aplikasi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8E5DC]/50">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-[#94A3B8]">
-                    Tidak ada akun yang sesuai dengan pencarian atau filter.
+                  <td colSpan={7} className="py-10 text-center">
+                    <p className="text-xs font-semibold text-[#475569]">
+                      Tidak ada akun yang sesuai dengan filter
+                      {filterRole !== 'ALL' ? ` "${ROLE_LABEL[filterRole as UserRole] ?? filterRole}"` : ''}
+                      {filterStatus !== 'ALL'
+                        ? ` dengan status ${filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}`
+                        : ''}
+                      {search.trim() ? ` dan kata kunci "${search.trim()}"` : ''}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
+                    >
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                      Reset Filter
+                    </button>
                   </td>
                 </tr>
               ) : (
@@ -268,7 +668,7 @@ export const ManajemenPengguna: React.FC = () => {
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${ROLE_BADGE[user.role]}`}
                       >
-                        {user.role}
+                        {ROLE_LABEL[user.role] ?? user.role}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-[#475569]">{user.prodi || '-'}</td>
@@ -277,10 +677,25 @@ export const ManajemenPengguna: React.FC = () => {
                       <p className="text-[10px] text-[#94A3B8] font-mono">{user.noHp || '-'}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[#166534] font-semibold text-[11px]">
+                      <span
+                        className={`inline-flex items-center gap-1 font-semibold text-[11px] ${
+                          user.isActive ? 'text-[#166534]' : 'text-[#B91C1C]'
+                        }`}
+                      >
                         <ShieldCheckIcon className="w-3.5 h-3.5" />
                         <span>{user.isActive ? 'Aktif' : 'Nonaktif'}</span>
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openAccessModal(user)}
+                        title="Atur kunci akses aplikasi SSO"
+                        className="inline-flex items-center gap-1 min-h-[36px] px-2.5 rounded-[8px] text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] transition"
+                      >
+                        <KeyIcon className="w-3.5 h-3.5" />
+                        Atur
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -417,6 +832,137 @@ export const ManajemenPengguna: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {accessTarget && (
+        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] my-8">
+            <div className="flex justify-between items-start pb-3 border-b border-[#E8EFEA]">
+              <div className="min-w-0">
+                <h3 className="font-bold text-[#1E293B] text-sm flex items-center gap-1.5">
+                  <KeyIcon className="w-4 h-4 text-[#166534]" />
+                  Kunci Akses Aplikasi
+                </h3>
+                <p className="text-[11px] text-[#64748B] mt-0.5 truncate">
+                  {accessTarget.nama} · {accessTarget.username} · {ROLE_LABEL[accessTarget.role] ?? accessTarget.role}
+                </p>
+              </div>
+              <button
+                onClick={closeAccessModal}
+                className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-[10px] bg-[#F0FDF4] border border-[#BBF7D0] text-[11px] text-[#166534] leading-relaxed">
+              {accessSelected.length > 0 ? (
+                <>
+                  Mode <strong>allowlist</strong>: akun ini hanya bisa membuka aplikasi yang
+                  dicentang, meskipun perannya mengizinkan aplikasi lain.
+                </>
+              ) : (
+                <>
+                  Mode <strong>peran</strong>: tanpa centang, akses mengikuti aturan peran pada
+                  masing-masing aplikasi (<em>targetRoles</em>).
+                </>
+              )}
+            </div>
+
+            {accessError && (
+              <div className="p-3 rounded-lg bg-[#FEE2E2] border border-[#FECACA] text-[11px] font-medium text-[#B91C1C] flex items-center gap-2">
+                <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0" />
+                {accessError}
+              </div>
+            )}
+
+            <div className="max-h-[320px] overflow-y-auto -mx-1 px-1 space-y-1.5">
+              {accessLoading && (
+                <p className="py-6 text-center text-xs text-[#94A3B8]">Memuat aplikasi...</p>
+              )}
+
+              {!accessLoading &&
+                (accessSummary?.apps ?? []).map((app) => {
+                  const checked = accessSelected.includes(app.id);
+                  return (
+                    <label
+                      key={app.id}
+                      className={`flex items-start gap-3 p-3 rounded-[10px] border cursor-pointer transition ${
+                        checked
+                          ? 'bg-[#F0FDF4] border-[#166534]'
+                          : 'bg-white border-[#D8E5DC] hover:bg-[#F9FDFB]'
+                      } ${!app.isActive ? 'opacity-60' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleAccessApp(app.id)}
+                        className="mt-0.5 w-4 h-4 accent-[#166534] flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-[#1E293B] truncate">{app.nameApp}</p>
+                        <p className="text-[10px] font-mono text-[#94A3B8] truncate">{app.clientId}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                              app.roleAllowed
+                                ? 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]'
+                                : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
+                            }`}
+                          >
+                            {app.roleAllowed ? 'Peran: diizinkan' : 'Peran: ditolak'}
+                          </span>
+                          {checked && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#166534] text-white">
+                              Kunci aktif
+                            </span>
+                          )}
+                          {!app.isActive && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA]">
+                              Aplikasi nonaktif
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+
+              {!accessLoading && accessSummary && accessSummary.apps.length === 0 && (
+                <p className="py-6 text-center text-xs text-[#94A3B8]">
+                  Belum ada aplikasi SSO terdaftar.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-[#E8EFEA]">
+              <button
+                type="button"
+                onClick={() => setAccessSelected([])}
+                className="text-[11px] font-semibold text-[#64748B] hover:text-[#166534] underline underline-offset-2 self-start"
+              >
+                Hapus semua kunci (ikuti peran)
+              </button>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={closeAccessModal}
+                  className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={saveAccess}
+                  disabled={accessSaving || accessLoading}
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+                >
+                  {accessSaving ? 'Menyimpan...' : 'Simpan Kunci'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

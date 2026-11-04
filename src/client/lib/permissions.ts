@@ -15,6 +15,11 @@ export const PERMISSIONS = {
   applicationEdit: 'application:edit',
   applicationDelete: 'application:delete',
 
+  nonSsoMenu: 'non_sso:menu',
+  nonSsoView: 'non_sso:view',
+  nonSsoEdit: 'non_sso:edit',
+  nonSsoDelete: 'non_sso:delete',
+
   userMenu: 'user:menu',
   userView: 'user:view',
   userEdit: 'user:edit',
@@ -28,11 +33,6 @@ export const PERMISSIONS = {
   roleView: 'role:view',
   roleEdit: 'role:edit',
   roleDelete: 'role:delete',
-
-  directoryMenu: 'directory:menu',
-  directoryView: 'directory:view',
-  directoryEdit: 'directory:edit',
-  directoryDelete: 'directory:delete',
 
   sliderMenu: 'slider:menu',
   sliderView: 'slider:view',

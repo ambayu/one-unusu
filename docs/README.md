@@ -56,6 +56,15 @@ npm run build
 node dist/server/index.js
 ```
 
+### Seeder & Sinkronisasi Database
+```bash
+# Seeder lengkap (SSO Users, Apps, Access Control, Kunci Aplikasi, Direktori, Slider)
+npm run prisma:seed
+
+# Seeder cepat modul akses, pembersihan permission usang, dan UserAppAccess
+npm run prisma:seed:access
+```
+
 ---
 
 ## 🏛️ Konvensi Tim

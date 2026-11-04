@@ -97,9 +97,11 @@ Catatan implementasi:
    - Direktori portal publik dan banner penutup.
 3. **`src/client/pages/Profile.tsx`**
    - Biodata adaptif per peran, form kontak, form keamanan akun, dan modal crop pasfoto 3x4 berlatar merah `#b91c1c`.
-4. **`src/client/pages/admin/`** (`RegistrasiSso`, `ManajemenPengguna`, `Izin`, `Peran`)
+- **`src/client/pages/admin/RegistrasiSso.tsx`**: Modul Registrasi SSO yang mengelola pendaftaran dan konfigurasi aplikasi cabang Single Sign-On ONE UNUSU, dilindungi permission independen `application:menu`, `application:view`, `application:edit`, dan `application:delete`.
+- **`src/client/pages/admin/`** (`RegistrasiSso`, `ManajemenPengguna`, `Izin`, `Peran`)
    - Empat halaman tata kelola SSO yang dibungkus `components/templates/AdminPanelTemplate.tsx`.
    - Navigasi dan rute dibatasi izin `resource:action` melalui `lib/permissions.ts` dan `PermissionRoute` di `App.tsx`.
+   - Dokumentasi lengkap arsitektur Permission Directory dan Audit Log dapat dilihat pada `docs/PERMISSION_DIRECTORY_AND_AUDIT_LOG.md`.
    - Data bersama diambil dari hook `hooks/useAdminData.ts`.
 
 ### 3.2 Halaman Publik dan Autentikasi

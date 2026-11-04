@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
+import { resolveLandingPath } from '../lib/landing';
 import { assetUrl } from '../lib/assets';
 import {
   EyeIcon,
@@ -46,10 +47,10 @@ export const Login: React.FC = () => {
 
   /**
    * Tujuan lanjutan setelah login.
-   * Pasca-submit sukses selalu mengarahkan pengguna ke /dashboard civitas,
-   * kecuali ada alur SSO spesifik dengan query parameter nextPath internal yang valid.
+   * Pengelola panel SSO diarahkan ke /admin, sedangkan admin aplikasi cabang
+   * (LPM, LPPM, E-Surat, dst.) dan civitas lain ke /dashboard civitas —
+   * kecuali ada alur SSO spesifik dengan query parameter next internal.
    */
-  const resolveLandingPath = (_role?: string) => '/dashboard';
 
   useEffect(() => {
     generateCaptcha();
@@ -61,7 +62,7 @@ export const Login: React.FC = () => {
     if (existingUserStr) {
       try {
         const u = JSON.parse(existingUserStr);
-        navigate(nextPath ?? resolveLandingPath(u.role), { replace: true });
+        navigate(nextPath ?? resolveLandingPath(u), { replace: true });
       } catch (e) {
         // Abaikan parse error
       }
@@ -101,7 +102,7 @@ export const Login: React.FC = () => {
         if (nextPath) {
           navigate(nextPath);
         } else {
-          navigate(resolveLandingPath(userData.role));
+          navigate(resolveLandingPath(userData));
         }
       } else {
         setError(res.data.message || 'Login gagal.');

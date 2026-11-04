@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
-import { createAdminApp, updateAdminApp, deleteAdminApp, SsoAppItem } from '../../services/api';
+import { createAdminApp, updateAdminApp, deleteAdminApp, syncAdminApps, SsoAppItem } from '../../services/api';
 import { APP_ROLES, AppRole, ROLE_LABEL, parseTargetRoles } from '../../lib/appRoles';
 import { isImageSource } from '../../lib/appIcon';
 import { hasPermission, PERMISSIONS } from '../../lib/permissions';
@@ -74,6 +74,7 @@ export const RegistrasiSso: React.FC = () => {
   const [appRoles, setAppRoles] = useState<AppRole[]>(['DOSEN', 'MAHASISWA']);
   const [appIsActive, setAppIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const canEdit = hasPermission(currentUser, PERMISSIONS.applicationEdit);
   const canDelete = hasPermission(currentUser, PERMISSIONS.applicationDelete);
@@ -268,10 +269,46 @@ export const RegistrasiSso: React.FC = () => {
     }
   };
 
+  const handleSyncApps = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await syncAdminApps();
+      if (res.data.status) {
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Sinkronisasi Berhasil',
+          message: res.data.message || 'Data registry aplikasi dan kunci akses admin berhasil disinkronkan.',
+        });
+        await reload();
+      } else {
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Sinkronisasi',
+          message: res.data.message || 'Gagal menyinkronkan data aplikasi.',
+        });
+      }
+    } catch (error: unknown) {
+      const text =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
+          : '';
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: text || 'Terjadi kesalahan saat memproses sinkronisasi data aplikasi.',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <AdminPanelTemplate
       user={currentUser}
-      title="Dashboard Layanan SSO"
+      title="Registrasi SSO"
       description="Dashboard ringkasan layanan, pemantauan aplikasi kampus, dan status Single Sign-On UNUSU."
       onRefresh={reload}
       refreshing={loading}
@@ -336,13 +373,27 @@ export const RegistrasiSso: React.FC = () => {
           />
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
-        >
-          <PlusIcon className="w-3.5 h-3.5" />
-          <span>Daftarkan Aplikasi Baru</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {canEdit && (
+            <button
+              onClick={handleSyncApps}
+              disabled={isSyncing}
+              title="Sinkronkan registry aplikasi terpadu dan kunci akses pengelola bawaan kampus"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs shadow-xs transition disabled:opacity-50"
+            >
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#166534]' : ''}`} />
+              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Aplikasi'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+            <span>Daftarkan Aplikasi Baru</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">

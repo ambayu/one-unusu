@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { SidebarLayout } from '../SidebarLayout';
 import { UserProfile } from '../../services/api';
+import { ROLE_LABELS } from '../../lib/landing';
 
 interface AdminPanelTemplateProps {
   user: UserProfile | null;
@@ -29,7 +30,12 @@ export const AdminPanelTemplate: React.FC<AdminPanelTemplateProps> = ({
     <div className="w-full min-w-0 bg-white border border-[#D8E5DC] rounded-[16px] shadow-xs overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 border-b border-[#D8E5DC]">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1E293B]">{title}</h1>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
+            <ShieldCheckIcon className="w-3 h-3" />
+            Panel Administrasi ONE UNUSU
+            {user ? ` · ${ROLE_LABELS[user.role] ?? user.role}` : ''}
+          </span>
+          <h1 className="mt-1.5 text-xl sm:text-2xl font-bold tracking-tight text-[#1E293B]">{title}</h1>
           <p className="text-xs text-[#475569] mt-0.5">{description}</p>
         </div>
 

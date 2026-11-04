@@ -38,11 +38,21 @@ model User {
   prodi       String?
   avatar      String?
   isActive    Boolean        @default(true)
+  lastLoginAt DateTime?      // Diisi saat login sukses (audit & kebijakan akun dorman)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   authTokens  SsoAuthToken[]
+  appAccess   UserAppAccess[]
+  auditLogs   AuditLog[]
 
+  // Login mencari OR(username, nim, nidn) -> nim & nidn butuh index sendiri.
+  @@index([nim])
+  @@index([nidn])
+  // Dashboard admin menghitung user per role & memfilter akun aktif.
+  @@index([role, isActive])
+  // Filter daftar pengguna per program studi.
+  @@index([prodi])
   @@map("users")
 }
 
@@ -63,8 +73,35 @@ model SsoApp {
   updatedAt     DateTime       @updatedAt
 
   authTokens    SsoAuthToken[]
+  appAccess     UserAppAccess[]
 
+  // Query portal: WHERE isActive = true ORDER BY `order` ASC
+  @@index([isActive, order])
   @@map("sso_apps")
+}
+
+// KUNCI ADMIN PER APLIKASI (UserAppAccess)
+// Memberi izin eksplisit per pengguna per aplikasi cabang. Bila seorang
+// pengguna memiliki minimal satu baris aktif di sini, akses aplikasi menjadi
+// mode allowlist: hanya aplikasi yang terdaftar yang boleh menerbitkan tiket
+// SSO. Tanpa baris apa pun, berlaku aturan bawaan `SsoApp.targetRoles`.
+model UserAppAccess {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  appId       Int
+  isActive    Boolean  @default(true)
+  grantedById Int?
+  note        String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app         SsoApp   @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, appId])
+  @@index([userId])
+  @@index([appId])
+  @@map("user_app_accesses")
 }
 
 // 2. OTORISASI BERBASIS PERMISSION (resource:action)
@@ -78,7 +115,8 @@ model Permission {
   createdAt DateTime         @default(now())
   roles     RolePermission[]
 
-  @@index([resource])
+  // Matrix permission diurutkan ORDER BY resource ASC, action ASC
+  @@index([resource, action])
   @@map("permissions")
 }
 
@@ -119,10 +157,48 @@ model SsoAuthToken {
   app         SsoApp         @relation(fields: [appId], references: [id], onDelete: Cascade)
   expiresAt   DateTime       // Waktu kedaluwarsa (5 menit)
   isUsed      Boolean        @default(false) // 0 = aktif, 1 = sudah dibakar/hangus
+  usedAt      DateTime?      // Jejak waktu token dibakar (forensik replay attack)
+  requestIp   String?        @db.VarChar(45) // IPv4/IPv6 penerbit token
   createdAt   DateTime       @default(now())
 
+  // Validasi token cabang: WHERE clientId = ? AND isUsed = false AND expiresAt > NOW()
+  @@index([clientId, isUsed, expiresAt])
+  // Riwayat SSO per user (halaman audit & investigasi insiden).
+  @@index([userId, createdAt])
+  // Job pembersihan token kedaluwarsa: WHERE expiresAt < ?
+  @@index([expiresAt])
+  // CATATAN: index lama (token, clientId) dipertahankan agar migrasi tetap
+  // aditif. `token` sudah UNIQUE sehingga index lama bisa dihapus pada migrasi
+  // terpisah setelah masa observasi (lihat rollback/cleanup plan di docs).
   @@index([token, clientId])
   @@map("sso_auth_tokens")
+}
+
+// 4. AUDIT LOG TERPUSAT (append-only) — dipakai lintas modul untuk tata kelola
+//    dan pembuktian aktivitas administrator (SSO, role, user, konten).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?     // NULL jika aksi sistem / anonim
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorLabel String?  @db.VarChar(191) // Snapshot username agar tetap terbaca jika user dihapus
+  action     String   @db.VarChar(60) // cth: "LOGIN_SUCCESS", "ROLE_UPDATE", "APP_DELETE"
+  resource   String   @db.VarChar(60) // cth: "user", "sso_app", "role", "banner_slider"
+  resourceId String?  @db.VarChar(64)
+  status     String   @default("SUCCESS") @db.VarChar(20) // SUCCESS | DENIED | FAILED
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(255)
+  metadata   Json?    // Detail tambahan (field yang berubah, alasan, dsb.)
+  createdAt  DateTime @default(now())
+
+  // Feed audit terbaru: ORDER BY createdAt DESC LIMIT n
+  @@index([createdAt])
+  // "Apa saja yang dilakukan user X?" -> WHERE actorId = ? ORDER BY createdAt DESC
+  @@index([actorId, createdAt])
+  // "Riwayat perubahan objek Y" -> WHERE resource = ? AND resourceId = ?
+  @@index([resource, resourceId])
+  // Statistik & filter per jenis aksi.
+  @@index([action, createdAt])
+  @@map("audit_logs")
 }
 
 // Data Pendukung Landing / Master Publik Lama (Dipertahankan agar kompatibel jika ada modul butuh)
@@ -172,6 +248,10 @@ model LayananKampus {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Portal publik: WHERE active = true ORDER BY urutan ASC
+  @@index([active, urutan])
+  // Tab/filter kategori layanan.
+  @@index([kategori, active])
   @@map("layanan_kampus")
 }
 
@@ -189,6 +269,10 @@ model Berita {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Arsip berita: ORDER BY publishedAt DESC LIMIT n
+  @@index([publishedAt])
+  // Daftar per kategori: WHERE kategori = ? ORDER BY publishedAt DESC
+  @@index([kategori, publishedAt])
   @@map("berita")
 }
 
@@ -204,5 +288,7 @@ model BannerSlider {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // WHERE active = true ORDER BY urutan ASC
+  @@index([active, urutan])
   @@map("banner_sliders")
 }

@@ -15,6 +15,12 @@ import { isImageSource } from '../lib/appIcon';
 import { isBiodataComplete } from '../lib/biodata';
 import { assetUrl } from '../lib/assets';
 import {
+  ADMIN_PANEL_PATH,
+  MANAGED_APP_BY_ROLE,
+  ROLE_LABELS,
+  canOpenAdminPanel,
+} from '../lib/landing';
+import {
   AcademicCapIcon,
   BuildingOffice2Icon,
   Squares2X2Icon,
@@ -24,6 +30,8 @@ import {
   UserIcon,
   LinkIcon,
   ArrowRightIcon,
+  LockClosedIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
@@ -332,7 +340,36 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* Error state */}
+          {/* Cakupan kewenangan: menegaskan pemisahan admin panel vs admin aplikasi */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-[12px] border border-[#D8E5DC] bg-[#F9FDFB] px-3.5 py-3">
+            <div className="flex items-start gap-2 min-w-0">
+              <IdentificationIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-[#1E293B]">
+                  Cakupan akses Anda:{' '}
+                  <span className="text-[#166534]">
+                    {user ? ROLE_LABELS[user.role] ?? user.role : 'Memuat...'}
+                  </span>
+                  {user && MANAGED_APP_BY_ROLE[user.role] ? ` · ${MANAGED_APP_BY_ROLE[user.role]}` : ''}
+                </p>
+                <p className="text-[11px] text-[#64748B] mt-0.5">
+                  Aplikasi bertanda <span className="font-semibold">Terkunci</span> dikelola unit lain
+                  dan tidak dapat Anda buka.
+                </p>
+              </div>
+            </div>
+            {canOpenAdminPanel(user) && (
+              <button
+                type="button"
+                onClick={() => navigate(ADMIN_PANEL_PATH)}
+                className="self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] text-[11px] font-bold transition"
+              >
+                <Squares2X2Icon className="w-3.5 h-3.5" />
+                Panel Admin
+              </button>
+            )}
+          </div>
+
           {error && (
             <div className="flex items-start gap-2.5 rounded-[12px] border border-[#FECACA] bg-[#FEE2E2] px-3.5 py-3 text-xs font-medium text-[#B91C1C]">
               <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
@@ -363,10 +400,16 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {apps.map((app) => (
+            {apps.map((app) => {
+              const isLocked = app.isAllowed === false;
+              return (
               <div
                 key={app.id}
-                className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] hover:border-[#166534] bg-white shadow-xs hover:shadow-md transition-all duration-200"
+                className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
+                  isLocked
+                    ? 'border-[#E2E8F0] opacity-90'
+                    : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
+                }`}
               >
                 <div>
                   {/* Gambar aplikasi dari registrasi SSO */}
@@ -374,31 +417,55 @@ export const Dashboard: React.FC = () => {
                     <img
                       src={getAppPreviewImage(app)}
                       alt={`Gambar aplikasi ${app.nameApp}`}
-                      className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
+                      className={`w-full h-full object-cover object-center transition-transform duration-300 ${
+                        isLocked ? 'grayscale' : 'group-hover:scale-103'
+                      }`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
-                    <div className="absolute top-3 left-3">
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
                       <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
                         {app.badge || 'Layanan SSO'}
                       </span>
+                      {app.accessMode === 'allowlist' && (
+                        <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#F0FDF4] px-2 py-1 text-[10px] font-bold text-[#166534] border border-[#BBF7D0]">
+                          <KeyIcon className="w-3 h-3" />
+                          Kunci
+                        </span>
+                      )}
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                        Terkoneksi
-                      </span>
+                      {isLocked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#1E293B]/90 text-white border border-white/20 px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                          <LockClosedIcon className="w-3 h-3" />
+                          Terkunci
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                          Terkoneksi
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* Info Deskripsi Aplikasi */}
                   <div className="p-4 sm:p-5 space-y-2">
-                    <h3 className="font-bold text-base text-[#1E293B] group-hover:text-[#166534] transition">
+                    <h3
+                      className={`font-bold text-base transition ${
+                        isLocked ? 'text-[#64748B]' : 'text-[#1E293B] group-hover:text-[#166534]'
+                      }`}
+                    >
                       {app.nameApp}
                     </h3>
                     <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
                       {app.description || 'Layanan digital terintegrasi sistem Single Sign-On UNUSU.'}
                     </p>
+                    {isLocked && (
+                      <p className="text-[11px] font-semibold text-[#B45309]">
+                        Aplikasi ini dikelola unit lain dan tidak tersedia untuk peran Anda.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -407,16 +474,31 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => handleLaunchApp(app)}
                     disabled={redirectingAppId === app.id}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm"
+                    aria-disabled={isLocked}
+                    title={isLocked ? 'Anda tidak memiliki akses ke aplikasi ini' : undefined}
+                    className={`w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
+                      isLocked
+                        ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
+                        : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                    }`}
                   >
                     <span>
-                      {redirectingAppId === app.id ? 'Mengarahkan SSO...' : 'Buka Aplikasi'}
+                      {redirectingAppId === app.id
+                        ? 'Mengarahkan SSO...'
+                        : isLocked
+                          ? 'Tidak Ada Akses'
+                          : 'Buka Aplikasi'}
                     </span>
-                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                    {isLocked ? (
+                      <LockClosedIcon className="w-3.5 h-3.5" />
+                    ) : (
+                      <ArrowRightIcon className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           )}
         </div>

@@ -18,7 +18,16 @@ import { Izin } from './pages/admin/Izin';
 import { Peran } from './pages/admin/Peran';
 import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { ManajemenSlider } from './pages/admin/ManajemenSlider';
+import { KunciAplikasi } from './pages/admin/KunciAplikasi';
 import { PERMISSIONS } from './lib/permissions';
+import { AksesDitolak } from './pages/AksesDitolak';
+import {
+  ACCESS_DENIED_PATH,
+  ADMIN_PANEL_PATH,
+  accessDeniedUrl,
+  canOpenAdminPanel,
+  resolveLandingPath,
+} from './lib/landing';
 import type { UserProfile } from './services/api';
 
 // Kunci localStorage untuk menyimpan data profil pengguna yang terautentikasi
@@ -73,8 +82,9 @@ const RootRoute = () => {
 const GuestOnlyRoute = ({ children }: { children: React.ReactElement }) => {
   const cachedUser = readCachedUser();
   if (cachedUser) {
-    const landingPath = cachedUser.role === 'SUPERADMIN' ? '/admin' : '/dashboard';
-    return <Navigate to={landingPath} replace />;
+    // Pengelola panel (SUPERADMIN / ADMIN_SSO / pemegang izin panel) masuk ke
+    // /admin, sedangkan admin aplikasi cabang & civitas ke /dashboard.
+    return <Navigate to={resolveLandingPath(cachedUser)} replace />;
   }
   return children;
 };
@@ -85,15 +95,51 @@ interface PermissionRouteProps {
 }
 
 /**
- * Penjaga rute berbasis izin. Cache pengguna tanpa daftar izin dibiarkan lewat
- * karena server tetap menolak request yang tidak berizin.
+ * Penjaga rute berbasis izin.
+ *
+ * Fail-closed: bila daftar izin tersedia di cache dan tidak memuat izin yang
+ * diminta, pengguna diarahkan ke halaman 403 yang menjelaskan alasan penolakan
+ * (bukan dibuang diam-diam ke /dashboard). Server tetap memvalidasi ulang
+ * setiap request API.
  */
 const PermissionRoute = ({ permission, children }: PermissionRouteProps) => {
   const cachedUser = readCachedUser();
   const permissions = cachedUser?.permissions;
 
-  if (permissions && !permissions.includes(permission)) {
-    return <Navigate to="/dashboard" replace />;
+  if (Array.isArray(permissions) && !permissions.includes(permission)) {
+    return (
+      <Navigate
+        to={accessDeniedUrl({
+          from: window.location.pathname,
+          need: permission,
+        })}
+        replace
+      />
+    );
+  }
+
+  return children;
+};
+
+/**
+ * Penjaga khusus panel administrasi ONE UNUSU.
+ *
+ * Memastikan admin aplikasi cabang (ADMIN_LPM, ADMIN_LPPM, dst.) tidak pernah
+ * merender panel SSO: peran mereka hanya memiliki izin dashboard/profil.
+ */
+const AdminPanelRoute = ({ children }: { children: React.ReactElement }) => {
+  const cachedUser = readCachedUser();
+
+  if (!canOpenAdminPanel(cachedUser)) {
+    return (
+      <Navigate
+        to={accessDeniedUrl({
+          from: ADMIN_PANEL_PATH,
+          reason: 'panel-admin',
+        })}
+        replace
+      />
+    );
   }
 
   return children;
@@ -170,14 +216,26 @@ export function App() {
           }
         />
 
-        {/* Tata Kelola SSO */}
+        {/* Halaman penolakan akses terpusat (403) */}
         <Route
-          path="/admin"
+          path={ACCESS_DENIED_PATH}
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.applicationMenu}>
-                <RegistrasiSso />
-              </PermissionRoute>
+              <AksesDitolak />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Tata Kelola SSO — hanya untuk pengelola panel */}
+        <Route
+          path={ADMIN_PANEL_PATH}
+          element={
+            <ProtectedRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.applicationMenu}>
+                  <RegistrasiSso />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
@@ -185,9 +243,11 @@ export function App() {
           path="/admin/pengguna"
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.userMenu}>
-                <ManajemenPengguna />
-              </PermissionRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.userMenu}>
+                  <ManajemenPengguna />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
@@ -195,9 +255,11 @@ export function App() {
           path="/admin/izin"
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.permissionMenu}>
-                <Izin />
-              </PermissionRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.permissionMenu}>
+                  <Izin />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
@@ -205,9 +267,11 @@ export function App() {
           path="/admin/peran"
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.roleMenu}>
-                <Peran />
-              </PermissionRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.roleMenu}>
+                  <Peran />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
@@ -215,9 +279,11 @@ export function App() {
           path="/admin/slider"
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.sliderMenu}>
-                <ManajemenSlider />
-              </PermissionRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.sliderMenu}>
+                  <ManajemenSlider />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
@@ -225,12 +291,30 @@ export function App() {
           path="/admin/direktori"
           element={
             <ProtectedRoute>
-              <PermissionRoute permission={PERMISSIONS.directoryMenu}>
-                <DirektoriPublik />
-              </PermissionRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.nonSsoMenu}>
+                  <DirektoriPublik />
+                </PermissionRoute>
+              </AdminPanelRoute>
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/admin/akses-aplikasi"
+          element={
+            <ProtectedRoute>
+              <AdminPanelRoute>
+                <PermissionRoute permission={PERMISSIONS.applicationMenu}>
+                  <KunciAplikasi />
+                </PermissionRoute>
+              </AdminPanelRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Sub-rute panel yang tidak dikenal tetap diarahkan ke beranda panel */}
+        <Route path="/admin/*" element={<Navigate to={ADMIN_PANEL_PATH} replace />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

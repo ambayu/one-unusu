@@ -67,8 +67,8 @@ export const DirektoriPublik: React.FC = () => {
     message: '',
   });
 
-  const canEdit = hasPermission(currentUser, PERMISSIONS.directoryEdit);
-  const canDelete = hasPermission(currentUser, PERMISSIONS.directoryDelete);
+  const canEdit = hasPermission(currentUser, PERMISSIONS.nonSsoEdit);
+  const canDelete = hasPermission(currentUser, PERMISSIONS.nonSsoDelete);
 
   const loadDirectories = useCallback(async () => {
     try {

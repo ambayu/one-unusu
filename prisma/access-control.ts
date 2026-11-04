@@ -9,11 +9,11 @@ export const PERMISSION_CATALOG = [
   { resource: "dashboard", label: "Dashboard SSO", actions: ["menu", "view"] },
   { resource: "profile", label: "Biodata Pengguna", actions: ["menu", "view", "edit"] },
   { resource: "application", label: "Registrasi SSO", actions: ["menu", "view", "edit", "delete"] },
+  { resource: "non_sso", label: "Aplikasi Non-SSO", actions: ["menu", "view", "edit", "delete"] },
+  { resource: "slider", label: "Slider Hero", actions: ["menu", "view", "edit", "delete"] },
   { resource: "user", label: "Manajemen Pengguna", actions: ["menu", "view", "edit", "delete"] },
   { resource: "permission", label: "Izin", actions: ["menu", "view", "edit"] },
   { resource: "role", label: "Peran", actions: ["menu", "view", "edit", "delete"] },
-  { resource: "directory", label: "Direktori Publik", actions: ["menu", "view", "edit", "delete"] },
-  { resource: "slider", label: "Slider Hero", actions: ["menu", "view", "edit", "delete"] },
 ] as const;
 
 const ACTION_LABEL: Record<string, string> = {
@@ -21,6 +21,7 @@ const ACTION_LABEL: Record<string, string> = {
   view: "Lihat",
   edit: "Ubah",
   delete: "Hapus",
+  export: "Ekspor",
 };
 
 const ALL_PERMISSIONS = "ALL" as const;
@@ -235,11 +236,76 @@ async function syncUserRoles(prisma: PrismaClient): Promise<void> {
 }
 
 /**
+ * Membersihkan izin (permissions) yang tidak lagi tercantum dalam katalog resmi
+ * (`PERMISSION_CATALOG`).
+ *
+ * Catatan integritas data:
+ * - Hanya izin yang TIDAK tercantum di PERMISSION_CATALOG dan TIDAK memiliki ikatan
+ *   pada peran aktif (`role_permissions`) yang akan dihapus secara otomatis.
+ * - Bila ada izin usang yang masih terikat ke suatu peran, relasinya dicabut terlebih dahulu
+ *   bila diinginkan, atau hanya dibersihkan bila benar-benar orphan.
+ */
+export async function cleanupUnusedPermissions(prisma: PrismaClient): Promise<{
+  removedCount: number;
+  removedKeys: string[];
+}> {
+  const validKeys = new Set<string>();
+  for (const group of PERMISSION_CATALOG) {
+    for (const action of group.actions) {
+      validKeys.add(`${group.resource}:${action}`);
+    }
+  }
+
+  // Cari izin di database yang kuncinya tidak ada di katalog resmi
+  const obsoletePermissions = await prisma.permission.findMany({
+    where: {
+      key: {
+        notIn: Array.from(validKeys),
+      },
+    },
+    select: {
+      id: true,
+      key: true,
+      _count: {
+        select: { roles: true },
+      },
+    },
+  });
+
+  if (obsoletePermissions.length === 0) {
+    return { removedCount: 0, removedKeys: [] };
+  }
+
+  const obsoleteIds = obsoletePermissions.map((p) => p.id);
+  const removedKeys = obsoletePermissions.map((p) => p.key);
+
+  // Bersihkan relasi rolePermission untuk permission yang sudah dihapus dari katalog resmi
+  await prisma.rolePermission.deleteMany({
+    where: {
+      permissionId: { in: obsoleteIds },
+    },
+  });
+
+  // Hapus baris permissions yang usang
+  await prisma.permission.deleteMany({
+    where: {
+      id: { in: obsoleteIds },
+    },
+  });
+
+  return {
+    removedCount: obsoleteIds.length,
+    removedKeys,
+  };
+}
+
+/**
  * Idempotent: hanya menambah data yang belum ada, tidak menghapus izin
- * yang sudah diberikan lewat panel admin.
+ * yang sudah diberikan lewat panel admin, dan membersihkan izin orphan yang tidak digunakan.
  */
 export async function seedAccessControl(prisma: PrismaClient): Promise<void> {
   await syncPermissions(prisma);
+  await cleanupUnusedPermissions(prisma);
   await syncRoles(prisma);
   await syncUserRoles(prisma);
 }

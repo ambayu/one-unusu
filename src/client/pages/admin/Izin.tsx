@@ -2,15 +2,20 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
+  FunnelIcon,
   KeyIcon,
   LockClosedIcon,
+  TrashIcon,
   XMarkIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
 import {
   PermissionItem,
   RoleItem,
+  cleanupUnusedPermissions,
+  syncAdminPermissions,
   fetchAdminPermissions,
   fetchAdminRoles,
   updateAdminRolePermissions,
@@ -33,6 +38,17 @@ const ACTION_LABEL: Record<string, string> = {
   delete: 'Hapus',
 };
 
+const RESOURCE_LABEL: Record<string, string> = {
+  dashboard: 'Dashboard SSO',
+  profile: 'Biodata Pengguna',
+  application: 'Registrasi SSO',
+  non_sso: 'Aplikasi Non-SSO',
+  slider: 'Slider Hero',
+  user: 'Manajemen Pengguna',
+  permission: 'Izin',
+  role: 'Peran',
+};
+
 const ACTION_TONE: Record<string, string> = {
   menu: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
   view: 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]',
@@ -49,6 +65,9 @@ export const Izin: React.FC = () => {
   const [dirtyRoleIds, setDirtyRoleIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [filterMode, setFilterMode] = useState<'all' | 'used' | 'unused'>('all');
   const [message, setMessage] = useState<FeedbackMessage | null>(null);
 
   const loadMatrix = useCallback(async () => {
@@ -84,10 +103,66 @@ export const Izin: React.FC = () => {
     void loadMatrix();
   }, [loadMatrix]);
 
+  const handleCleanup = async () => {
+    try {
+      setIsCleaning(true);
+      setMessage(null);
+      const res = await cleanupUnusedPermissions();
+      if (res.data.status) {
+        setMessage({
+          type: 'success',
+          text: res.data.message || 'Izin yang tidak digunakan berhasil dibersihkan.',
+        });
+        await loadMatrix();
+      } else {
+        setMessage({ type: 'error', text: res.data.message || 'Gagal membersihkan izin.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Gagal menghubungi server untuk pembersihan izin.' });
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
+  const handleSyncCatalog = async () => {
+    try {
+      setIsSyncing(true);
+      setMessage(null);
+      const res = await syncAdminPermissions();
+      if (res.data.status) {
+        setMessage({
+          type: 'success',
+          text: res.data.message || 'Katalog izin sub-menu berhasil disinkronkan.',
+        });
+        await loadMatrix();
+      } else {
+        setMessage({ type: 'error', text: res.data.message || 'Gagal menyinkronkan izin.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Gagal menghubungi server untuk sinkronisasi izin.' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const filteredPermissions = useMemo(() => {
+    if (filterMode === 'used') {
+      return permissions.filter((p) => (p.roleCount ?? 0) > 0);
+    }
+    if (filterMode === 'unused') {
+      return permissions.filter((p) => (p.roleCount ?? 0) === 0);
+    }
+    return permissions;
+  }, [permissions, filterMode]);
+
+  const unusedCount = useMemo(() => {
+    return permissions.filter((p) => (p.roleCount ?? 0) === 0).length;
+  }, [permissions]);
+
   const groups = useMemo<PermissionGroup[]>(() => {
     const order: string[] = [];
 
-    permissions.forEach((permission) => {
+    filteredPermissions.forEach((permission) => {
       if (!order.includes(permission.resource)) {
         order.push(permission.resource);
       }
@@ -95,9 +170,9 @@ export const Izin: React.FC = () => {
 
     return order.map((resource) => ({
       resource,
-      items: permissions.filter((permission) => permission.resource === resource),
+      items: filteredPermissions.filter((permission) => permission.resource === resource),
     }));
-  }, [permissions]);
+  }, [filteredPermissions]);
 
   const togglePermission = (roleId: number, key: string) => {
     setDraft((previous) => {
@@ -185,13 +260,78 @@ export const Izin: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={isSaving || dirtyRoleIds.length === 0}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-        >
-          <span>{isSaving ? 'Menyimpan...' : `Simpan Perubahan${dirtyRoleIds.length > 0 ? ` (${dirtyRoleIds.length})` : ''}`}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSyncCatalog}
+            disabled={isSyncing}
+            title="Sinkronkan katalog izin resmi sesuai sub-menu dan bersihkan izin usang"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sub-Menu'}</span>
+          </button>
+
+          {unusedCount > 0 && (
+            <button
+              onClick={handleCleanup}
+              disabled={isCleaning}
+              title="Hapus seluruh izin yang belum terikat ke role manapun"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              <TrashIcon className="w-3.5 h-3.5" />
+              <span>{isCleaning ? 'Membersihkan...' : `Bersihkan ${unusedCount} Izin Kosong`}</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving || dirtyRoleIds.length === 0}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <span>{isSaving ? 'Menyimpan...' : `Simpan Perubahan${dirtyRoleIds.length > 0 ? ` (${dirtyRoleIds.length})` : ''}`}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Bar Filter Status Izin */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 text-xs">
+          <FunnelIcon className="w-3.5 h-3.5 text-[#64748B]" />
+          <span className="text-[11px] font-semibold text-[#64748B] mr-1">Filter Tampilan:</span>
+          <button
+            type="button"
+            onClick={() => setFilterMode('all')}
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+              filterMode === 'all'
+                ? 'bg-[#166534] text-white'
+                : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
+            }`}
+          >
+            Semua ({permissions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode('used')}
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+              filterMode === 'used'
+                ? 'bg-[#166534] text-white'
+                : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
+            }`}
+          >
+            Terikat Role ({permissions.length - unusedCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode('unused')}
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+              filterMode === 'unused'
+                ? 'bg-[#B91C1C] text-white'
+                : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
+            }`}
+          >
+            Belum Terikat ({unusedCount})
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -226,9 +366,11 @@ export const Izin: React.FC = () => {
                     <tr className="bg-[#F8FBF9]">
                       <td
                         colSpan={roles.length + 1}
-                        className="py-2 px-4 text-[10px] font-bold uppercase tracking-widest text-[#64748B]"
+                        className="py-2.5 px-4 text-xs font-bold text-[#1E293B] border-y border-[#D8E5DC] flex items-center gap-2"
                       >
-                        {group.resource}
+                        <span className="w-2 h-2 rounded-full bg-[#166534]"></span>
+                        <span>{RESOURCE_LABEL[group.resource] ?? group.resource}</span>
+                        <span className="text-[10px] font-mono text-[#64748B] lowercase">({group.resource})</span>
                       </td>
                     </tr>
                     {group.items.map((permission) => (
@@ -243,7 +385,14 @@ export const Izin: React.FC = () => {
                               {ACTION_LABEL[permission.action] ?? permission.action}
                             </span>
                             <div className="min-w-0">
-                              <p className="font-semibold text-[#1E293B] truncate">{permission.label}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-[#1E293B] truncate">{permission.label}</p>
+                                {permission.roleCount === 0 && (
+                                  <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA]">
+                                    Belum terikat
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-[#94A3B8] font-mono">{permission.key}</p>
                             </div>
                           </div>
@@ -263,6 +412,13 @@ export const Izin: React.FC = () => {
                     ))}
                   </React.Fragment>
                 ))}
+                {groups.length === 0 && (
+                  <tr>
+                    <td colSpan={roles.length + 1} className="py-8 text-center text-xs text-[#94A3B8]">
+                      Tidak ada izin yang sesuai dengan filter yang dipilih.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

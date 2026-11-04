@@ -80,8 +80,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
   const governanceNavItems = [
     { path: '/admin', label: 'Registrasi SSO', icon: Squares2X2Icon as React.ElementType, permission: PERMISSIONS.applicationMenu },
+    { path: '/admin/akses-aplikasi', label: 'Kunci Aplikasi', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.applicationMenu },
     { path: '/admin/slider', label: 'Slider Hero', icon: PhotoIcon as React.ElementType, permission: PERMISSIONS.sliderMenu },
-    { path: '/admin/direktori', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.directoryMenu },
+    { path: '/admin/direktori', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.nonSsoMenu },
     { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
     { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
     { path: '/admin/peran', label: 'Peran', icon: ShieldCheckIcon as React.ElementType, permission: PERMISSIONS.roleMenu },
@@ -91,11 +92,13 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/dashboard': 'Dashboard Layanan SSO',
     '/profil': 'Biodata Pengguna',
     '/admin': 'Registrasi SSO',
+    '/admin/akses-aplikasi': 'Kunci Admin per Aplikasi',
     '/admin/slider': 'Slider Hero',
     '/admin/direktori': 'Aplikasi Non-SSO',
     '/admin/pengguna': 'Manajemen Pengguna',
     '/admin/izin': 'Izin',
     '/admin/peran': 'Peran',
+    '/akses-ditolak': 'Akses Ditolak',
   };
 
   const navItemClass = (path: string) =>

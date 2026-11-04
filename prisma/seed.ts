@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { seedAccessControl } from "./access-control.js";
 import { seedDirectory } from "./directory.js";
 import { seedSliders } from "./seed-sliders.js";
+import { seedAppAccess } from "./seed-app-access.js";
 
 dotenv.config();
 
@@ -260,6 +261,22 @@ async function main() {
   // ==========================================
   console.log("Seeding permissions & roles...");
   await seedAccessControl(prisma);
+
+  // ==========================================
+  // 3b. SEED KUNCI ADMIN PER APLIKASI (UserAppAccess)
+  // Admin unit (LPM, LPPM, E-Surat, Sarpras, Akreditasi, LMS) dikunci hanya
+  // ke aplikasinya sendiri sesuai targetRoles pada registry di atas.
+  // ==========================================
+  console.log("Seeding kunci admin per aplikasi...");
+  const appAccess = await seedAppAccess(prisma);
+  console.log(
+    `  Kunci aplikasi: ${appAccess.created} dibuat, ${appAccess.skipped} sudah ada.`
+  );
+  for (const entry of appAccess.apps) {
+    console.log(
+      `  - ${entry.clientId} ← ${entry.role}: ${entry.userIds.length} akun terkunci`
+    );
+  }
 
   // ==========================================
   // 4. SEED DIREKTORI APLIKASI NON-SSO

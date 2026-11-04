@@ -17,7 +17,13 @@
     "prisma:seed:access": "tsx prisma/seed-access.ts",
     "prisma:sso-dev-urls": "tsx prisma/dev-sso-urls.ts",
     "prisma:seed:directory": "tsx prisma/seed-directory.ts",
-    "prisma:seed:sliders": "tsx prisma/seed-sliders.ts"
+    "prisma:seed:sliders": "tsx prisma/seed-sliders.ts",
+    "db:preflight": "tsx scripts/db/preflight-migration.ts",
+    "db:parity": "tsx scripts/db/verify-migration-parity.ts",
+    "db:backup": "tsx scripts/db/backup-database.ts",
+    "db:verify:post": "tsx scripts/db/verify-post-migration.ts",
+    "db:cleanup:tokens": "tsx scripts/db/cleanup-sso-tokens.ts",
+    "db:purge:audit": "tsx scripts/db/purge-audit-logs.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

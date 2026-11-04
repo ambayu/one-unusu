@@ -267,12 +267,13 @@ export const ManajemenSlider: React.FC = () => {
 
   return (
     <AdminPanelTemplate
+      user={currentUser}
       title="Slider Hero Halaman Depan"
       description="Kelola foto banner, judul slide, dan urutan rotasi slider pada hero landing page ONE UNUSU."
-      currentUser={currentUser}
-      userLoading={userLoading}
-      reloadUser={reloadUser}
-      onRefresh={loadData}
+      onRefresh={async () => {
+        await Promise.all([loadData(), reloadUser()]);
+      }}
+      refreshing={loading || userLoading}
     >
       {/* 1. Ringkasan Kartu Statistik */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
