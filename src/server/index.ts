@@ -391,25 +391,18 @@ async function getUserPermissionKeys(userId: number): Promise<string[]> {
 /**
  * Keputusan akses satu pengguna ke satu aplikasi cabang.
  *
- * Dua mode:
- *  - `allowlist`  → pengguna punya minimal satu baris UserAppAccess aktif;
- *                   hanya aplikasi yang terdaftar (dan aktif) yang boleh diakses.
- *  - `role`       → belum ada baris eksplisit; aturan bawaan `SsoApp.targetRoles`.
+ * Satu-satunya sumber kebenaran otorisasi aplikasi adalah `SsoApp.targetRoles`
+ * di portal ini. Aplikasi cabang melakukan pemeriksaan terpisah saat login
+ * (konstanta `ALLOWED_SSO_ROLES` di server masing-masing), sehingga tidak ada
+ * allowlist per pengguna yang perlu disinkronkan.
  *
  * Dipakai konsisten oleh katalog aplikasi, penerbitan tiket SSO, verifikasi
  * token server-to-server, dan endpoint navigasi klien.
  */
-type AppAccessMode = "allowlist" | "role";
-type AppAccessReason =
-  | "allowlist-granted"
-  | "allowlist-denied"
-  | "role-allowed"
-  | "role-denied"
-  | "invalid-config";
+type AppAccessReason = "role-allowed" | "role-denied" | "invalid-config";
 
 interface AppAccessDecision {
   allowed: boolean;
-  mode: AppAccessMode;
   reason: AppAccessReason;
 }
 
@@ -429,35 +422,10 @@ function evaluateRoleAccess(role: string, app: AppLike): AppAccessDecision["allo
 }
 
 /** Peta appId → status izin eksplisit untuk satu pengguna. */
-async function getUserAppAccessMap(userId: number): Promise<Map<number, boolean>> {
-  const rows = await prisma.userAppAccess.findMany({
-    where: { userId },
-    select: { appId: true, isActive: true }
-  });
-
-  return new Map(rows.map((row) => [row.appId, row.isActive]));
-}
-
-function decideAppAccess(
-  role: string,
-  app: AppLike,
-  accessMap: Map<number, boolean>
-): AppAccessDecision {
-  const hasAllowlist = accessMap.size > 0;
-
-  if (hasAllowlist) {
-    const granted = accessMap.get(app.id) === true;
-    return {
-      allowed: granted,
-      mode: "allowlist",
-      reason: granted ? "allowlist-granted" : "allowlist-denied"
-    };
-  }
-
+function decideAppAccess(role: string, app: AppLike): AppAccessDecision {
   const roleAllowed = evaluateRoleAccess(role, app);
   return {
     allowed: roleAllowed,
-    mode: "role",
     reason: roleAllowed ? "role-allowed" : "role-denied"
   };
 }
@@ -797,15 +765,12 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
       select: { id: true, clientId: true, nameApp: true, targetRoles: true }
     });
 
-    const accessMap = await getUserAppAccessMap(user.id);
-
     const appAccess = apps.map((app) => {
-      const decision = decideAppAccess(user.role, app, accessMap);
+      const decision = decideAppAccess(user.role, app);
       return {
         clientId: app.clientId,
         nameApp: app.nameApp,
         isAllowed: decision.allowed,
-        accessMode: decision.mode,
       };
     });
 
@@ -953,13 +918,11 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
-    // Katalog dikirim lengkap; status izin dihitung per pengguna dengan
-    // mempertimbangkan UserAppAccess (allowlist) lalu targetRoles.
-    const accessMap = await getUserAppAccessMap(currentUser.id);
-
+    // Katalog dikirim lengkap; status izin dihitung per pengguna dari
+    // `SsoApp.targetRoles` (aplikasi cabang memvalidasi ulang saat login).
     const appsWithAccess = apps.map((app) => {
-      const decision = decideAppAccess(userRole, app, accessMap);
-      return { ...app, isAllowed: decision.allowed, accessMode: decision.mode };
+      const decision = decideAppAccess(userRole, app);
+      return { ...app, isAllowed: decision.allowed };
     });
 
     res.json({ status: true, data: appsWithAccess });
@@ -999,10 +962,9 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       return res.status(404).json({ status: false, message: "Aplikasi cabang tidak ditemukan atau sedang tidak aktif." });
     }
 
-    // Otorisasi berlapis: UserAppAccess (allowlist) bila ada, selain itu
-    // targetRoles. Fail-closed pada konfigurasi tidak valid.
-    const accessMap = await getUserAppAccessMap(userId);
-    const decision = decideAppAccess(currentUser.role, ssoApp, accessMap);
+    // Otorisasi aplikasi tujuan: hanya `SsoApp.targetRoles`. Fail-closed pada
+    // konfigurasi tidak valid. Aplikasi cabang memvalidasi ulang saat login.
+    const decision = decideAppAccess(currentUser.role, ssoApp);
 
     if (!decision.allowed) {
       return res.status(403).json({
@@ -1155,9 +1117,8 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     }
 
     // 6. Penegakan Otorisasi Aplikasi Tujuan (Fail-Closed)
-    //    Urutan: UserAppAccess (allowlist) → targetRoles peran.
-    const verifyAccessMap = await getUserAppAccessMap(user.id);
-    const verifyDecision = decideAppAccess(user.role, ssoApp, verifyAccessMap);
+    //    Sumber tunggal: `SsoApp.targetRoles` dibandingkan dengan peran pengguna.
+    const verifyDecision = decideAppAccess(user.role, ssoApp);
 
     if (!verifyDecision.allowed) {
       return res.status(403).json({
@@ -1341,310 +1302,6 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
   }
 });
 
-// ==========================================
-// KUNCI ADMIN PER APLIKASI (UserAppAccess)
-// Tabel `user_app_accesses` (lihat prisma/schema.prisma). Bila pengguna punya
-// minimal satu kunci aktif, akses aplikasi menjadi allowlist; bila tidak ada,
-// berlaku `SsoApp.targetRoles` seperti sebelumnya.
-// ==========================================
-
-/**
- * Susun ringkasan akses satu pengguna: seluruh aplikasi aktif beserta
- * status izin eksplisit (UserAppAccess) dan hasil akhir (efektif).
- */
-async function buildUserAppAccessSummary(userId: number) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, nama: true, role: true, isActive: true }
-  });
-
-  if (!user) return null;
-
-  const [apps, grants] = await Promise.all([
-    prisma.ssoApp.findMany({
-      orderBy: [{ order: "asc" }, { id: "asc" }],
-      select: { id: true, clientId: true, nameApp: true, badge: true, targetRoles: true, isActive: true }
-    }),
-    prisma.userAppAccess.findMany({ where: { userId } })
-  ]);
-
-  const grantMap = new Map(grants.map((grant) => [grant.appId, grant]));
-  const accessMap = new Map(grants.map((grant) => [grant.appId, grant.isActive]));
-  const mode = grants.length > 0 ? "allowlist" : "role";
-
-  return {
-    user,
-    mode,
-    apps: apps.map((app) => {
-      const decision = decideAppAccess(user.role, app, accessMap);
-      return {
-        id: app.id,
-        clientId: app.clientId,
-        nameApp: app.nameApp,
-        badge: app.badge,
-        isActive: app.isActive,
-        roleAllowed: evaluateRoleAccess(user.role, app),
-        granted: grantMap.get(app.id)?.isActive === true,
-        effective: decision.allowed,
-        reason: decision.reason
-      };
-    })
-  };
-}
-
-// GET /api/admin/users/:id/app-access — ringkasan kunci aplikasi per pengguna
-app.get("/api/admin/users/:id/app-access", authenticateToken, requirePermission("user:view"), async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      return res.status(422).json({ status: false, message: "ID pengguna tidak valid." });
-    }
-
-    const summary = await buildUserAppAccessSummary(userId);
-    if (!summary) {
-      return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
-    }
-
-    res.json({ status: true, data: summary });
-  } catch (error: any) {
-    logServerError("GET /api/admin/users/:id/app-access", error);
-    res.status(500).json({ status: false, message: "Gagal memuat kunci akses aplikasi." });
-  }
-});
-
-// PUT /api/admin/users/:id/app-access — ganti seluruh kunci aplikasi pengguna
-app.put("/api/admin/users/:id/app-access", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      return res.status(422).json({ status: false, message: "ID pengguna tidak valid." });
-    }
-
-    const body = isPlainObject(req.body) ? req.body : {};
-    const rawAppIds = body.appIds;
-
-    if (!Array.isArray(rawAppIds)) {
-      return res.status(422).json({ status: false, message: "appIds wajib berupa array." });
-    }
-
-    const appIds = Array.from(
-      new Set(
-        rawAppIds
-          .map((value) => Number(value))
-          .filter((value) => Number.isInteger(value) && value > 0)
-      )
-    );
-
-    if (appIds.length > 200) {
-      return res.status(422).json({ status: false, message: "Terlalu banyak aplikasi dalam satu permintaan." });
-    }
-
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true }
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
-    }
-
-    // Hanya ID aplikasi yang benar-benar ada yang disimpan.
-    const validApps = appIds.length
-      ? await prisma.ssoApp.findMany({ where: { id: { in: appIds } }, select: { id: true } })
-      : [];
-    const validAppIds = validApps.map((app) => app.id);
-
-    const actorId = req.user!.id;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.userAppAccess.deleteMany({ where: { userId } });
-
-      if (validAppIds.length > 0) {
-        await tx.userAppAccess.createMany({
-          data: validAppIds.map((appId) => ({
-            userId,
-            appId,
-            isActive: true,
-            grantedById: actorId
-          })),
-          skipDuplicates: true
-        });
-      }
-    });
-
-    const summary = await buildUserAppAccessSummary(userId);
-
-    res.json({
-      status: true,
-      message:
-        validAppIds.length > 0
-          ? "Kunci akses aplikasi berhasil disimpan."
-          : "Kunci eksplisit dihapus; akses kembali mengikuti peran aplikasi.",
-      data: summary
-    });
-  } catch (error: any) {
-    logServerError("PUT /api/admin/users/:id/app-access", error);
-    res.status(500).json({ status: false, message: "Gagal menyimpan kunci akses aplikasi." });
-  }
-});
-
-// ==========================================
-// MATRIKS KUNCI APLIKASI (per aplikasi → daftar admin)
-// ==========================================
-
-/**
- * Daftar peran yang relevan sebagai pengelola aplikasi. Matriks kunci hanya
- * menampilkan akun tata kelola agar tidak membanjiri ribuan akun civitas.
- */
-const APP_ADMIN_ROLES = [
-  "SUPERADMIN",
-  "ADMIN_SSO",
-  "ADMIN_LPM",
-  "ADMIN_LPPM",
-  "ADMIN_ESURAT",
-  "ADMIN_SARPRAS",
-  "ADMIN_AKREDITASI",
-  "ADMIN_LMS"
-] as const;
-
-/**
- * Peran pengelola bawaan per aplikasi — harus selaras dengan
- * `DEFAULT_APP_ADMIN_ROLE` pada prisma/seed-app-access.ts sehingga panel
- * menampilkan saran pengelola yang sama dengan hasil seed.
- */
-const DEFAULT_APP_ADMIN_ROLE: Record<string, string> = {
-  "unusu-lms": "ADMIN_LMS",
-  "lppm-unusu": "ADMIN_LPPM",
-  "lpm-unusu": "ADMIN_LPM",
-  "esurat-unusu": "ADMIN_ESURAT",
-  "sdm-sarpras-unusu": "ADMIN_SARPRAS",
-  "unusu-akreditasi": "ADMIN_AKREDITASI"
-};
-
-// GET /api/admin/app-access — matriks aplikasi × admin beserta kunci aktif
-app.get("/api/admin/app-access", authenticateToken, requirePermission("application:view"), async (req: AuthRequest, res: Response) => {
-  try {
-    const [apps, users, grants] = await Promise.all([
-      prisma.ssoApp.findMany({
-        orderBy: [{ order: "asc" }, { id: "asc" }],
-        select: { id: true, clientId: true, nameApp: true, badge: true, targetRoles: true, isActive: true }
-      }),
-      prisma.user.findMany({
-        where: { role: { in: [...APP_ADMIN_ROLES] as UserRole[] } },
-        orderBy: [{ role: "asc" }, { nama: "asc" }],
-        select: { id: true, username: true, nama: true, role: true, isActive: true }
-      }),
-      prisma.userAppAccess.findMany({
-        where: { isActive: true },
-        select: { userId: true, appId: true }
-      })
-    ]);
-
-    const grantedByApp = new Map<number, number[]>();
-    for (const grant of grants) {
-      const list = grantedByApp.get(grant.appId) ?? [];
-      list.push(grant.userId);
-      grantedByApp.set(grant.appId, list);
-    }
-
-    const lockedUserIds = new Set(grants.map((grant) => grant.userId));
-
-    res.json({
-      status: true,
-      data: {
-        apps: apps.map((app) => ({
-          id: app.id,
-          clientId: app.clientId,
-          nameApp: app.nameApp,
-          badge: app.badge,
-          isActive: app.isActive,
-          roleAllowed: evaluateRoleAccess("SUPERADMIN", app) || evaluateRoleAccess("ADMIN_SSO", app),
-          defaultAdminRole: DEFAULT_APP_ADMIN_ROLE[app.clientId] ?? null,
-          targetRoles: app.targetRoles,
-          grantedUserIds: grantedByApp.get(app.id) ?? [],
-          grantedCount: (grantedByApp.get(app.id) ?? []).length
-        })),
-        users: users.map((user) => ({
-          ...user,
-          locked: lockedUserIds.has(user.id)
-        }))
-      }
-    });
-  } catch (error: any) {
-    logServerError("GET /api/admin/app-access", error);
-    res.status(500).json({ status: false, message: "Gagal memuat matriks kunci aplikasi." });
-  }
-});
-
-// PUT /api/admin/apps/:id/access — tetapkan daftar admin yang dikunci ke aplikasi
-app.put("/api/admin/apps/:id/access", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
-  try {
-    const appId = Number(req.params.id);
-    if (!Number.isInteger(appId) || appId <= 0) {
-      return res.status(422).json({ status: false, message: "ID aplikasi tidak valid." });
-    }
-
-    const body = isPlainObject(req.body) ? req.body : {};
-    const rawUserIds = body.userIds;
-
-    if (!Array.isArray(rawUserIds)) {
-      return res.status(422).json({ status: false, message: "userIds wajib berupa array." });
-    }
-
-    const userIds = Array.from(
-      new Set(
-        rawUserIds
-          .map((value) => Number(value))
-          .filter((value) => Number.isInteger(value) && value > 0)
-      )
-    );
-
-    if (userIds.length > 500) {
-      return res.status(422).json({ status: false, message: "Terlalu banyak pengguna dalam satu permintaan." });
-    }
-
-    const app = await prisma.ssoApp.findUnique({ where: { id: appId }, select: { id: true, clientId: true } });
-    if (!app) {
-      return res.status(404).json({ status: false, message: "Aplikasi tidak ditemukan." });
-    }
-
-    const validUsers = userIds.length
-      ? await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true } })
-      : [];
-    const validUserIds = validUsers.map((user) => user.id);
-
-    const actorId = req.user!.id;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.userAppAccess.deleteMany({ where: { appId } });
-
-      if (validUserIds.length > 0) {
-        await tx.userAppAccess.createMany({
-          data: validUserIds.map((userId) => ({
-            userId,
-            appId,
-            isActive: true,
-            grantedById: actorId
-          })),
-          skipDuplicates: true
-        });
-      }
-    });
-
-    res.json({
-      status: true,
-      message:
-        validUserIds.length > 0
-          ? `Kunci admin untuk ${app.clientId} berhasil disimpan (${validUserIds.length} akun).`
-          : `Kunci admin untuk ${app.clientId} dihapus.`,
-      data: { appId, userIds: validUserIds }
-    });
-  } catch (error: any) {
-    logServerError("PUT /api/admin/apps/:id/access", error);
-    res.status(500).json({ status: false, message: "Gagal menyimpan kunci admin aplikasi." });
-  }
-});
-
 // GET /api/admin/apps (Daftar Semua Aplikasi Terdaftar)
 app.get("/api/admin/apps", authenticateToken, requirePermission("application:view"), async (req: AuthRequest, res: Response) => {
   try {
@@ -1774,49 +1431,12 @@ app.post("/api/admin/apps/sync", authenticateToken, requirePermission("applicati
       }
     }
 
-    // Sinkronisasi otomatis kunci admin per aplikasi (UserAppAccess)
-    let keysCreated = 0;
-    const allApps = await prisma.ssoApp.findMany({
-      where: { clientId: { in: Object.keys(DEFAULT_APP_ADMIN_ROLE) } },
-      select: { id: true, clientId: true },
-    });
-
-    for (const app of allApps) {
-      const targetRole = DEFAULT_APP_ADMIN_ROLE[app.clientId];
-      if (!targetRole) continue;
-
-      const admins = await prisma.user.findMany({
-        where: { role: targetRole as UserRole, isActive: true },
-        select: { id: true },
-      });
-
-      for (const admin of admins) {
-        const existingKey = await prisma.userAppAccess.findUnique({
-          where: { userId_appId: { userId: admin.id, appId: app.id } },
-        });
-
-        if (!existingKey) {
-          await prisma.userAppAccess.create({
-            data: {
-              userId: admin.id,
-              appId: app.id,
-              isActive: true,
-              grantedById: req.user?.id,
-              note: `Sinkronisasi sistem: pengelola bawaan ${app.clientId} (${targetRole})`,
-            },
-          });
-          keysCreated++;
-        }
-      }
-    }
-
     res.json({
       status: true,
-      message: `Sinkronisasi berhasil: ${createdCount} aplikasi baru, ${updatedCount} diperbarui, ${keysCreated} kunci akses admin dikonfigurasi.`,
+      message: `Sinkronisasi berhasil: ${createdCount} aplikasi baru, ${updatedCount} diperbarui.`,
       data: {
         createdCount,
         updatedCount,
-        keysCreated,
         totalApps: defaultApps.length,
       },
     });

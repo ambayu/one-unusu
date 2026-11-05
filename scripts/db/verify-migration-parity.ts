@@ -100,7 +100,7 @@ function parseSchema(): Map<string, TableSpec> {
 
       // Relasi (tipe = nama model) tidak menghasilkan kolom pada model pemilik;
       // kolom FK dibuat oleh field skalar pasangannya (mis. `roleId Int`).
-      // `SsoAuthToken[]` / `UserAppAccess[]` juga relasi list, bukan kolom.
+      // `SsoAuthToken[]` juga relasi list, bukan kolom.
       if (modelNames.has(baseType)) continue;
 
       columns.push(name);

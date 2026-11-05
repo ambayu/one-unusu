@@ -31,7 +31,6 @@ import {
   LinkIcon,
   ArrowRightIcon,
   LockClosedIcon,
-  KeyIcon,
 } from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
@@ -427,12 +426,6 @@ export const Dashboard: React.FC = () => {
                       <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
                         {app.badge || 'Layanan SSO'}
                       </span>
-                      {app.accessMode === 'allowlist' && (
-                        <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#F0FDF4] px-2 py-1 text-[10px] font-bold text-[#166534] border border-[#BBF7D0]">
-                          <KeyIcon className="w-3 h-3" />
-                          Kunci
-                        </span>
-                      )}
                     </div>
 
                     <div className="absolute top-3 right-3">

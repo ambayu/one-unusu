@@ -1,4 +1,4 @@
-﻿# ONE UNUSU
+# ONE UNUSU
 
 **Integrated Digital Campus Platform**
 Universitas Nahdlatul Ulama Sumatera Utara (UNUSU)
@@ -76,18 +76,18 @@ VITE_PUBLIC_PORTAL_URL="/sso/"   # opsional; default: halaman depan aplikasi
 
 ```bash
 npx prisma generate
-npx prisma migrate dev --name init
-npm run prisma:seed
+npx prisma migrate deploy
+npm run db:seed
 ```
 
-`prisma:seed` membutuhkan `SSO_CLIENT_KEY_*` dan `SEED_PUBLIC_BASE_URL`. Kata sandi superadmin punya nilai bawaan `password123` di `prisma/seed.ts` (`DEFAULT_ADMIN_PASSWORD`); set `SEED_ADMIN_PASSWORD` bila ingin memakai yang lain. Seeder hanya membuat akun `admin`; akun dosen/mahasiswa contoh tidak lagi dibuat.
+`db:seed` membutuhkan `SSO_CLIENT_KEY_*` dan `SEED_PUBLIC_BASE_URL`. Kata sandi superadmin punya nilai bawaan `password123` di `prisma/seed.ts` (`DEFAULT_ADMIN_PASSWORD`); set `SEED_ADMIN_PASSWORD` bila ingin memakai yang lain. Seeder hanya membuat akun `admin`; akun dosen/mahasiswa contoh tidak lagi dibuat.
 
 Menjalankan ulang seed **tidak** menimpa kata sandi akun yang sudah ada: field `password` hanya dipakai saat akun pertama kali dibuat. Untuk mengganti kata sandi, pakai panel admin atau `PUT /api/auth/profile`.
 
 Bila hanya perlu menyiapkan katalog izin dan peran sistem (gejala: sidebar hanya menampilkan judul "MENU UTAMA" tanpa item), jalankan:
 
 ```bash
-npm run prisma:seed:access
+npm run db:seed:access
 ```
 
 ### 4. Jalankan aplikasi
@@ -113,9 +113,14 @@ npm run dev
 | `npm start` | Menjalankan hasil build di `dist/server/index.js` |
 | `npm run prisma:generate` | Generate Prisma Client |
 | `npm run prisma:migrate` | Migrasi development |
-| `npm run prisma:seed` | Seed lengkap |
-| `npm run prisma:seed:access` | Seed izin, peran, dan pemetaan role pengguna |
-| `npm run prisma:seed:directory` | Seed direktori aplikasi non-SSO (`LayananKampus`) |
+| `npm run db:seed` | Seed lengkap |
+| `npm run db:seed:access` | Seed izin, peran, dan pemetaan role pengguna |
+| `npm run db:seed:directory` | Seed direktori aplikasi non-SSO (`LayananKampus`) |
+| `npm run db:seed:sliders` | Seed foto slider hero |
+| `npm run db:backup` | Backup logis database |
+| `npm run db:parity` | Verifikasi paritas skema vs migrasi |
+
+Alias lama `prisma:seed`, `prisma:seed:access`, `prisma:seed:directory`, `prisma:seed:sliders`, dan `prisma:sso-dev-urls` tetap tersedia sebagai penerus ke `db:*`.
 
 ---
 
@@ -148,7 +153,7 @@ Halaman publik (`/fakultas`, `/prodi`, `/layanan`, `/aplikasi`) membaca konten d
 
 Model `Fakultas`, `Prodi`, `Berita`, dan `BannerSlider` sudah tersedia di skema Prisma, namun belum memiliki seeder.
 
-Aplikasi non-SSO berada di tabel `LayananKampus` dan di-seed lewat `prisma/directory.ts` (`npm run prisma:seed:directory`). Entri saat ini: SIAKAD UNUSU dan PMB UNUSU. Entri lain ditambahkan melalui panel `/admin/direktori`.
+Aplikasi non-SSO berada di tabel `LayananKampus` dan di-seed lewat `prisma/directory.ts` (`npm run db:seed:directory`). Entri saat ini: SIAKAD UNUSU dan PMB UNUSU. Entri lain ditambahkan melalui panel `/admin/direktori`.
 
 ---
 

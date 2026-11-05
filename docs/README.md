@@ -58,12 +58,14 @@ node dist/server/index.js
 
 ### Seeder & Sinkronisasi Database
 ```bash
-# Seeder lengkap (SSO Users, Apps, Access Control, Kunci Aplikasi, Direktori, Slider)
-npm run prisma:seed
+# Seeder lengkap (SSO Users, Apps, Access Control, Direktori, Slider)
+npm run db:seed
 
-# Seeder cepat modul akses, pembersihan permission usang, dan UserAppAccess
-npm run prisma:seed:access
+# Seeder cepat modul akses dan pembersihan permission usang
+npm run db:seed:access
 ```
+
+> Otorisasi aplikasi cabang memakai `sso_apps.targetRoles` (portal) + `ALLOWED_SSO_ROLES` (server aplikasi cabang). Tabel `user_app_accesses` dan menu "Kunci Aplikasi" sudah dihapus — lihat `docs/PROJECT_RULES.md` bagian 4.1.
 
 ---
 

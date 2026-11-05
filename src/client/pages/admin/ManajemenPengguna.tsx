@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   AcademicCapIcon,
   BriefcaseIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  KeyIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   ShieldCheckIcon,
@@ -16,9 +15,6 @@ import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplat
 import { useAdminData } from '../../hooks/useAdminData';
 import {
   createAdminUser,
-  fetchUserAppAccess,
-  updateUserAppAccess,
-  UserAppAccessSummary,
   UserProfile,
   UserRole,
 } from '../../services/api';
@@ -156,75 +152,6 @@ export const ManajemenPengguna: React.FC = () => {
   const [newProdi, setNewProdi] = useState('');
   const [newFakultas, setNewFakultas] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // ---- Kunci admin per aplikasi (UserAppAccess) ----
-  const [accessTarget, setAccessTarget] = useState<UserProfile | null>(null);
-  const [accessSummary, setAccessSummary] = useState<UserAppAccessSummary | null>(null);
-  const [accessSelected, setAccessSelected] = useState<number[]>([]);
-  const [accessLoading, setAccessLoading] = useState(false);
-  const [accessSaving, setAccessSaving] = useState(false);
-  const [accessError, setAccessError] = useState<string | null>(null);
-
-  const openAccessModal = async (user: UserProfile) => {
-    setAccessTarget(user);
-    setAccessSummary(null);
-    setAccessSelected([]);
-    setAccessError(null);
-    setAccessLoading(true);
-
-    try {
-      const res = await fetchUserAppAccess(user.id);
-      if (res.data.status) {
-        setAccessSummary(res.data.data);
-        setAccessSelected(res.data.data.apps.filter((app) => app.granted).map((app) => app.id));
-      } else {
-        setAccessError('Gagal memuat kunci akses aplikasi.');
-      }
-    } catch {
-      setAccessError('Gagal memuat kunci akses aplikasi. Coba lagi.');
-    } finally {
-      setAccessLoading(false);
-    }
-  };
-
-  const closeAccessModal = () => {
-    setAccessTarget(null);
-    setAccessSummary(null);
-    setAccessSelected([]);
-    setAccessError(null);
-  };
-
-  const toggleAccessApp = (appId: number) => {
-    setAccessSelected((prev) =>
-      prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId],
-    );
-  };
-
-  const saveAccess = async () => {
-    if (!accessTarget) return;
-
-    try {
-      setAccessSaving(true);
-      setAccessError(null);
-      const res = await updateUserAppAccess(accessTarget.id, accessSelected);
-
-      if (res.data.status) {
-        setAccessSummary(res.data.data);
-        setMessage({ type: 'success', text: res.data.message || 'Kunci akses aplikasi disimpan.' });
-        closeAccessModal();
-      } else {
-        setAccessError('Gagal menyimpan kunci akses aplikasi.');
-      }
-    } catch (error: unknown) {
-      const text =
-        typeof error === 'object' && error !== null && 'response' in error
-          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
-          : '';
-      setAccessError(text || 'Gagal menyimpan kunci akses aplikasi.');
-    } finally {
-      setAccessSaving(false);
-    }
-  };
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -436,7 +363,7 @@ export const ManajemenPengguna: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter status keaktifan — chip ringkas, target sentuh >= 44px */}
+      {/* Filter status keaktifan â€” chip ringkas, target sentuh >= 44px */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
@@ -557,14 +484,6 @@ export const ManajemenPengguna: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Link
-            to="/admin/akses-aplikasi"
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs transition"
-          >
-            <KeyIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Kunci Aplikasi</span>
-          </Link>
-
           <button
             onClick={openModal}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
@@ -632,13 +551,12 @@ export const ManajemenPengguna: React.FC = () => {
                 <th className="py-3 px-4">Program Studi</th>
                 <th className="py-3 px-4">Kontak</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Kunci Aplikasi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8E5DC]/50">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center">
+                  <td colSpan={6} className="py-10 text-center">
                     <p className="text-xs font-semibold text-[#475569]">
                       Tidak ada akun yang sesuai dengan filter
                       {filterRole !== 'ALL' ? ` "${ROLE_LABEL[filterRole as UserRole] ?? filterRole}"` : ''}
@@ -685,17 +603,6 @@ export const ManajemenPengguna: React.FC = () => {
                         <ShieldCheckIcon className="w-3.5 h-3.5" />
                         <span>{user.isActive ? 'Aktif' : 'Nonaktif'}</span>
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openAccessModal(user)}
-                        title="Atur kunci akses aplikasi SSO"
-                        className="inline-flex items-center gap-1 min-h-[36px] px-2.5 rounded-[8px] text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] transition"
-                      >
-                        <KeyIcon className="w-3.5 h-3.5" />
-                        Atur
-                      </button>
                     </td>
                   </tr>
                 ))
@@ -832,137 +739,6 @@ export const ManajemenPengguna: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {accessTarget && (
-        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] my-8">
-            <div className="flex justify-between items-start pb-3 border-b border-[#E8EFEA]">
-              <div className="min-w-0">
-                <h3 className="font-bold text-[#1E293B] text-sm flex items-center gap-1.5">
-                  <KeyIcon className="w-4 h-4 text-[#166534]" />
-                  Kunci Akses Aplikasi
-                </h3>
-                <p className="text-[11px] text-[#64748B] mt-0.5 truncate">
-                  {accessTarget.nama} · {accessTarget.username} · {ROLE_LABEL[accessTarget.role] ?? accessTarget.role}
-                </p>
-              </div>
-              <button
-                onClick={closeAccessModal}
-                className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
-              >
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-[10px] bg-[#F0FDF4] border border-[#BBF7D0] text-[11px] text-[#166534] leading-relaxed">
-              {accessSelected.length > 0 ? (
-                <>
-                  Mode <strong>allowlist</strong>: akun ini hanya bisa membuka aplikasi yang
-                  dicentang, meskipun perannya mengizinkan aplikasi lain.
-                </>
-              ) : (
-                <>
-                  Mode <strong>peran</strong>: tanpa centang, akses mengikuti aturan peran pada
-                  masing-masing aplikasi (<em>targetRoles</em>).
-                </>
-              )}
-            </div>
-
-            {accessError && (
-              <div className="p-3 rounded-lg bg-[#FEE2E2] border border-[#FECACA] text-[11px] font-medium text-[#B91C1C] flex items-center gap-2">
-                <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0" />
-                {accessError}
-              </div>
-            )}
-
-            <div className="max-h-[320px] overflow-y-auto -mx-1 px-1 space-y-1.5">
-              {accessLoading && (
-                <p className="py-6 text-center text-xs text-[#94A3B8]">Memuat aplikasi...</p>
-              )}
-
-              {!accessLoading &&
-                (accessSummary?.apps ?? []).map((app) => {
-                  const checked = accessSelected.includes(app.id);
-                  return (
-                    <label
-                      key={app.id}
-                      className={`flex items-start gap-3 p-3 rounded-[10px] border cursor-pointer transition ${
-                        checked
-                          ? 'bg-[#F0FDF4] border-[#166534]'
-                          : 'bg-white border-[#D8E5DC] hover:bg-[#F9FDFB]'
-                      } ${!app.isActive ? 'opacity-60' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleAccessApp(app.id)}
-                        className="mt-0.5 w-4 h-4 accent-[#166534] flex-shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#1E293B] truncate">{app.nameApp}</p>
-                        <p className="text-[10px] font-mono text-[#94A3B8] truncate">{app.clientId}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
-                              app.roleAllowed
-                                ? 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]'
-                                : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
-                            }`}
-                          >
-                            {app.roleAllowed ? 'Peran: diizinkan' : 'Peran: ditolak'}
-                          </span>
-                          {checked && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#166534] text-white">
-                              Kunci aktif
-                            </span>
-                          )}
-                          {!app.isActive && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA]">
-                              Aplikasi nonaktif
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-
-              {!accessLoading && accessSummary && accessSummary.apps.length === 0 && (
-                <p className="py-6 text-center text-xs text-[#94A3B8]">
-                  Belum ada aplikasi SSO terdaftar.
-                </p>
-              )}
-            </div>
-
-            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-[#E8EFEA]">
-              <button
-                type="button"
-                onClick={() => setAccessSelected([])}
-                className="text-[11px] font-semibold text-[#64748B] hover:text-[#166534] underline underline-offset-2 self-start"
-              >
-                Hapus semua kunci (ikuti peran)
-              </button>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={closeAccessModal}
-                  className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs"
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={saveAccess}
-                  disabled={accessSaving || accessLoading}
-                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
-                >
-                  {accessSaving ? 'Menyimpan...' : 'Simpan Kunci'}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

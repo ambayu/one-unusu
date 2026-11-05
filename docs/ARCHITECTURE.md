@@ -79,6 +79,21 @@ Catatan implementasi:
 - Sesi login ONE UNUSU memakai JWT dengan masa berlaku 1 hari.
 - Nama model Prisma: `SsoApp` dan `SsoAuthToken` (bukan `SsoAppItem` atau `SsoTicket`).
 
+### 2.1 Model Otorisasi Aplikasi Cabang (Dua Lapis)
+
+Otorisasi akses aplikasi cabang **tidak** memakai tabel allowlist per pengguna. Tabel `user_app_accesses` (model `UserAppAccess`) sudah dihapus lewat migrasi `20261105120000_drop_user_app_access`, beserta endpoint `/api/admin/app-access`, `/api/admin/users/:id/app-access`, `/api/admin/apps/:id/access`, halaman `/admin/akses-aplikasi`, dan seeder `prisma/seed-app-access.ts`.
+
+| Lapis | Lokasi | Peran | Ditegakkan pada |
+|---|---|---|---|
+| 1. Portal | `sso_apps.targetRoles` + `evaluateRoleAccess()` di `src/server/index.ts` | Menentukan ikon mana yang tampil dan tiket mana yang boleh terbit | `/api/sso/apps`, `/api/auth/panel-access`, `/api/sso/app-client/:clientId/v2/redirect`, `/api/v2/website/verify-token` |
+| 2. Aplikasi cabang | `ALLOWED_SSO_ROLES` di server masing-masing aplikasi | Menolak peran yang tidak berhak masuk panel cabang | `POST /api/auth/sso` & middleware otorisasi cabang |
+
+Konsekuensi yang disengaja:
+- Ikon di portal hanya cermin dari `targetRoles`. Bila `targetRoles` meleset, login tetap ditolak lapis ke-2 — jadi ketidaksesuaian dianggap bug.
+- Isolasi admin unit (mis. `ADMIN_LPM` tidak boleh masuk panel LPPM) sepenuhnya menjadi tanggung jawab lapis ke-2, dengan pola `FOREIGN_APP_ADMIN_ROLES` seperti pada `lppm-unusu`.
+- Menambah peran baru ke sebuah aplikasi berarti mengubah `targetRoles` (seed / panel Registrasi SSO) **dan** `ALLOWED_SSO_ROLES` di repo aplikasi cabang terkait.
+
+
 ---
 
 ## 3. Peta Komponen & Modul Utama
@@ -126,5 +141,5 @@ Catatan implementasi:
      - `GET /api/admin/permissions`, `GET|POST /api/admin/roles`, `PUT /api/admin/roles/:id`, `PUT /api/admin/roles/:id/permissions`, `DELETE /api/admin/roles/:id`
    - Setiap endpoint admin dilindungi middleware `requirePermission(key)`; `permissions` pengguna dikirim pada `POST /api/auth/login` dan `GET /api/auth/me`.
    - `GET /api/sso/apps` mengembalikan **semua** aplikasi aktif beserta penanda `isAllowed` (perbandingan `targetRoles` dengan peran pengguna). Penyaringan keras hanya dilakukan pada `GET /api/sso/app-client/:clientId/v2/redirect` yang menolak `403` bila peran tidak berhak.
-   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai untuk pemetaan saat seeding (`prisma/access-control.ts`, dijalankan lewat `npm run prisma:seed:access`).
-   - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`.
+   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai untuk pemetaan saat seeding (`prisma/access-control.ts`, dijalankan lewat `npm run db:seed:access`).
+   - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `AuditLog`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`. Model `UserAppAccess` sudah dihapus.

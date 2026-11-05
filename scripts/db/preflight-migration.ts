@@ -68,8 +68,7 @@ const REQUIRED_TABLES = [
   "role_permissions",
   "layanan_kampus",
   "berita",
-  "banner_sliders",
-  "user_app_accesses"
+  "banner_sliders"
 ];
 
 const NEW_TABLE = "audit_logs";
