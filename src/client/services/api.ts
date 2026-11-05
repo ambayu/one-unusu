@@ -123,8 +123,6 @@ export interface SsoAppItem {
   targetRoles: string;
   /** Dihitung server dari `targetRoles` vs peran pengguna yang sedang login. */
   isAllowed?: boolean;
-  /** Mode penilaian akses: allowlist (UserAppAccess) atau role (targetRoles). */
-  accessMode?: 'allowlist' | 'role';
   isActive: boolean;
   order: number;
 }
@@ -176,7 +174,6 @@ export interface PanelAppAccess {
   clientId: string;
   nameApp: string;
   isAllowed: boolean;
-  accessMode?: 'allowlist' | 'role';
 }
 
 export interface PanelAccess {
@@ -219,74 +216,8 @@ export const createAdminUser = (data: Partial<UserProfile> & { password: string 
   api.post<{ status: boolean; message: string; data: UserProfile }>('/admin/users', data);
 
 // ==========================================
-// KUNCI ADMIN PER APLIKASI (UserAppAccess)
+// ADMIN API — REGISTRY APLIKASI
 // ==========================================
-export interface UserAppAccessItem {
-  id: number;
-  clientId: string;
-  nameApp: string;
-  badge?: string | null;
-  isActive: boolean;
-  /** Diizinkan oleh `targetRoles` aplikasi. */
-  roleAllowed: boolean;
-  /** Punya baris UserAppAccess aktif. */
-  granted: boolean;
-  /** Hasil akhir: allowlist bila ada kunci eksplisit, selain itu peran. */
-  effective: boolean;
-  reason: string;
-}
-
-export interface UserAppAccessSummary {
-  user: { id: number; username: string; nama: string; role: UserRole; isActive: boolean };
-  mode: 'allowlist' | 'role';
-  apps: UserAppAccessItem[];
-}
-
-export const fetchUserAppAccess = (userId: number) =>
-  api.get<{ status: boolean; data: UserAppAccessSummary }>(`/admin/users/${userId}/app-access`);
-
-export const updateUserAppAccess = (userId: number, appIds: number[]) =>
-  api.put<{ status: boolean; message: string; data: UserAppAccessSummary }>(
-    `/admin/users/${userId}/app-access`,
-    { appIds },
-  );
-
-export interface AppAccessMatrixApp {
-  id: number;
-  clientId: string;
-  nameApp: string;
-  badge: string | null;
-  isActive: boolean;
-  roleAllowed: boolean;
-  defaultAdminRole?: string | null;
-  targetRoles: string;
-  grantedUserIds: number[];
-  grantedCount: number;
-}
-
-export interface AppAccessMatrixUser {
-  id: number;
-  username: string;
-  nama: string;
-  role: UserRole;
-  isActive: boolean;
-  locked: boolean;
-}
-
-export interface AppAccessMatrix {
-  apps: AppAccessMatrixApp[];
-  users: AppAccessMatrixUser[];
-}
-
-export const fetchAppAccessMatrix = () =>
-  api.get<{ status: boolean; data: AppAccessMatrix }>('/admin/app-access');
-
-export const updateAppAccessUsers = (appId: number, userIds: number[]) =>
-  api.put<{ status: boolean; message: string; data: { appId: number; userIds: number[] } }>(
-    `/admin/apps/${appId}/access`,
-    { userIds },
-  );
-
 export const fetchAdminApps = () =>
   api.get<{ status: boolean; data: SsoAppItem[] }>('/admin/apps');
 
@@ -297,7 +228,6 @@ export const syncAdminApps = () =>
     data: {
       createdCount: number;
       updatedCount: number;
-      keysCreated: number;
       totalApps: number;
     };
   }>('/admin/apps/sync');

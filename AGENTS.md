@@ -33,8 +33,19 @@ Universitas Nahdlatul Ulama Sumatera Utara
 3. **Responsive Sidebar**: Setiap halaman panel manajemen / dashboard terautentikasi wajib menyertakan sidebar responsif lengkap dengan navigasi Dashboard, Biodata & Profil, dan tautan sesuai peran user.
 4. **Biodata Gate on App Launch**: Pengguna yang baru login SSO selalu diarahkan ke panel (dashboard/admin), bukan ke halaman biodata. Kelengkapan nomor WhatsApp dan email diperiksa saat pengguna membuka aplikasi SSO: bila belum lengkap, arahkan ke `/profil` dengan notifikasi modal dan jangan terbitkan tiket SSO.
 
+## SSO App Authorization (WAJIB)
+1. **Satu Sumber di Portal**: Otorisasi akses aplikasi cabang hanya memakai `sso_apps.targetRoles`. DILARANG membuat tabel/allowlist per pengguna (model `UserAppAccess` / tabel `user_app_accesses`), endpoint `app-access`, atau menu "Kunci Aplikasi". Semua sudah dihapus lewat migrasi `20261105120000_drop_user_app_access`.
+2. **Validasi Ulang di Aplikasi Cabang**: Setiap aplikasi cabang wajib punya `ALLOWED_SSO_ROLES` sendiri dan menolak peran asing pada `POST /api/auth/sso` dengan HTTP `403`, termasuk menolak admin aplikasi lain (`FOREIGN_APP_ADMIN_ROLES`).
+3. **Konsistensi**: Mengubah `targetRoles` wajib disertai penyesuaian `ALLOWED_SSO_ROLES` di repo aplikasi cabang. Detail aturan ada di `docs/PROJECT_RULES.md` bagian 4.1.
+
+## Database Scripts
+1. Skrip database memakai awalan `db:` (`npm run db:seed`, `db:seed:access`, `db:seed:directory`, `db:seed:sliders`, `db:backup`, `db:parity`, `db:preflight`). Alias `prisma:seed*` hanya penerus tipis.
+2. Urutan setup database baru: `prisma generate` → `prisma migrate deploy` → `npm run db:seed` → `npm run db:seed:access`.
+3. Setiap perubahan `prisma/schema.prisma` wajib disertai folder migrasi baru; verifikasi dengan `prisma migrate diff` yang harus menghasilkan "empty migration".
+4. Seeder tidak boleh menimpa `password` pada blok `update`.
+
 ## Development Guidelines
 1. Gunakan komponen React modular, accessible, dan responsif.
 2. Jaga integritas skema Prisma dan relasi antar model.
-3. Selalu periksa CORS dan environment variable di `server/.env`.
+3. Selalu periksa CORS dan environment variable di `.env`.
 4. Jalankan `npm run dev` di root untuk menjalankan client dan server secara bersamaan.

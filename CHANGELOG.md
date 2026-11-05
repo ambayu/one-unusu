@@ -4,6 +4,28 @@ Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ---
 
+## [2026-11-05]
+
+### Breaking
+- **Penghapusan Kunci Aplikasi per Pengguna (`user_app_accesses`)**:
+  - Otorisasi akses aplikasi cabang kini memakai dua lapis terpisah: `sso_apps.targetRoles` di portal dan `ALLOWED_SSO_ROLES` di server masing-masing aplikasi cabang. Tabel allowlist per pengguna dihapus karena menjadi sumber kebenaran kedua yang rawan bentrok.
+  - Migrasi baru: `prisma/migrations/20261105120000_drop_user_app_access` (`DROP TABLE user_app_accesses`).
+  - Dihapus: model `UserAppAccess`, field relasi `User.appAccess` / `SsoApp.appAccess`, `prisma/seed-app-access.ts`, skrip `db:seed:app-access`, endpoint `GET/PUT /api/admin/users/:id/app-access`, `GET /api/admin/app-access`, `PUT /api/admin/apps/:id/access`, halaman `src/client/pages/admin/KunciAplikasi.tsx`, rute `/admin/akses-aplikasi`, menu sidebar "Kunci Aplikasi", tombol "Atur" pada Manajemen Pengguna, badge "Kunci" pada kartu aplikasi Dashboard, serta semua fungsi `*AppAccess*` di `src/client/services/api.ts`.
+  - `syncAdminApps` tidak lagi membuat kunci admin; respons `POST /api/admin/apps/sync` tidak lagi memuat `keysCreated`.
+
+### Changed
+- **Penamaan Skrip Database**:
+  - Semua skrip seed memakai awalan `db:` (`db:seed`, `db:seed:access`, `db:seed:directory`, `db:seed:sliders`, `db:sso-dev-urls`). Alias `prisma:seed*` dipertahankan sebagai penerus tipis.
+  - `one-unusu` menyesuaikan `SEED_ADMIN_PASSWORD` menjadi `password123` agar seragam dengan repositori lain.
+
+### Documentation
+- Menambahkan aturan **4.1 Aturan Otorisasi Aplikasi Cabang** pada `docs/PROJECT_RULES.md` (dua lapis otorisasi, larangan menghidupkan allowlist, kewajiban konsistensi `targetRoles` dengan `ALLOWED_SSO_ROLES`).
+- Menambahkan **5.2 Konvensi Skrip Database** dan dua butir keamanan baru pada `docs/PROJECT_RULES.md`.
+- Menambahkan bagian **2.1 Model Otorisasi Aplikasi Cabang** pada `docs/ARCHITECTURE.md`.
+- Memperbarui `AGENTS.md`, `README.md`, `docs/README.md`, dan `docs/routes/admin/README.md`.
+
+---
+
 ## [2026-11-02]
 
 ### Documentation

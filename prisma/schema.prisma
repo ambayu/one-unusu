@@ -43,7 +43,6 @@ model User {
   updatedAt   DateTime       @updatedAt
 
   authTokens  SsoAuthToken[]
-  appAccess   UserAppAccess[]
   auditLogs   AuditLog[]
 
   // Login mencari OR(username, nim, nidn) -> nim & nidn butuh index sendiri.
@@ -73,35 +72,10 @@ model SsoApp {
   updatedAt     DateTime       @updatedAt
 
   authTokens    SsoAuthToken[]
-  appAccess     UserAppAccess[]
 
   // Query portal: WHERE isActive = true ORDER BY `order` ASC
   @@index([isActive, order])
   @@map("sso_apps")
-}
-
-// KUNCI ADMIN PER APLIKASI (UserAppAccess)
-// Memberi izin eksplisit per pengguna per aplikasi cabang. Bila seorang
-// pengguna memiliki minimal satu baris aktif di sini, akses aplikasi menjadi
-// mode allowlist: hanya aplikasi yang terdaftar yang boleh menerbitkan tiket
-// SSO. Tanpa baris apa pun, berlaku aturan bawaan `SsoApp.targetRoles`.
-model UserAppAccess {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  appId       Int
-  isActive    Boolean  @default(true)
-  grantedById Int?
-  note        String?  @db.VarChar(255)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  app         SsoApp   @relation(fields: [appId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, appId])
-  @@index([userId])
-  @@index([appId])
-  @@map("user_app_accesses")
 }
 
 // 2. OTORISASI BERBASIS PERMISSION (resource:action)

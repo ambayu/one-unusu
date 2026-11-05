@@ -132,7 +132,7 @@ model AuditLog {
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   actorLabel String?  @db.VarChar(191) // Snapshot username/nama agar riwayat tetap terbaca meski akun terhapus
   action     String   @db.VarChar(60)  // Cth: "LOGIN_SUCCESS", "ROLE_UPDATE", "USER_ACCESS_KEY_CHANGE"
-  resource   String   @db.VarChar(60)  // Cth: "user", "sso_app", "role", "user_app_access"
+  resource   String   @db.VarChar(60)  // Cth: "user", "sso_app", "role", "layanan_kampus"
   resourceId String?  @db.VarChar(64)  // ID target objek yang dimutasi
   status     String   @default("SUCCESS") @db.VarChar(20) // "SUCCESS" | "DENIED" | "FAILED"
   ipAddress  String?  @db.VarChar(45)  // Mendukung IPv4 dan IPv6

@@ -18,7 +18,6 @@ import { Izin } from './pages/admin/Izin';
 import { Peran } from './pages/admin/Peran';
 import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { ManajemenSlider } from './pages/admin/ManajemenSlider';
-import { KunciAplikasi } from './pages/admin/KunciAplikasi';
 import { PERMISSIONS } from './lib/permissions';
 import { AksesDitolak } from './pages/AksesDitolak';
 import {
@@ -294,19 +293,6 @@ export function App() {
               <AdminPanelRoute>
                 <PermissionRoute permission={PERMISSIONS.nonSsoMenu}>
                   <DirektoriPublik />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/akses-aplikasi"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.applicationMenu}>
-                  <KunciAplikasi />
                 </PermissionRoute>
               </AdminPanelRoute>
             </ProtectedRoute>

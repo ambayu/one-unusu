@@ -1,4 +1,4 @@
-# PROJECT RULES — ONE UNUSU
+# PROJECT RULES â€” ONE UNUSU
 
 Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, API endpoint, dan komponen ONE UNUSU.
 
@@ -37,7 +37,7 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - Main Text: `#1E293B`
    - Secondary Text: `#475569`
    - Border: `#D8E5DC` (Border kehijauan lembut)
-2. **Typography**: Menggunakan font utama **Plus Jakarta Sans**. Skala heading 28–32px (Page title), 20–24px (Section), 14–16px (Body), 14px weight 600 (Button).
+2. **Typography**: Menggunakan font utama **Plus Jakarta Sans**. Skala heading 28â€“32px (Page title), 20â€“24px (Section), 14â€“16px (Body), 14px weight 600 (Button).
 3. **Anti-Sparkles Rule**: DILARANG keras menggunakan icon `sparkles` (`Sparkles`, `SparklesIcon`, dsb). Gunakan icon fungsional spesifik dari `@heroicons/react`.
 4. **Elevation**: Hindari shadow tebal; gunakan border `#D8E5DC` yang presisi dan shadow sangat halus (`shadow-xs` / `shadow-sm`).
 5. **Radius**: Konsisten antara `8px` (button/input), `10px` (badge/icon-box), `12px` (dropdown), dan `16px` (card utama).
@@ -56,6 +56,16 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - `SUPERADMIN`: Menampilkan Username, Unit Kerja PUSTIK, hak akses Root SSO, dan tab Registry SSO Apps & Civitas User Management.
 4. **SSO Ticket Protocol**: Otorisasi ke aplikasi turunan (LMS, SIAKAD, dsb) wajib menggunakan `GET /api/sso/app-client/:clientId/v2/redirect`. Endpoint ini menerbitkan token acak 64 karakter, single-use, berlaku 5 menit, dan disimpan di tabel `sso_auth_tokens`. Verifikasi dilakukan server-ke-server melalui `POST /api/v2/website/verify-token` dengan `client_id`, `client_key`, dan `token`.
 
+### 4.1 Aturan Otorisasi Aplikasi Cabang (Mandatory)
+
+Otorisasi akses ke aplikasi cabang memakai **dua lapis terpisah tanpa tabel perantara**. Allowlist per pengguna (`user_app_accesses` / model `UserAppAccess`) **sudah dihapus** dan **dilarang dihidupkan kembali**.
+
+1. **Lapis Portal â€” `sso_apps.targetRoles`**: Satu-satunya sumber kebenaran di ONE UNUSU. Server membandingkan `User.role` dengan array JSON `SsoApp.targetRoles` (`evaluateRoleAccess()`), lalu memakainya untuk katalog aplikasi (`GET /api/sso/apps`), navigasi pasca-login (`GET /api/auth/panel-access`), penerbitan tiket (`GET /api/sso/app-client/:clientId/v2/redirect`), dan verifikasi token (`POST /api/v2/website/verify-token`). Dilarang menambah tabel allowlist, kolom kunci per pengguna, atau endpoint `app-access` baru.
+2. **Lapis Aplikasi Cabang â€” `ALLOWED_SSO_ROLES`**: Setiap aplikasi cabang (`unusu-lms`, `lpm-unusu`, `lppm-unusu`, `esurat-unusu`, `unusu-akreditasi`, `unusu-sarpras`) **wajib** memvalidasi ulang `ssoUser.role` pada `POST /api/auth/sso` dan menolak peran di luar daftar dengan HTTP `403`. Peran admin aplikasi lain wajib ditolak secara eksplisit (contoh pola: `FOREIGN_APP_ADMIN_ROLES` di `lppm-unusu`), agar admin unit tidak masuk ke panel unit lain.
+3. **Konsistensi Dua Lapis**: Menambah atau mencabut peran pada `targetRoles` **wajib** disertai penyesuaian `ALLOWED_SSO_ROLES` di aplikasi cabang terkait. Ketidaksesuaian menyebabkan ikon tampil tetapi login ditolak (atau sebaliknya), sehingga dianggap bug, bukan konfigurasi.
+4. **Isolasi Admin Unit**: Pembatasan admin unit ke aplikasinya sendiri **bukan** tugas portal, melainkan tugas aplikasi cabang lewat lapis ke-2. Portal tetap mengizinkan `SUPERADMIN` dan `ADMIN_SSO` pada seluruh aplikasi.
+5. **Fail-Closed**: `targetRoles` yang bukan JSON array peran yang dikenal harus menolak akses (`invalid-config`), tidak pernah membuka akses.
+
 ---
 
 ## 5. Aturan Keamanan, Database, & Kode
@@ -66,7 +76,6 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 4. **Type Safety**: Kode TypeScript harus bersih, hindari penggunaan `any` atau `@ts-ignore` tanpa alasan defensif yang valid.
 
 ### 5.1 Lapisan Hardening Server (Wajib Dipertahankan)
-
 1. **Security Header**: `helmet` wajib aktif. CSP membatasi `script-src 'self'`; `img-src` mengizinkan `data:` karena ikon disimpan sebagai data URL base64.
 2. **CORS Allowlist**: Origin hanya diterima bila terdaftar di `CORS_ORIGIN` (dipisah koma). Bila variabel kosong, hanya origin lokal yang lolos. Dilarang mengembalikan `origin: true`.
 3. **Batas Payload Berlapis**: Body parser global dibatasi `1mb`; hanya route `POST/PUT /api/admin/apps` dan `PUT /api/auth/profile` yang memakai `50mb` untuk gambar base64.
@@ -77,6 +86,15 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 8. **Fail-Closed**: Konfigurasi tidak valid (mis. `targetRoles` bukan JSON array peran yang dikenal) harus menolak akses, bukan membuka akses.
 9. **Anti Eskalasi Hak Akses**: Saat memperbarui izin sebuah peran, pengguna hanya boleh memberikan izin yang memang sudah dimilikinya sendiri.
 10. **Single-Use Token Atomik**: Pembakaran token SSO memakai `updateMany` dengan kondisi `isUsed: false` dan `expiresAt > now` di dalam `WHERE` agar dua request paralel tidak dapat memakai token yang sama.
+11. **Tanpa Kunci Aplikasi per Pengguna**: Tabel `user_app_accesses` sudah dihapus (migrasi `20261105120000_drop_user_app_access`). Dilarang membuat kembali tabel, model, endpoint, atau halaman panel bertema "Kunci Aplikasi". Otorisasi aplikasi cabang mengikuti aturan bagian 4.1.
+12. **Seed Idempoten Tanpa Menimpa Kata Sandi**: Blok `update` pada seeder dilarang menyertakan `password`. Kata sandi hanya ditulis pada `create`, agar seed ulang tidak mereset kredensial yang sudah diubah lewat panel admin.
+
+### 5.2 Konvensi Skrip Database (Mandatory)
+
+1. **Penamaan Skrip**: Seluruh skrip database memakai awalan `db:` (`db:seed`, `db:seed:access`, `db:seed:directory`, `db:seed:sliders`, `db:sso-dev-urls`, `db:backup`, `db:parity`, `db:preflight`, `db:verify:post`, `db:cleanup:tokens`, `db:purge:audit`). Alias lama `prisma:seed*` dipertahankan hanya sebagai penerus tipis ke `db:*`.
+2. **Urutan Bootstrapping Database Baru**: `prisma generate` → `prisma migrate deploy` → `npm run db:seed` → `npm run db:seed:access`. Untuk database yang sudah berisi skema tanpa riwayat migrasi, lakukan baseline dengan `prisma migrate resolve --applied` per folder migrasi, bukan dengan menghapus tabel.
+3. **Paritas Skema**: Setiap perubahan `prisma/schema.prisma` wajib disertai folder migrasi baru. `prisma migrate diff --from-url <DB> --to-schema-datamodel prisma/schema.prisma --script` harus menghasilkan "empty migration" sebelum pekerjaan dianggap selesai.
+4. **Migrasi dengan Hint DDL**: Sintaks `ALGORITHM`/`LOCK` hanya sah pada `ALTER TABLE`, tidak pada `CREATE INDEX` mandiri. Gunakan `ALTER TABLE ... ADD INDEX ... ALGORITHM=INPLACE, LOCK=NONE` bila hint memang diperlukan.
 
 ---
 
