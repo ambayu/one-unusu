@@ -19,6 +19,7 @@ import {
   KeyIcon,
   ShieldCheckIcon,
   PhotoIcon,
+  ServerStackIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
 import { isBiodataComplete } from '../lib/biodata';
@@ -86,6 +87,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
     { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
     { path: '/admin/peran', label: 'Peran', icon: ShieldCheckIcon as React.ElementType, permission: PERMISSIONS.roleMenu },
+    { path: '/admin/pemeriksaan', label: 'Pemeriksaan Sistem', icon: ServerStackIcon as React.ElementType, permission: PERMISSIONS.applicationMenu },
   ].filter((item) => hasPermission(user, item.permission));
 
   const breadcrumbLabels: Record<string, string> = {
@@ -98,6 +100,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/admin/pengguna': 'Manajemen Pengguna',
     '/admin/izin': 'Izin',
     '/admin/peran': 'Peran',
+    '/admin/pemeriksaan': 'Pemeriksaan Sistem',
     '/akses-ditolak': 'Akses Ditolak',
   };
 

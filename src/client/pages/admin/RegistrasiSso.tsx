@@ -51,10 +51,18 @@ function slugifyClientId(name: string): string {
   return `${base}-${randomHex(4)}`;
 }
 
+/** Filter status aplikasi pada daftar registry SSO. */
+type AppStatusFilter = 'ALL' | 'AKTIF' | 'NONAKTIF';
+
+/** Pilihan pengurutan daftar aplikasi. */
+type AppSortMode = 'order' | 'name' | 'status';
+
 export const RegistrasiSso: React.FC = () => {
   const { currentUser, stats, apps, loading, reload } = useAdminData();
 
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<AppStatusFilter>('ALL');
+  const [sortBy, setSortBy] = useState<AppSortMode>('order');
   const [notify, setNotify] = useState<ModalNotification>({
     isOpen: false,
     type: 'info',
@@ -81,15 +89,37 @@ export const RegistrasiSso: React.FC = () => {
 
   const filteredApps = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return apps;
 
-    return apps.filter(
-      (app) =>
+    const matched = apps.filter((app) => {
+      if (statusFilter === 'AKTIF' && !app.isActive) return false;
+      if (statusFilter === 'NONAKTIF' && app.isActive) return false;
+      if (!term) return true;
+
+      return (
         app.nameApp.toLowerCase().includes(term) ||
         app.clientId.toLowerCase().includes(term) ||
-        app.urlRedirect.toLowerCase().includes(term)
-    );
-  }, [apps, search]);
+        app.urlRedirect.toLowerCase().includes(term) ||
+        (app.description ?? '').toLowerCase().includes(term)
+      );
+    });
+
+    return [...matched].sort((a, b) => {
+      if (sortBy === 'name') return a.nameApp.localeCompare(b.nameApp, 'id');
+      if (sortBy === 'status') {
+        return Number(b.isActive) - Number(a.isActive) || a.nameApp.localeCompare(b.nameApp, 'id');
+      }
+      return (a.order ?? 0) - (b.order ?? 0) || a.nameApp.localeCompare(b.nameApp, 'id');
+    });
+  }, [apps, search, statusFilter, sortBy]);
+
+  const totalAktif = useMemo(() => apps.filter((app) => app.isActive).length, [apps]);
+  const isFilterActive = statusFilter !== 'ALL' || search.trim() !== '' || sortBy !== 'order';
+
+  const resetAppFilters = () => {
+    setSearch('');
+    setStatusFilter('ALL');
+    setSortBy('order');
+  };
 
   const generateCredentials = (name: string) => {
     setAppClientId(slugifyClientId(name));
@@ -361,19 +391,20 @@ export const RegistrasiSso: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative max-w-sm w-full">
-          <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari nama, client ID, atau callback..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
-          />
-        </div>
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative max-w-sm w-full">
+            <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cari nama, client ID, atau callback..."
+              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+            />
+          </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
           {canEdit && (
             <button
               onClick={handleSyncApps}
@@ -394,6 +425,71 @@ export const RegistrasiSso: React.FC = () => {
             <span>Daftarkan Aplikasi Baru</span>
           </button>
         </div>
+        </div>
+
+        {/* Baris filter status + pengurutan daftar aplikasi */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {([
+              { key: 'ALL' as AppStatusFilter, label: 'Semua', count: apps.length },
+              { key: 'AKTIF' as AppStatusFilter, label: 'Aktif', count: totalAktif },
+              { key: 'NONAKTIF' as AppStatusFilter, label: 'Nonaktif', count: apps.length - totalAktif },
+            ]).map((chip) => {
+              const isSelected = statusFilter === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setStatusFilter(chip.key)}
+                  aria-pressed={isSelected}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-semibold border transition min-h-[34px] ${
+                    isSelected
+                      ? 'bg-[#166534] text-white border-[#166534]'
+                      : 'bg-white text-[#475569] border-[#D8E5DC] hover:bg-[#F0FDF4] hover:text-[#166534]'
+                  }`}
+                >
+                  <span>{chip.label}</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-[#F1F5F2] text-[#64748B]'
+                    }`}
+                  >
+                    {chip.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#64748B]">
+              <span>Urutkan</span>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as AppSortMode)}
+                className="px-2.5 py-1.5 text-[11.5px] font-semibold bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] min-h-[34px]"
+              >
+                <option value="order">Urutan tampil</option>
+                <option value="name">Nama A–Z</option>
+                <option value="status">Status aktif dulu</option>
+              </select>
+            </label>
+
+            <span className="text-[11px] text-[#94A3B8]" role="status" aria-live="polite">
+              Menampilkan {filteredApps.length} dari {apps.length} aplikasi
+            </span>
+
+            {isFilterActive && (
+              <button
+                type="button"
+                onClick={resetAppFilters}
+                className="text-[11px] font-semibold text-[#B91C1C] hover:underline"
+              >
+                Reset filter
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
@@ -412,8 +508,29 @@ export const RegistrasiSso: React.FC = () => {
             <tbody className="divide-y divide-[#D8E5DC]/50">
               {filteredApps.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit || canDelete ? 6 : 5} className="py-8 text-center text-[#94A3B8]">
-                    Tidak ada aplikasi yang sesuai dengan pencarian.
+                  <td colSpan={canEdit || canDelete ? 6 : 5} className="py-10 text-center">
+                    <Squares2X2Icon className="w-7 h-7 mx-auto text-[#94A3B8]" />
+                    <p className="mt-2 text-xs font-bold text-[#475569]">
+                      {apps.length === 0
+                        ? 'Belum ada aplikasi terdaftar'
+                        : 'Tidak ada aplikasi yang cocok dengan filter'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#94A3B8]">
+                      {apps.length === 0
+                        ? 'Tekan “Sinkronisasi Aplikasi” untuk mengisi registry bawaan atau daftarkan aplikasi baru.'
+                        : `Filter aktif: status ${statusFilter === 'ALL' ? 'semua' : statusFilter.toLowerCase()}${
+                            search.trim() ? `, pencarian “${search.trim()}”` : ''
+                          }.`}
+                    </p>
+                    {apps.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={resetAppFilters}
+                        className="mt-2.5 inline-flex items-center px-3 py-1.5 rounded-[8px] border border-[#D8E5DC] bg-white text-[11px] font-semibold text-[#166534] hover:bg-[#F0FDF4] transition"
+                      >
+                        Tampilkan semua aplikasi
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (

@@ -11,6 +11,7 @@ Rute `/admin` adalah pusat tata kelola integrasi SSO ONE UNUSU. Halaman dipecah 
 | `/admin/pengguna` | Manajemen Pengguna | `user:menu` | `GET/POST /api/admin/users` |
 | `/admin/izin` | Izin | `permission:menu` | `GET /api/admin/permissions`, `PUT /api/admin/roles/:id/permissions` |
 | `/admin/peran` | Peran | `role:menu` | `GET/POST/PUT/DELETE /api/admin/roles` |
+| `/admin/pemeriksaan` | Pemeriksaan Sistem | `application:menu` | `GET /api/admin/system-check` |
 
 > Analisis teknis mendalam mengenai Permission Directory dan model Audit Log dapat dibaca pada [`docs/PERMISSION_DIRECTORY_AND_AUDIT_LOG.md`](../../PERMISSION_DIRECTORY_AND_AUDIT_LOG.md).
 

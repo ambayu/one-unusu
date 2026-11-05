@@ -379,4 +379,28 @@ export const updateAdminSlider = (id: number, data: Partial<BannerSliderItem>) =
 export const deleteAdminSlider = (id: number) =>
   api.delete<{ status: boolean; message: string }>(`/admin/sliders/${id}`);
 
+// ==========================================
+// DIAGNOSTIK SISTEM (Pemeriksaan Kesiapan Data)
+// ==========================================
+export type SystemCheckStatus = 'ok' | 'warn' | 'fail';
+
+export interface SystemCheckItem {
+  id: string;
+  label: string;
+  group: string;
+  status: SystemCheckStatus;
+  detail: string;
+  hint?: string;
+}
+
+export interface SystemCheckResult {
+  checkedAt: string;
+  overall: SystemCheckStatus;
+  summary: { total: number; ok: number; warn: number; fail: number };
+  checks: SystemCheckItem[];
+}
+
+export const fetchSystemCheck = () =>
+  api.get<{ status: boolean; data: SystemCheckResult }>('/admin/system-check');
+
 export default api;
