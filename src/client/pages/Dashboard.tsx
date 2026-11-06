@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   fetchMe, 
@@ -9,7 +9,6 @@ import {
   SsoAppItem,
   DirectoryItem,
 } from '../services/api';
-import { SidebarLayout } from '../components/SidebarLayout';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isImageSource } from '../lib/appIcon';
 import { isBiodataComplete } from '../lib/biodata';
@@ -232,264 +231,263 @@ export const Dashboard: React.FC = () => {
           ];
 
   return (
-    <SidebarLayout user={user}>
-      <div className="space-y-6">
-        
-        {/* =========================================================================
-            1. HERO WELCOME CARD (Permukaan pale green, ilustrasi kampus, logo)
-           ========================================================================= */}
-        <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-8 shadow-xs">
-          <div 
-            className="absolute top-0 right-0 h-full w-1/2 pointer-events-none opacity-85 hidden sm:block bg-no-repeat bg-right bg-cover"
-            style={{
-              backgroundImage: `url('${assetUrl('/assets/campus-banner.png')}')`,
-              maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)',
-              WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)'
-            }}
-          />
+    <div className="space-y-6">
 
-          <div className="relative z-10 flex items-center gap-5">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-xs flex-shrink-0 flex items-center justify-center">
-              <img 
-                src={assetUrl("/assets/pai/logo-unusu.jpg")} 
-                alt="UNUSU Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
+      {/* =========================================================================
+          1. HERO WELCOME CARD (Permukaan pale green, ilustrasi kampus, logo)
+         ========================================================================= */}
+      <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-8 shadow-xs">
+        <div 
+          className="absolute top-0 right-0 h-full w-1/2 pointer-events-none opacity-85 hidden sm:block bg-no-repeat bg-right bg-cover"
+          style={{
+            backgroundImage: `url('${assetUrl('/assets/campus-banner.png')}')`,
+            maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)',
+            WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)'
+          }}
+        />
 
-            <div className="min-w-0 space-y-1.5">
-              <p className="text-base sm:text-lg font-bold text-[#14532D]">
-                Selamat Datang,
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E293B] tracking-tight break-words">
-                {user?.nama || 'Pengguna'}
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* =========================================================================
-            2. IDENTITAS CIVITAS (Daftar 2 kolom, menyesuaikan peran pengguna)
-           ========================================================================= */}
-        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-[#1E293B]">
-            <IdentificationIcon className="w-5 h-5 text-[#166534]" />
-            <span>{identitySectionTitle}</span>
+        <div className="relative z-10 flex items-center gap-5">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-xs flex-shrink-0 flex items-center justify-center">
+            <img 
+              src={assetUrl("/assets/pai/logo-unusu.jpg")} 
+              alt="UNUSU Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
 
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
-            {identityMetrics.map((metric) => (
-              <div key={metric.label} className="min-w-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">
-                  {metric.label}
-                </dt>
-                <dd
-                  className={`mt-1 text-sm font-semibold text-[#1E293B] break-words ${
-                    metric.mono ? 'font-mono' : ''
-                  }`}
-                >
-                  {metric.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-base sm:text-lg font-bold text-[#14532D]">
+              Selamat Datang,
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E293B] tracking-tight break-words">
+              {user?.nama || 'Pengguna'}
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          2. IDENTITAS CIVITAS (Daftar 2 kolom, menyesuaikan peran pengguna)
+         ========================================================================= */}
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 text-sm font-bold text-[#1E293B]">
+          <IdentificationIcon className="w-5 h-5 text-[#166534]" />
+          <span>{identitySectionTitle}</span>
         </div>
 
-        {/* Pengingat biodata: tidak memblokir dashboard, tetapi menandai bahwa
-            aplikasi SSO belum bisa dibuka sampai email & WhatsApp terisi. */}
-        {user && !isBiodataComplete(user) && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[16px] border border-[#FDE68A] bg-[#FEF3C7] px-4 py-3.5">
-            <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-[#92400E]">Biodata belum lengkap</p>
-              <p className="text-xs text-[#B45309] leading-relaxed mt-0.5">
-                Email dan nomor WhatsApp wajib diisi sebelum membuka aplikasi SSO.
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+          {identityMetrics.map((metric) => (
+            <div key={metric.label} className="min-w-0">
+              <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">
+                {metric.label}
+              </dt>
+              <dd
+                className={`mt-1 text-sm font-semibold text-[#1E293B] break-words ${
+                  metric.mono ? 'font-mono' : ''
+                }`}
+              >
+                {metric.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {/* Pengingat biodata: tidak memblokir dashboard, tetapi menandai bahwa
+          aplikasi SSO belum bisa dibuka sampai email & WhatsApp terisi. */}
+      {user && !isBiodataComplete(user) && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[16px] border border-[#FDE68A] bg-[#FEF3C7] px-4 py-3.5">
+          <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#92400E]">Biodata belum lengkap</p>
+            <p className="text-xs text-[#B45309] leading-relaxed mt-0.5">
+              Email dan nomor WhatsApp wajib diisi sebelum membuka aplikasi SSO.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/profil', { state: { requiredBio: true } })}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-semibold transition flex-shrink-0"
+          >
+            Lengkapi Biodata
+          </button>
+        </div>
+      )}
+
+      {/* =========================================================================
+          3. WRAP KARTU TERPADU: LAYANAN SSO & AKSES KAMPUS (DENGAN GAMBAR PREVIEW)
+         ========================================================================= */}
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+              <LinkIcon className="w-4 h-4 text-[#166534]" />
+              <span>Aplikasi Terintegrasi SSO (Single Sign-On)</span>
+            </h2>
+            <p className="text-xs text-[#64748B] mt-0.5">
+              Pilih aplikasi di bawah untuk masuk otomatis menggunakan token SSO v2 tanpa perlu login ulang.
+            </p>
+          </div>
+          <button
+            onClick={loadDashboardData}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D8E5DC] text-[11px] font-bold text-[#166534] hover:bg-[#F0FDF4] transition self-start sm:self-auto"
+          >
+            <span>Muat Ulang Layanan</span>
+            <ArrowRightIcon className="w-3 h-3" />
+          </button>
+        </div>
+
+        {/* Cakupan kewenangan: menegaskan pemisahan admin panel vs admin aplikasi */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-[12px] border border-[#D8E5DC] bg-[#F9FDFB] px-3.5 py-3">
+          <div className="flex items-start gap-2 min-w-0">
+            <IdentificationIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-[#1E293B]">
+                Cakupan akses Anda:{' '}
+                <span className="text-[#166534]">
+                  {user ? ROLE_LABELS[user.role] ?? user.role : 'Memuat...'}
+                </span>
+                {user && MANAGED_APP_BY_ROLE[user.role] ? ` Â· ${MANAGED_APP_BY_ROLE[user.role]}` : ''}
+              </p>
+              <p className="text-[11px] text-[#64748B] mt-0.5">
+                Aplikasi bertanda <span className="font-semibold">Terkunci</span> dikelola unit lain
+                dan tidak dapat Anda buka.
               </p>
             </div>
+          </div>
+          {canOpenAdminPanel(user) && (
             <button
               type="button"
-              onClick={() => navigate('/profil', { state: { requiredBio: true } })}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-semibold transition flex-shrink-0"
+              onClick={() => navigate(ADMIN_PANEL_PATH)}
+              className="self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] text-[11px] font-bold transition"
             >
-              Lengkapi Biodata
+              <Squares2X2Icon className="w-3.5 h-3.5" />
+              Panel Admin
             </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-2.5 rounded-[12px] border border-[#FECACA] bg-[#FEE2E2] px-3.5 py-3 text-xs font-medium text-[#B91C1C]">
+            <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* =========================================================================
-            3. WRAP KARTU TERPADU: LAYANAN SSO & AKSES KAMPUS (DENGAN GAMBAR PREVIEW)
-           ========================================================================= */}
-        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-[#166534]" />
-                <span>Aplikasi Terintegrasi SSO (Single Sign-On)</span>
-              </h2>
-              <p className="text-xs text-[#64748B] mt-0.5">
-                Pilih aplikasi di bawah untuk masuk otomatis menggunakan token SSO v2 tanpa perlu login ulang.
-              </p>
-            </div>
-            <button
-              onClick={loadDashboardData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D8E5DC] text-[11px] font-bold text-[#166534] hover:bg-[#F0FDF4] transition self-start sm:self-auto"
-            >
-              <span>Muat Ulang Layanan</span>
-              <ArrowRightIcon className="w-3 h-3" />
-            </button>
-          </div>
-
-          {/* Cakupan kewenangan: menegaskan pemisahan admin panel vs admin aplikasi */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-[12px] border border-[#D8E5DC] bg-[#F9FDFB] px-3.5 py-3">
-            <div className="flex items-start gap-2 min-w-0">
-              <IdentificationIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-[#1E293B]">
-                  Cakupan akses Anda:{' '}
-                  <span className="text-[#166534]">
-                    {user ? ROLE_LABELS[user.role] ?? user.role : 'Memuat...'}
-                  </span>
-                  {user && MANAGED_APP_BY_ROLE[user.role] ? ` · ${MANAGED_APP_BY_ROLE[user.role]}` : ''}
-                </p>
-                <p className="text-[11px] text-[#64748B] mt-0.5">
-                  Aplikasi bertanda <span className="font-semibold">Terkunci</span> dikelola unit lain
-                  dan tidak dapat Anda buka.
-                </p>
-              </div>
-            </div>
-            {canOpenAdminPanel(user) && (
-              <button
-                type="button"
-                onClick={() => navigate(ADMIN_PANEL_PATH)}
-                className="self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] text-[11px] font-bold transition"
-              >
-                <Squares2X2Icon className="w-3.5 h-3.5" />
-                Panel Admin
-              </button>
-            )}
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2.5 rounded-[12px] border border-[#FECACA] bg-[#FEE2E2] px-3.5 py-3 text-xs font-medium text-[#B91C1C]">
-              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Grid Aplikasi SSO dengan Gambar Screenshot seperti di Landing Page */}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="rounded-[18px] border border-[#D8E5DC] bg-white overflow-hidden animate-pulse">
-                  <div className="aspect-[16/10] bg-[#E6EFE8]" />
-                  <div className="p-5 space-y-2.5">
-                    <div className="h-3.5 w-2/3 rounded bg-[#E6EFE8]" />
-                    <div className="h-2.5 w-full rounded bg-[#EEF4EF]" />
-                    <div className="h-2.5 w-4/5 rounded bg-[#EEF4EF]" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : apps.length === 0 ? (
-            <div className="rounded-[14px] border border-dashed border-[#C8DDD0] bg-[#F7FBF8] px-6 py-10 text-center">
-              <p className="text-sm font-semibold text-[#3A5544]">Belum ada aplikasi SSO aktif</p>
-              <p className="text-xs text-[#7FAD8E] mt-1">
-                Aplikasi yang terdaftar akan tampil di sini setelah diaktifkan oleh Superadmin.
-              </p>
-            </div>
-          ) : (
+        {/* Grid Aplikasi SSO dengan Gambar Screenshot seperti di Landing Page */}
+        {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {apps.map((app) => {
-              const isLocked = app.isAllowed === false;
-              return (
-              <div
-                key={app.id}
-                className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
-                  isLocked
-                    ? 'border-[#E2E8F0] opacity-90'
-                    : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
-                }`}
-              >
-                <div>
-                  {/* Gambar aplikasi dari registrasi SSO */}
-                  <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
-                    <img
-                      src={getAppPreviewImage(app)}
-                      alt={`Gambar aplikasi ${app.nameApp}`}
-                      className={`w-full h-full object-cover object-center transition-transform duration-300 ${
-                        isLocked ? 'grayscale' : 'group-hover:scale-103'
-                      }`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-[18px] border border-[#D8E5DC] bg-white overflow-hidden animate-pulse">
+                <div className="aspect-[16/10] bg-[#E6EFE8]" />
+                <div className="p-5 space-y-2.5">
+                  <div className="h-3.5 w-2/3 rounded bg-[#E6EFE8]" />
+                  <div className="h-2.5 w-full rounded bg-[#EEF4EF]" />
+                  <div className="h-2.5 w-4/5 rounded bg-[#EEF4EF]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : apps.length === 0 ? (
+          <div className="rounded-[14px] border border-dashed border-[#C8DDD0] bg-[#F7FBF8] px-6 py-10 text-center">
+            <p className="text-sm font-semibold text-[#3A5544]">Belum ada aplikasi SSO aktif</p>
+            <p className="text-xs text-[#7FAD8E] mt-1">
+              Aplikasi yang terdaftar akan tampil di sini setelah diaktifkan oleh Superadmin.
+            </p>
+          </div>
+        ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {apps.map((app) => {
+            const isLocked = app.isAllowed === false;
+            return (
+            <div
+              key={app.id}
+              className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
+                isLocked
+                  ? 'border-[#E2E8F0] opacity-90'
+                  : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
+              }`}
+            >
+              <div>
+                {/* Gambar aplikasi dari registrasi SSO */}
+                <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
+                  <img
+                    src={getAppPreviewImage(app)}
+                    alt={`Gambar aplikasi ${app.nameApp}`}
+                    className={`w-full h-full object-cover object-center transition-transform duration-300 ${
+                      isLocked ? 'grayscale' : 'group-hover:scale-103'
+                    }`}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                      <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
-                        {app.badge || 'Layanan SSO'}
-                      </span>
-                    </div>
-
-                    <div className="absolute top-3 right-3">
-                      {isLocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#1E293B]/90 text-white border border-white/20 px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                          <LockClosedIcon className="w-3 h-3" />
-                          Terkunci
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
-                          Terkoneksi
-                        </span>
-                      )}
-                    </div>
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                    <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
+                      {app.badge || 'Layanan SSO'}
+                    </span>
                   </div>
 
-                  {/* Info Deskripsi Aplikasi */}
-                  <div className="p-4 sm:p-5 space-y-2">
-                    <h3
-                      className={`font-bold text-base transition ${
-                        isLocked ? 'text-[#64748B]' : 'text-[#1E293B] group-hover:text-[#166534]'
-                      }`}
-                    >
-                      {app.nameApp}
-                    </h3>
-                    <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
-                      {app.description || 'Layanan digital terintegrasi sistem Single Sign-On UNUSU.'}
-                    </p>
-                    {isLocked && (
-                      <p className="text-[11px] font-semibold text-[#B45309]">
-                        Aplikasi ini dikelola unit lain dan tidak tersedia untuk peran Anda.
-                      </p>
+                  <div className="absolute top-3 right-3">
+                    {isLocked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#1E293B]/90 text-white border border-white/20 px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                        <LockClosedIcon className="w-3 h-3" />
+                        Terkunci
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                        Terkoneksi
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Tombol Aksi Buka Aplikasi */}
-                <div className="p-4 sm:p-5 pt-0">
-                  <button
-                    onClick={() => handleLaunchApp(app)}
-                    disabled={redirectingAppId === app.id}
-                    aria-disabled={isLocked}
-                    title={isLocked ? 'Anda tidak memiliki akses ke aplikasi ini' : undefined}
-                    className={`w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
-                      isLocked
-                        ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
-                        : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                {/* Info Deskripsi Aplikasi */}
+                <div className="p-4 sm:p-5 space-y-2">
+                  <h3
+                    className={`font-bold text-base transition ${
+                      isLocked ? 'text-[#64748B]' : 'text-[#1E293B] group-hover:text-[#166534]'
                     }`}
                   >
-                    <span>
-                      {redirectingAppId === app.id
-                        ? 'Mengarahkan SSO...'
-                        : isLocked
-                          ? 'Tidak Ada Akses'
-                          : 'Buka Aplikasi'}
-                    </span>
-                    {isLocked ? (
-                      <LockClosedIcon className="w-3.5 h-3.5" />
-                    ) : (
-                      <ArrowRightIcon className="w-3.5 h-3.5" />
-                    )}
-                  </button>
+                    {app.nameApp}
+                  </h3>
+                  <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
+                    {app.description || 'Layanan digital terintegrasi sistem Single Sign-On UNUSU.'}
+                  </p>
+                  {isLocked && (
+                    <p className="text-[11px] font-semibold text-[#B45309]">
+                      Aplikasi ini dikelola unit lain dan tidak tersedia untuk peran Anda.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* Tombol Aksi Buka Aplikasi */}
+              <div className="p-4 sm:p-5 pt-0">
+                <button
+                  onClick={() => handleLaunchApp(app)}
+                  disabled={redirectingAppId === app.id}
+                  aria-disabled={isLocked}
+                  title={isLocked ? 'Anda tidak memiliki akses ke aplikasi ini' : undefined}
+                  className={`w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
+                    isLocked
+                      ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
+                      : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                  }`}
+                >
+                  <span>
+                    {redirectingAppId === app.id
+                      ? 'Mengarahkan SSO...'
+                      : isLocked
+                        ? 'Tidak Ada Akses'
+                        : 'Buka Aplikasi'}
+                  </span>
+                  {isLocked ? (
+                    <LockClosedIcon className="w-3.5 h-3.5" />
+                  ) : (
+                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
               );
             })}
           </div>
@@ -598,8 +596,7 @@ export const Dashboard: React.FC = () => {
           onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
         />
 
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

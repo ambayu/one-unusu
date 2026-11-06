@@ -20,6 +20,7 @@ import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { ManajemenSlider } from './pages/admin/ManajemenSlider';
 import { PERMISSIONS } from './lib/permissions';
 import { AksesDitolak } from './pages/AksesDitolak';
+import { PanelLayout } from './components/PanelLayout';
 import {
   ACCESS_DENIED_PATH,
   ADMIN_PANEL_PATH,
@@ -190,117 +191,133 @@ export function App() {
         />
         {/* Titik masuk SSO dari aplikasi cabang (LMS, E-Surat, Akreditasi, dll.) */}
         <Route path="/authorize" element={<SsoAuthorize />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/portal"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profil"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+        {/* ── Area panel ONE UNUSU ──────────────────────────────────────────
+         *  Semua halaman panel dikelompokkan di bawah SATU route induk yang
+         *  merender `PanelLayout` (SidebarLayout + <Outlet />).
+         *
+         *  Sebelumnya tiap rute merender halaman yang memasang sidebar sendiri
+         *  (Dashboard, Profile, dan halaman /admin/* lewat AdminPanelTemplate).
+         *  React Router melepas pohon halaman lama saat berpindah rute, jadi
+         *  sidebar ikut unmount -> mount ulang dan tampak "kedip / reload".
+         *  Dengan nested route ini sidebar dipasang sekali dan status
+         *  collapse-nya awet antar-halaman.
+         *
+         *  Penjagaan akses tetap per-rute (ProtectedRoute / AdminPanelRoute /
+         *  PermissionRoute) agar sesi divalidasi di setiap halaman.
+         */}
+        <Route element={<PanelLayout />}>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profil"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Halaman penolakan akses terpusat (403) */}
-        <Route
-          path={ACCESS_DENIED_PATH}
-          element={
-            <ProtectedRoute>
-              <AksesDitolak />
-            </ProtectedRoute>
-          }
-        />
+          {/* Halaman penolakan akses terpusat (403) */}
+          <Route
+            path={ACCESS_DENIED_PATH}
+            element={
+              <ProtectedRoute>
+                <AksesDitolak />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Tata Kelola SSO — hanya untuk pengelola panel */}
-        <Route
-          path={ADMIN_PANEL_PATH}
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.applicationMenu}>
-                  <RegistrasiSso />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/pengguna"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.userMenu}>
-                  <ManajemenPengguna />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/izin"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.permissionMenu}>
-                  <Izin />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/peran"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.roleMenu}>
-                  <Peran />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/slider"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.sliderMenu}>
-                  <ManajemenSlider />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/direktori"
-          element={
-            <ProtectedRoute>
-              <AdminPanelRoute>
-                <PermissionRoute permission={PERMISSIONS.nonSsoMenu}>
-                  <DirektoriPublik />
-                </PermissionRoute>
-              </AdminPanelRoute>
-            </ProtectedRoute>
-          }
-        />
+          {/* Tata Kelola SSO — hanya untuk pengelola panel */}
+          <Route
+            path={ADMIN_PANEL_PATH}
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.applicationMenu}>
+                    <RegistrasiSso />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/pengguna"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.userMenu}>
+                    <ManajemenPengguna />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/izin"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.permissionMenu}>
+                    <Izin />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/peran"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.roleMenu}>
+                    <Peran />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/slider"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.sliderMenu}>
+                    <ManajemenSlider />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/direktori"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.nonSsoMenu}>
+                    <DirektoriPublik />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Sub-rute panel yang tidak dikenal tetap diarahkan ke beranda panel */}
-        <Route path="/admin/*" element={<Navigate to={ADMIN_PANEL_PATH} replace />} />
+          {/* Sub-rute panel yang tidak dikenal tetap diarahkan ke beranda panel */}
+          <Route path="/admin/*" element={<Navigate to={ADMIN_PANEL_PATH} replace />} />
+        </Route>
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
