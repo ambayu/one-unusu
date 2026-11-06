@@ -73,15 +73,16 @@ function randomHex(length: number): string {
   return result;
 }
 
-function slugifyClientId(name: string): string {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '') || 'aplikasi-unusu';
-
-  return `${base}-${randomHex(4)}`;
+/**
+ * Membuat Client ID acak penuh, mis. `cli65a45bdb5b19c943`.
+ *
+ * Format ini dipilih agar Client ID tidak dapat ditebak dari nama aplikasi.
+ * Client ID bersifat publik (muncul di URL callback), sehingga yang dijaga di
+ * sini bukan kerahasiaan, melainkan ketidakmungkinan menebak aplikasi lain.
+ * Client Key tetap menjadi satu-satunya nilai rahasia.
+ */
+function slugifyClientId(): string {
+  return `cli${randomHex(16)}`;
 }
 
 /** Filter status aplikasi pada daftar registry SSO. */
@@ -154,8 +155,8 @@ export const RegistrasiSso: React.FC = () => {
     setSortBy('order');
   };
 
-  const generateCredentials = (name: string) => {
-    setAppClientId(slugifyClientId(name));
+  const generateCredentials = () => {
+    setAppClientId(slugifyClientId());
     setAppClientKey(randomHex(48));
   };
 
@@ -167,7 +168,7 @@ export const RegistrasiSso: React.FC = () => {
     setAppImage(null);
     setAppRoles(['DOSEN', 'MAHASISWA']);
     setAppIsActive(true);
-    generateCredentials('aplikasi-unusu');
+    generateCredentials();
     setShowModal(true);
   };
 
@@ -704,7 +705,7 @@ export const RegistrasiSso: React.FC = () => {
                       value={appName}
                       onChange={(event) => {
                         setAppName(event.target.value);
-                        if (!editingApp && event.target.value.trim()) generateCredentials(event.target.value);
+                        if (!editingApp && event.target.value.trim()) generateCredentials();
                       }}
                       placeholder="Contoh: Perpustakaan Digital UNUSU"
                       className="w-full px-3.5 py-2.5 bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
@@ -772,7 +773,7 @@ export const RegistrasiSso: React.FC = () => {
                   {!editingApp && (
                     <button
                       type="button"
-                      onClick={() => generateCredentials(appName || 'aplikasi-unusu')}
+                      onClick={() => generateCredentials()}
                       className="text-[11px] font-semibold text-[#166534] hover:text-[#14532D] inline-flex items-center gap-1 hover:underline"
                     >
                       <ArrowPathIcon className="w-3 h-3" />
@@ -814,7 +815,7 @@ export const RegistrasiSso: React.FC = () => {
                 <p className="text-[10px] text-[#64748B]">
                   {editingApp
                     ? 'Client ID tidak dapat diubah agar callback aplikasi yang sedang berjalan tidak terputus.'
-                    : 'Nilai dibuat dari nama aplikasi. Boleh diubah manual sebelum disimpan.'}
+                    : 'Client ID dibuat acak agar tidak dapat ditebak. Salin nilainya ke pengaturan aplikasi cabang.'}
                 </p>
               </div>
 
