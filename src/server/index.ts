@@ -1662,7 +1662,7 @@ app.get("/api/admin/permissions", authenticateToken, requirePermission("permissi
 // POST /api/admin/permissions/sync (Sinkronkan katalog izin resmi ke database & hapus izin usang)
 app.post("/api/admin/permissions/sync", authenticateToken, requirePermission("permission:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { seedAccessControl } = await import("../../prisma/access-control.js");
+    const { seedAccessControl } = await import("./lib/accessControl.js");
     await seedAccessControl(prisma);
 
     res.json({
@@ -1679,7 +1679,7 @@ app.post("/api/admin/permissions/sync", authenticateToken, requirePermission("pe
 app.post("/api/admin/permissions/cleanup", authenticateToken, requirePermission("permission:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     // 1. Ambil seluruh izin di DB yang tidak lagi ada di katalog resmi atau orphan
-    const { PERMISSION_CATALOG } = await import("../../prisma/access-control.js");
+    const { PERMISSION_CATALOG } = await import("./lib/accessControl.js");
     const validKeys = new Set<string>();
     for (const group of PERMISSION_CATALOG) {
       for (const action of group.actions) {

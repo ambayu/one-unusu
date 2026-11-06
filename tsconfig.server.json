@@ -8,6 +8,9 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist/server",
+    // rootDir tetap ./src/server. Katalog izin sudah dipindah ke
+    // src/server/lib/accessControl.ts, jadi seluruh berkas yang dikompilasi
+    // berada di dalam rootDir dan output tetap dist/server/index.js.
     "rootDir": "./src/server"
   },
   "include": ["src/server/**/*"]
