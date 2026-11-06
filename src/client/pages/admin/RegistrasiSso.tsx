@@ -31,6 +31,39 @@ interface ModalNotification {
   message: string;
 }
 
+/**
+ * Penampil Client Key pada tabel aplikasi SSO.
+ *
+ * Server hanya mengirim nilai ini kepada pengguna yang memegang izin
+ * `application:edit` sekaligus berperan admin gateway; pengguna lain menerima
+ * `null` sehingga yang tampil "Tidak berhak". Nilai disamarkan secara bawaan
+ * dan dibuka hanya atas permintaan, agar tidak terbaca sekilas saat layar
+ * dibagikan atau difoto.
+ */
+const ClientKeyCell: React.FC<{ value: string | null | undefined }> = ({ value }) => {
+  const [tampil, setTampil] = useState(false);
+
+  if (!value) {
+    return <span className="text-[10px] text-[#94A3B8] font-sans">Tidak berhak</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="px-2 py-0.5 rounded bg-[#F1F5F2] border border-[#D8E5DC] whitespace-nowrap">
+        {tampil ? value : '•'.repeat(12)}
+      </span>
+      <button
+        type="button"
+        onClick={() => setTampil((prev) => !prev)}
+        aria-label={tampil ? 'Sembunyikan Client Key' : 'Tampilkan Client Key'}
+        className="min-h-[32px] min-w-[32px] inline-flex items-center justify-center rounded-[6px] text-[#475569] hover:text-[#166534] hover:bg-[#F0FDF4] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] cursor-pointer"
+      >
+        <span className="text-[10px] font-semibold font-sans">{tampil ? 'Sembunyikan' : 'Lihat'}</span>
+      </button>
+    </div>
+  );
+};
+
 function randomHex(length: number): string {
   const chars = '0123456789abcdef';
   let result = '';
@@ -145,7 +178,10 @@ export const RegistrasiSso: React.FC = () => {
     setAppRedirect(app.urlRedirect);
     setAppImage(isImageSource(app.icon) ? (app.icon as string) : null);
     setAppClientId(app.clientId);
-    setAppClientKey(''); // opsional diubah saat edit
+    // Nilai asli diisi bila server mengirimkannya (hanya untuk admin gateway
+    // yang berhak). Bila null, kolom dibiarkan kosong dan penyimpanan tidak
+    // menyertakan clientKey sehingga key lama tetap dipertahankan.
+    setAppClientKey(app.clientKey ?? '');
     setAppRoles(parseTargetRoles(app.targetRoles));
     setAppIsActive(app.isActive);
     setShowModal(true);
@@ -499,6 +535,7 @@ export const RegistrasiSso: React.FC = () => {
               <tr>
                 <th className="py-3 px-4">Nama Aplikasi</th>
                 <th className="py-3 px-4">Client ID</th>
+                <th className="py-3 px-4">Client Key</th>
                 <th className="py-3 px-4">Callback URL</th>
                 <th className="py-3 px-4">Akses Peran</th>
                 <th className="py-3 px-4">Status</th>
@@ -508,7 +545,7 @@ export const RegistrasiSso: React.FC = () => {
             <tbody className="divide-y divide-[#D8E5DC]/50">
               {filteredApps.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit || canDelete ? 6 : 5} className="py-10 text-center">
+                  <td colSpan={canEdit || canDelete ? 7 : 6} className="py-10 text-center">
                     <Squares2X2Icon className="w-7 h-7 mx-auto text-[#94A3B8]" />
                     <p className="mt-2 text-xs font-bold text-[#475569]">
                       {apps.length === 0
@@ -563,6 +600,9 @@ export const RegistrasiSso: React.FC = () => {
                         <span className="px-2 py-0.5 rounded bg-[#F0FDF4] border border-[#D8E5DC]">
                           {app.clientId}
                         </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-[#475569]">
+                        <ClientKeyCell value={app.clientKey} />
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px] text-[#475569] max-w-xs truncate">
                         <span title={app.urlRedirect}>{app.urlRedirect}</span>
@@ -764,6 +804,8 @@ export const RegistrasiSso: React.FC = () => {
                       value={appClientKey}
                       onChange={(event) => setAppClientKey(event.target.value)}
                       placeholder={editingApp ? 'Biarkan kosong untuk mempertahankan key lama' : ''}
+                      autoComplete="off"
+                      spellCheck={false}
                       className="w-full px-3.5 py-2.5 bg-white border border-[#D8E5DC] rounded-[8px] font-mono text-[11px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
                     />
                   </div>

@@ -388,6 +388,25 @@ async function getUserPermissionKeys(userId: number): Promise<string[]> {
 }
 
 /**
+ * Boleh atau tidaknya pengguna melihat `clientKey` aplikasi SSO.
+ *
+ * `clientKey` adalah rahasia server-to-server untuk memvalidasi tiket antar
+ * layanan. Nilainya hanya diberikan kepada pemegang izin `application:edit`
+ * yang sekaligus berperan sebagai admin gateway (SUPERADMIN atau ADMIN_SSO).
+ * Administrator aplikasi cabang (mis. ADMIN_LPM) tidak termasuk: mereka boleh
+ * melihat daftar aplikasi, tetapi bukan rahasia milik aplikasi lain.
+ */
+async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
+  const user = req.user;
+  if (!user) return false;
+
+  if (user.role !== "SUPERADMIN" && user.role !== "ADMIN_SSO") return false;
+
+  const keys = await getUserPermissionKeys(user.id);
+  return keys.includes("application:edit");
+}
+
+/**
  * Keputusan akses satu pengguna ke satu aplikasi cabang.
  *
  * Satu-satunya sumber kebenaran otorisasi aplikasi adalah `SsoApp.targetRoles`
@@ -1307,7 +1326,21 @@ app.get("/api/admin/apps", authenticateToken, requirePermission("application:vie
     const apps = await prisma.ssoApp.findMany({
       orderBy: { order: "asc" }
     });
-    res.json({ status: true, data: apps });
+
+    // `clientKey` adalah rahasia server-to-server. Nilainya hanya boleh sampai
+    // ke peramban pengguna yang berhak mengelolanya, yaitu pemegang izin
+    // `application:edit` sekaligus peran admin gateway. Pengguna dengan izin
+    // lihat saja menerima `clientKey: null` sehingga daftar tetap tampil tanpa
+    // membocorkan rahasia.
+    const bolehLihatKunci = await bolehMelihatClientKey(req);
+
+    res.json({
+      status: true,
+      data: apps.map((app) => ({
+        ...app,
+        clientKey: bolehLihatKunci ? app.clientKey : null,
+      })),
+    });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal memuat aplikasi SSO." });
   }

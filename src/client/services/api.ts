@@ -115,6 +115,12 @@ export interface RoleItem {
 export interface SsoAppItem {
   id: number;
   clientId: string;
+  /**
+   * Rahasia server-to-server. Server hanya mengirim nilai ini kepada pengguna
+   * yang memegang izin `application:edit` sekaligus berperan admin gateway;
+   * selain itu bernilai `null`.
+   */
+  clientKey?: string | null;
   nameApp: string;
   description?: string;
   icon?: string;
