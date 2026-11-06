@@ -59,7 +59,8 @@ function readCachedUser(): UserProfile | null {
  */
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
   if (!readCachedUser()) {
-    return <Navigate to="/login" replace />;
+    // Bawa tujuan semula supaya setelah login pengguna kembali ke halaman ini.
+    return <Navigate to={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`} replace />;
   }
   return children;
 };
@@ -82,9 +83,16 @@ const RootRoute = () => {
 const GuestOnlyRoute = ({ children }: { children: React.ReactElement }) => {
   const cachedUser = readCachedUser();
   if (cachedUser) {
+    // Tujuan lanjutan (`?next=`) harus dibawa. Tanpa ini, pengguna yang sudah
+    // punya sesi lalu masuk lewat halaman login dari aplikasi cabang akan
+    // dilempar ke /dashboard dan tidak pernah kembali ke aplikasi asalnya.
+    const rawNext = new URLSearchParams(window.location.search).get('next');
+    const nextPath =
+      rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+
     // Pengelola panel (SUPERADMIN / ADMIN_SSO / pemegang izin panel) masuk ke
     // /admin, sedangkan admin aplikasi cabang & civitas ke /dashboard.
-    return <Navigate to={resolveLandingPath(cachedUser)} replace />;
+    return <Navigate to={nextPath ?? resolveLandingPath(cachedUser)} replace />;
   }
   return children;
 };
