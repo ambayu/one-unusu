@@ -23,10 +23,10 @@ const features = [
 
 export function HowItWorksSection() {
   return (
-    <section id="tentang" aria-labelledby="tentang-title" className="scroll-mt-24 bg-ivory py-20 sm:py-28">
+    <section id="cara-kerja" aria-labelledby="cara-kerja-title" className="scroll-mt-24 bg-ivory py-20 sm:py-28">
       <Container>
         <SectionHeading
-          id="tentang-title"
+          id="cara-kerja-title"
           eyebrow="Keamanan & Kemudahan"
           title="Bagaimana ONE UNUSU Bekerja?"
           description="Standar portal identitas civitas kampus untuk mempermudah akses dan menjaga keamanan data autentikasi."

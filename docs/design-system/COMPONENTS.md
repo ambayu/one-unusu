@@ -96,11 +96,37 @@ Seluruh komponen di bawah berada di `src/client/components/` dan wajib dipakai u
 - Menggantikan banner alert dan browser native alert/confirm.
 - Memiliki backdrop blur, icon tematik, tombol konfirmasi/batal berstatus loading, dan animasi modal card.
 
-### `home/HeroSection` dan `home/DigitalServicesSection`
-- Section aktif pada beranda.
+### `home/HeroSection`
+- Section aktif pada beranda (urutan render: `HeroSection` → `ProfileSection` → `DigitalServicesSection`).
+
+#### Komposisi
+1. **Gambar full-bleed**: mobile memakai kontainer `aspect-square` dengan aset 1:1 lewat `<picture><source media="(max-width: 767px)">`; mulai breakpoint `md` menjadi `absolute inset-0 h-full` dengan aset 16:9 dan `object-cover object-center`.
+2. **Tanpa panel teks overlay**: headline tiap slide **di-bake ke dalam file PNG**, bukan teks HTML. Tidak ada gradient scrim maupun `backdrop-blur`. Judul halaman hanya tersedia sebagai `h1.sr-only` untuk pembaca layar dan SEO.
+3. **Bar navigasi** (`relative z-10 py-5 md:pb-6`): indikator titik di kiri (aktif `w-6 bg-gold-400`, pasif `w-2 bg-white/40`) dan tombol panah `size-8` di kanan.
+
+#### Perilaku
+- Autoplay setiap **6000 ms**, transisi `opacity` selama **1000 ms**.
+- Sumber data primer: `fetchSliders()` (tabel slider dari panel admin). Bila API kosong/gagal, dipakai `defaultHeroSlides` statis (4 slide: campus, students, digital, library).
+- `loading="eager"` hanya untuk slide pertama, sisanya `lazy`.
+- URL gambar diproses `resolveImageUrl` → `assetUrl` sehingga tetap benar pada sub-path build (`/sso/`).
+
+#### Aturan Aset
+- Aset desktop **wajib 1376×768 (16:9)** dan aset mobile **1024×1024 (1:1)** dengan tipografi ter-bake. Mengganti aset lewat menu Manajemen Slider berarti tipografi hero di luar kendali design system — pastikan font pada aset tetap Plus Jakarta Sans.
+- Dilarang menambahkan kembali lapisan overlay teks/gradient di JSX; larangan ini sudah ditegaskan di `docs/routes/public/CHANGELOG.md`.
+
+### `home/ProfileSection` (`src/client/components/home/ProfileSection.tsx`)
+- **Status**: aktif, diimpor oleh `pages/Home.tsx`.
+- **Komposisi** (`lg:grid-cols-12`, 6:6 seimbang):
+  - **Kiri** — `SectionHeading` (eyebrow *Tentang Platform*, judul *Mengenal ONE UNUSU*), dua paragraf narasi, dan tiga poin keunggulan berikon `shield` dalam bulatan `bg-brand-700`.
+  - **Kanan** — foto potret setengah badan `assets/profil-mahasiswa.png` di atas plakat `rounded-[32px]` bersudut gradasi `from-brand-100 via-gold-100/60 to-transparent` setinggi 78%, dengan `drop-shadow-[0_20px_40px_rgba(6,34,23,0.16)]`.
+- **Section background**: `bg-ivory` (`#faf9f5`).
+- **Aturan Aset**: potret wajib PNG ber-**alpha channel** (latar transparan) agar plakat gradasi tembus di sekitar siluet. Ukuran acuan 726×962 px. Path wajib melalui `assetUrl()`.
+
+### `home/DigitalServicesSection`
+- Section aktif pada beranda, memuat katalog layanan terintegrasi dan banner ajakan masuk SSO.
 
 ### Komponen belum terpakai
-- `home/AcademicSection`, `home/AdmissionCta`, `home/HowItWorksSection`, `home/NewsAgendaSection`, `home/ProfileSection`, dan `components/SsoLogo.tsx` belum diimpor halaman mana pun. Statusnya sedang dalam pengerjaan (belum di-commit). Jangan dipakai tanpa menghubungkannya ke `Home.tsx` lebih dulu.
+- `home/AcademicSection`, `home/AdmissionCta`, `home/HowItWorksSection`, `home/NewsAgendaSection`, dan `components/SsoLogo.tsx` belum diimpor halaman mana pun. Statusnya sedang dalam pengerjaan (belum di-commit). Jangan dipakai tanpa menghubungkannya ke `Home.tsx` lebih dulu.
 
 ---
 
@@ -110,3 +136,31 @@ Seluruh komponen di bawah berada di `src/client/components/` dan wajib dipakai u
 2. DILARANG membuat style button acak menggunakan inline CSS. Gunakan kelas utility resmi `bg-[#166534] hover:bg-[#14532D] text-white rounded-[8px] font-semibold`.
 3. DILARANG membuat dialog modal pasfoto baru di rute lain jika `Profile.tsx` sudah menyediakan crop modal 3x4 kanvas standar.
 4. DILARANG menaruh komponen layout di `src/client/components/` tingkat atas. Lokasi resmi hanya `src/client/components/layout/`.
+
+---
+
+## 4. Komponen Laporan & Grafik
+
+### `LaporanCharts` (`src/client/components/LaporanCharts.tsx`)
+- **Tanggung Jawab**: Kumpulan komponen grafik ringkas untuk dashboard panel, dibangun **murni dengan SVG dan CSS** — tanpa library chart eksternal, sehingga ukuran bundle tetap ringan dan tidak menambah dependensi baru.
+- **Alasan tidak memakai library**: grafik dashboard bersifat ringkasan (bukan analitik interaktif), dan palette harus mengikuti warna aplikasi masing-masing.
+- **Komponen yang tersedia**:
+  | Komponen | Kegunaan |
+  | --- | --- |
+  | `ReportCard` | Kartu pembungkus laporan (judul + subjudul + aksi opsional) |
+  | `MetricTile` | Kartu metrik angka besar dengan ikon & aksen warna |
+  | `DonutChart` | Proporsi antar kategori (mis. status surat, kondisi fasilitas) |
+  | `BarChart` | Perbandingan kategori dengan bar horizontal |
+  | `ColumnChart` | Tren per periode dengan kolom vertikal |
+  | `TrendChart` | Tren waktu dengan area lembut (SVG path) |
+  | `StackedBar` | Komposisi satu batang bertingkat |
+  | `GaugeRing` | Capaian persentase tunggal berbentuk cincin |
+  | `ActivityFeed` | Daftar kejadian terbaru bersusun waktu |
+- **Aksesibilitas**: Setiap grafik memakai `role="img"` + `aria-label` yang merangkum datanya; nilai juga tetap ditampilkan sebagai teks sehingga tidak bergantung pada warna saja.
+- **Aturan Pemakaian**: Dashboard setiap aplikasi **wajib** menampilkan laporan/grafik ringkas untuk tiap menu, dan **dilarang** menyertakan panel aksi cepat (tombol pintas tambah/input) di dashboard. Navigasi tetap melalui sidebar.
+
+---
+
+## 6. Komponen Landing Page Lain
+
+> Pola **"teks di kiri, foto potret di kanan"** pada landing ONE UNUSU diimplementasikan langsung di `home/ProfileSection.tsx` (lihat bagian 4). Komponen pembungkus `TentangPlatform.tsx` sudah dihapus dari repo ONE UNUSU agar tidak ada dua implementasi paralel untuk seksi yang sama. Aplikasi cabang (LPM/LPPM/E-Surat) yang membutuhkan pola serupa tetap memakai komponen lokalnya masing-masing di repositori sendiri.

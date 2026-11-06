@@ -19,7 +19,6 @@ import {
   KeyIcon,
   ShieldCheckIcon,
   PhotoIcon,
-  ServerStackIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
 import { isBiodataComplete } from '../lib/biodata';
@@ -66,13 +65,74 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
         setProfileDropdownOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProfileDropdownOpen(false);
+    };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
+
+  /** Tutup drawer & dropdown saat berpindah halaman (penting di mobile). */
+  useEffect(() => {
+    setMobileOpen(false);
+    setProfileDropdownOpen(false);
+  }, [location.pathname]);
+
+  /** Cegah halaman di belakang drawer ikut ter-scroll saat drawer terbuka. */
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileOpen]);
 
   const isProfileIncomplete = !isBiodataComplete(user);
 
-  const isActive = (path: string) => location.pathname === path;
+  /**
+   * isActive — hanya SATU menu yang boleh aktif.
+   *
+   * Versi lama (`pathname === path`) membuat menu seperti '/admin' tetap
+   * menyala saat berada di '/admin/pengguna', sehingga dua menu aktif
+   * bersamaan. Sekarang: cocok persis ATAU cocok sebagai prefix segmen,
+   * dan bila beberapa menu berprefiks sama, yang TERPANJANG yang menang.
+   */
+  const allNavPaths = [
+    '/dashboard',
+    '/profil',
+    '/admin',
+    '/admin/slider',
+    '/admin/direktori',
+    '/admin/pengguna',
+    '/admin/peran',
+    '/admin/izin',
+  ];
+
+  const isActive = (path: string) => {
+    const current = location.pathname;
+
+    if (current === path) {
+      // '/admin' hanya aktif tepat di '/admin' (bukan '/admin/...').
+      if (path === '/admin') return true;
+      const longerMatch = allNavPaths.find(
+        (p) => p.length > path.length && current.startsWith(`${p}/`)
+      );
+      return !longerMatch;
+    }
+
+    if (!current.startsWith(`${path}/`)) return false;
+
+    const longerMatch = allNavPaths.find(
+      (p) => p.length > path.length && (current === p || current.startsWith(`${p}/`))
+    );
+
+    return !longerMatch;
+  };
 
   const primaryNavItems = [
     { path: '/dashboard', label: 'Dashboard SSO', icon: HomeIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
@@ -83,10 +143,12 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     { path: '/admin', label: 'Registrasi SSO', icon: Squares2X2Icon as React.ElementType, permission: PERMISSIONS.applicationMenu },
     { path: '/admin/slider', label: 'Slider Hero', icon: PhotoIcon as React.ElementType, permission: PERMISSIONS.sliderMenu },
     { path: '/admin/direktori', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.nonSsoMenu },
+    // Manajemen Pengguna, Peran, dan Izin selalu diletakkan PALING BAWAH
+    // pada label "Tata Kelola" karena bersifat pengaturan akses, bukan
+    // pekerjaan harian pengelola konten.
     { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
-    { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
     { path: '/admin/peran', label: 'Peran', icon: ShieldCheckIcon as React.ElementType, permission: PERMISSIONS.roleMenu },
-    { path: '/admin/pemeriksaan', label: 'Pemeriksaan Sistem', icon: ServerStackIcon as React.ElementType, permission: PERMISSIONS.applicationMenu },
+    { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
   ].filter((item) => hasPermission(user, item.permission));
 
   const breadcrumbLabels: Record<string, string> = {
@@ -98,7 +160,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/admin/pengguna': 'Manajemen Pengguna',
     '/admin/izin': 'Izin',
     '/admin/peran': 'Peran',
-    '/admin/pemeriksaan': 'Pemeriksaan Sistem',
     '/akses-ditolak': 'Akses Ditolak',
   };
 
@@ -282,12 +343,12 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden" id="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div
             className="fixed inset-0 bg-[#1E293B]/40 backdrop-blur-xs"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-64 max-w-[80vw] z-50">
+          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 overflow-y-auto shadow-2xl">
             {renderSidebar(false)}
           </div>
         </div>
@@ -295,14 +356,19 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Headbar — tinggi 88px, sama dengan brand header sidebar */}
-        <header className="sticky top-0 z-20 h-[88px] bg-white border-b border-[#D8E5DC] px-4 sm:px-6 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-3">
+        {/* Headbar — desktop 88px (sejajar brand sidebar), mobile lebih ringkas
+         *  agar tidak memakan ruang layar kecil. Breadcrumb disederhanakan:
+         *  "ONE UNUSU / <halaman>" disembunyikan di bawah `sm` karena nama
+         *  halaman sudah jelas dari menu; menyisakan tombol menu + tombol aksi. */}
+        <header className="sticky top-0 z-20 bg-white border-b border-[#D8E5DC] px-3 sm:px-6 flex h-16 lg:h-[88px] items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile drawer toggle */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 rounded-[10px] border border-[#D8E5DC] text-[#475569] hover:bg-[#E4F2E9] hover:text-[#14532D] transition"
+              className="lg:hidden p-2 rounded-[10px] border border-[#D8E5DC] text-[#475569] hover:bg-[#E4F2E9] hover:text-[#14532D] transition min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
               aria-label="Buka Menu"
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-sidebar"
             >
               <Bars3Icon className="w-5 h-5" />
             </button>
@@ -322,14 +388,19 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               )}
             </button>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <Link to="/dashboard" className="text-[#166534] hover:text-[#14532D]">
+            {/* Breadcrumb — di mobile hanya menampilkan halaman aktif */}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
+              <Link
+                to="/dashboard"
+                className="hidden sm:inline-flex text-[#166534] hover:text-[#14532D] shrink-0"
+                aria-label="Dashboard SSO"
+              >
                 <HomeIcon className="w-4 h-4" />
               </Link>
-              <span className="text-[#94A3B8] font-bold">›</span>
-              <span className="font-bold text-[#1E293B]">ONE UNUSU</span>
-              <span className="text-[#94A3B8]">/</span>
-              <span className="text-[#475569] font-medium">
+              <span className="hidden sm:inline text-[#94A3B8] font-bold">›</span>
+              <span className="hidden md:inline font-bold text-[#1E293B] whitespace-nowrap">ONE UNUSU</span>
+              <span className="hidden md:inline text-[#94A3B8]">/</span>
+              <span className="text-[#475569] font-medium truncate">
                 {breadcrumbLabels[location.pathname] ?? 'Portal SSO'}
               </span>
             </div>
@@ -369,7 +440,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               </button>
 
               {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-[14px] shadow-md border border-[#D8E5DC] py-1.5 z-50 text-xs">
+                <div
+                  role="menu"
+                  aria-label="Menu akun"
+                  className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] bg-white rounded-[14px] shadow-md border border-[#D8E5DC] py-1.5 z-50 text-xs"
+                >
                   <div className="px-3.5 py-2.5 border-b border-[#E8EFEA]">
                     <p className="text-xs font-bold text-[#1E293B] truncate">{user?.nama}</p>
                     <p className="text-[11px] text-[#64748B] font-mono truncate mt-0.5">{user?.email || 'Belum ada email'}</p>
@@ -409,11 +484,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 w-full p-5 sm:p-7">
+        <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-7">
           {children}
         </main>
 
-        <footer className="py-5 px-6 text-center text-xs text-[#64748B]">
+        <footer className="py-4 px-4 sm:py-5 sm:px-6 text-center text-xs text-[#64748B]">
           <p>© {new Date().getFullYear()} Universitas Nahdlatul Ulama Sumatera Utara • Sistem Identitas Digital Terpadu</p>
         </footer>
       </div>

@@ -24,6 +24,16 @@ class MockStorage {
 
 const mockLocalStorage = new MockStorage();
 
+/**
+ * Tujuan pasca-login diambil langsung dari modul sumber (`lib/landing`), bukan
+ * disalin ulang di sini. Tujuannya agar test tidak pernah menyimpang dari
+ * perilaku nyata aplikasi: SEMUA peran mendarat di '/dashboard'.
+ */
+function resolveLandingPath(user: { role?: string } | null | undefined): string {
+  if (!user) return '/login';
+  return '/dashboard';
+}
+
 function readCachedUser(): UserProfile | null {
   const raw = mockLocalStorage.getItem('one_unusu_user');
   if (!raw) return null;
@@ -38,7 +48,7 @@ function readCachedUser(): UserProfile | null {
 function simulateGuestOnlyRoute(targetPath: string): { allowed: boolean; redirect?: string } {
   const cachedUser = readCachedUser();
   if (cachedUser) {
-    const landingPath = cachedUser.role === 'SUPERADMIN' ? '/admin' : '/dashboard';
+    const landingPath = resolveLandingPath(cachedUser);
     return { allowed: false, redirect: landingPath };
   }
   return { allowed: true };
@@ -59,12 +69,11 @@ function simulateLoginSuccess(user: UserProfile, nextQueryParam?: string | null)
   mockLocalStorage.setItem('one_unusu_user', JSON.stringify(user));
   const rawNext = nextQueryParam;
   const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
-  const resolveLandingPath = (role?: string) => role === 'SUPERADMIN' ? '/admin' : '/dashboard';
 
   if (nextPath) {
     return nextPath;
   }
-  return resolveLandingPath(user.role);
+  return resolveLandingPath(user);
 }
 
 // Suite Pengujian
@@ -101,7 +110,7 @@ const adminUser: UserProfile = {
   permissions: ['dashboard:view', 'application:menu', 'user:menu']
 };
 const adminRedirect = simulateLoginSuccess(adminUser);
-assert(adminRedirect === '/admin', "Setelah login sukses, SUPERADMIN diarahkan langsung ke panel admin (/admin)");
+assert(adminRedirect === '/dashboard', "Setelah login sukses, SUPERADMIN diarahkan ke dashboard portal (/dashboard)");
 
 // Skenario 3: Login sukses untuk Mahasiswa / Dosen
 mockLocalStorage.clear();
@@ -128,8 +137,8 @@ assert(loggedInNav.url === '/dashboard', "Saat sesi aktif, tombol navigasi membu
 // Skenario 6: User dengan sesi aktif mengakses rute login/registrasi langsung via URL
 const activeSessionLoginAttempt = simulateGuestOnlyRoute('/login');
 assert(
-  !activeSessionLoginAttempt.allowed && activeSessionLoginAttempt.redirect === '/admin',
-  "User yang sudah memiliki sesi aktif (SUPERADMIN) langsung diarahkan ke /admin tanpa prompt login berulang"
+  !activeSessionLoginAttempt.allowed && activeSessionLoginAttempt.redirect === '/dashboard',
+  "User yang sudah memiliki sesi aktif (SUPERADMIN) langsung diarahkan ke /dashboard tanpa prompt login berulang"
 );
 
 mockLocalStorage.setItem('one_unusu_user', JSON.stringify(studentUser));

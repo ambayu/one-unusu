@@ -10,7 +10,6 @@ Rute `/admin` adalah pusat tata kelola integrasi SSO ONE UNUSU. Halaman dipecah 
 | `/admin/pengguna` | Manajemen Pengguna | `user:menu` | `GET/POST /api/admin/users` |
 | `/admin/izin` | Izin | `permission:menu` | `GET /api/admin/permissions`, `PUT /api/admin/roles/:id/permissions` |
 | `/admin/peran` | Peran | `role:menu` | `GET/POST/PUT/DELETE /api/admin/roles` |
-| `/admin/pemeriksaan` | Pemeriksaan Sistem | `application:menu` | `GET /api/admin/system-check` |
 
 > Halaman `/admin/akses-aplikasi` (Kunci Aplikasi) beserta endpoint `/api/admin/app-access`, `/api/admin/users/:id/app-access`, dan `/api/admin/apps/:id/access` **sudah dihapus**. Otorisasi aplikasi cabang kini murni memakai `sso_apps.targetRoles` di portal dan `ALLOWED_SSO_ROLES` di server masing-masing aplikasi cabang. Lihat [`docs/PROJECT_RULES.md`](../../PROJECT_RULES.md) bagian 4.1.
 

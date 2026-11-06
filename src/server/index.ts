@@ -374,7 +374,6 @@ function normalizeIconValue(value: unknown): string | null {
   return /^[A-Za-z0-9]{1,50}$/.test(trimmed) ? trimmed : null;
 }
 
-
 /**
  * Mengambil kumpulan key permission (format resource:action) milik pengguna
  * melalui peran yang tersimpan di tabel roles.
@@ -2310,289 +2309,61 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
   }
 });
 
-// GET /api/admin/system-check (Diagnostik kesiapan data & konfigurasi panel SSO)
-app.get("/api/admin/system-check", authenticateToken, requirePermission("application:view"), async (req: AuthRequest, res: Response) => {
-  type CheckStatus = "ok" | "warn" | "fail";
-  interface CheckResult {
-    id: string;
-    label: string;
-    group: string;
-    status: CheckStatus;
-    detail: string;
-    hint?: string;
-  }
-
-  const checks: CheckResult[] = [];
-
-  const push = (item: CheckResult) => checks.push(item);
-
-  // 1. Konektivitas database
-  try {
-    const startedAt = Date.now();
-    await prisma.$queryRaw`SELECT 1`;
-    const latency = Date.now() - startedAt;
-    push({
-      id: "database",
-      label: "Koneksi Database",
-      group: "Infrastruktur",
-      status: latency > 1500 ? "warn" : "ok",
-      detail: `Terhubung dalam ${latency} ms.`,
-      hint: latency > 1500 ? "Latensi tinggi; periksa beban server MySQL." : undefined,
-    });
-  } catch (error: any) {
-    push({
-      id: "database",
-      label: "Koneksi Database",
-      group: "Infrastruktur",
-      status: "fail",
-      detail: "Tidak dapat menjalankan kueri uji ke database.",
-      hint: "Periksa nilai DATABASE_URL pada .env dan pastikan server MySQL aktif.",
-    });
-    logServerError("GET /api/admin/system-check (database)", error);
-  }
-
-  // 2. Paritas katalog izin: bandingkan PERMISSION_CATALOG dengan tabel permissions
-  try {
-    const { PERMISSION_CATALOG } = await import("../../prisma/access-control.js");
-    const catalogKeys = new Set<string>();
-    for (const group of PERMISSION_CATALOG) {
-      for (const action of group.actions) catalogKeys.add(`${group.resource}:${action}`);
-    }
-    const dbPermissions = await prisma.permission.findMany({ select: { key: true } });
-    const dbKeys = new Set(dbPermissions.map((p) => p.key));
-    const missing = [...catalogKeys].filter((k) => !dbKeys.has(k));
-    const obsolete = [...dbKeys].filter((k) => !catalogKeys.has(k));
-
-    const status: CheckStatus = missing.length > 0 ? "fail" : obsolete.length > 0 ? "warn" : "ok";
-    push({
-      id: "permission-catalog",
-      label: "Paritas Katalog Izin",
-      group: "Hak Akses",
-      status,
-      detail:
-        `${dbKeys.size} izin tersimpan, ${catalogKeys.size} izin di katalog resmi. ` +
-        `${missing.length} belum ada di database, ${obsolete.length} usang.`,
-      hint:
-        missing.length > 0
-          ? "Jalankan sinkronisasi izin agar katalog resmi terdaftar di database."
-          : obsolete.length > 0
-            ? "Ada izin usang; gunakan pembersihan izin pada menu Izin."
-            : undefined,
-    });
-
-    if (missing.length > 0) {
-      push({
-        id: "permission-missing-list",
-        label: "Izin Belum Terdaftar",
-        group: "Hak Akses",
-        status: "fail",
-        detail: missing.slice(0, 12).join(", ") + (missing.length > 12 ? `, +${missing.length - 12} lainnya` : ""),
-        hint: "Jalankan seeder akses atau endpoint sinkronisasi izin.",
-      });
-    }
-  } catch (error: any) {
-    push({
-      id: "permission-catalog",
-      label: "Paritas Katalog Izin",
-      group: "Hak Akses",
-      status: "fail",
-      detail: "Gagal membaca katalog izin resmi maupun tabel permissions.",
-      hint: "Pastikan berkas prisma/access-control.ts dapat dimuat.",
-    });
-    logServerError("GET /api/admin/system-check (permission)", error);
-  }
-
-  // 3. Peran tanpa izin
-  try {
-    const roles = await prisma.role.findMany({
-      select: { name: true, _count: { select: { permissions: true } } },
-      orderBy: { name: "asc" },
-    });
-    const emptyRoles = roles.filter((r) => r._count.permissions === 0);
-    push({
-      id: "role-coverage",
-      label: "Cakupan Izin Peran",
-      group: "Hak Akses",
-      status: roles.length === 0 ? "fail" : emptyRoles.length > 0 ? "warn" : "ok",
-      detail:
-        roles.length === 0
-          ? "Belum ada peran sama sekali di database."
-          : `${roles.length} peran terdaftar, ${emptyRoles.length} peran tanpa izin.`,
-      hint:
-        emptyRoles.length > 0
-          ? `Peran tanpa izin: ${emptyRoles.map((r) => r.name).join(", ")}.`
-          : undefined,
-    });
-  } catch (error: any) {
-    push({
-      id: "role-coverage",
-      label: "Cakupan Izin Peran",
-      group: "Hak Akses",
-      status: "fail",
-      detail: "Gagal membaca daftar peran.",
-    });
-    logServerError("GET /api/admin/system-check (role)", error);
-  }
-
-  // 4. Registry aplikasi SSO
+// GET /api/applications/catalog (Katalog publik: hanya aplikasi yang benar-benar
+// terhubung ke registry SSO ONE UNUSU. Tidak memuat clientKey/callback internal.)
+app.get("/api/applications/catalog", async (req: Request, res: Response) => {
   try {
     const apps = await prisma.ssoApp.findMany({
-      select: { clientId: true, nameApp: true, isActive: true, clientKey: true, targetRoles: true, urlRedirect: true },
-      orderBy: { order: "asc" },
-    });
-    const inactive = apps.filter((a) => !a.isActive);
-    const broken = apps.filter((a) => !a.clientKey || !a.urlRedirect || !a.targetRoles || a.targetRoles.trim() === "");
-
-    const status: CheckStatus = apps.length === 0 ? "fail" : broken.length > 0 ? "fail" : inactive.length > 0 ? "warn" : "ok";
-    push({
-      id: "app-registry",
-      label: "Registry Aplikasi SSO",
-      group: "Aplikasi",
-      status,
-      detail:
-        apps.length === 0
-          ? "Belum ada aplikasi terdaftar."
-          : `${apps.length} aplikasi terdaftar, ${apps.length - inactive.length} aktif, ${inactive.length} nonaktif.`,
-      hint:
-        broken.length > 0
-          ? `Konfigurasi belum lengkap: ${broken.map((a) => a.clientId).join(", ")}.`
-          : undefined,
+      where: { isActive: true },
+      orderBy: [{ order: "asc" }, { nameApp: "asc" }],
+      select: {
+        id: true,
+        clientId: true,
+        nameApp: true,
+        description: true,
+        badge: true,
+        icon: true,
+        targetRoles: true,
+        urlRedirect: true,
+      },
     });
 
-    if (broken.length > 0) {
-      push({
-        id: "app-registry-incomplete",
-        label: "Konfigurasi Aplikasi Belum Lengkap",
-        group: "Aplikasi",
-        status: "fail",
-        detail: broken.map((a) => a.nameApp || a.clientId).join(", "),
-        hint: "Lengkapi clientKey, urlRedirect, dan targetRoles lewat menu Registrasi SSO atau sinkronisasi aplikasi.",
-      });
-    }
+    const data = apps.map((app) => {
+      let roles: string[] = [];
+      try {
+        const parsed = JSON.parse(app.targetRoles);
+        if (Array.isArray(parsed)) {
+          roles = parsed.filter((role): role is string => typeof role === "string");
+        }
+      } catch {
+        roles = [];
+      }
+
+      // Hanya origin yang dibuka ke publik agar alamat callback tidak bocor.
+      let origin = "";
+      try {
+        origin = new URL(app.urlRedirect).origin;
+      } catch {
+        origin = "";
+      }
+
+      return {
+        id: app.id,
+        clientId: app.clientId,
+        name: app.nameApp,
+        description: app.description,
+        badge: app.badge,
+        icon: app.icon,
+        targetRoles: roles,
+        origin,
+      };
+    });
+
+    res.json({ status: true, data });
   } catch (error: any) {
-    push({
-      id: "app-registry",
-      label: "Registry Aplikasi SSO",
-      group: "Aplikasi",
-      status: "fail",
-      detail: "Gagal membaca tabel sso_apps.",
-    });
-    logServerError("GET /api/admin/system-check (apps)", error);
+    logServerError("GET /api/applications/catalog", error);
+    res.status(500).json({ status: false, message: "Gagal memuat katalog aplikasi SSO." });
   }
-
-  // 5. Kunci akses aplikasi (allowlist) per aplikasi
-  try {
-    const apps = await prisma.ssoApp.findMany({ select: { id: true, clientId: true, nameApp: true } });
-    const keyedApps = await prisma.userAppAccess.groupBy({ by: ["appId"], _count: { _all: true } });
-    const keyedSet = new Set(keyedApps.map((k) => k.appId));
-    const appsWithoutKey = apps.filter((a) => !keyedSet.has(a.id));
-    const totalKeys = keyedApps.reduce((sum, k) => sum + k._count._all, 0);
-
-    push({
-      id: "app-access-keys",
-      label: "Kunci Admin per Aplikasi",
-      group: "Aplikasi",
-      status: apps.length === 0 ? "warn" : appsWithoutKey.length > 0 ? "warn" : "ok",
-      detail: `${totalKeys} kunci aktif pada ${keyedSet.size} dari ${apps.length} aplikasi.`,
-      hint:
-        appsWithoutKey.length > 0
-          ? `Aplikasi tanpa kunci (memakai aturan peran): ${appsWithoutKey.map((a) => a.nameApp || a.clientId).join(", ")}.`
-          : undefined,
-    });
-  } catch (error: any) {
-    push({
-      id: "app-access-keys",
-      label: "Kunci Admin per Aplikasi",
-      group: "Aplikasi",
-      status: "fail",
-      detail: "Gagal membaca tabel user_app_accesses.",
-    });
-    logServerError("GET /api/admin/system-check (app-access)", error);
-  }
-
-  // 6. Akun pengguna
-  try {
-    const [totalUsers, activeUsers] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }).catch(() => prisma.user.count()),
-    ]);
-    push({
-      id: "users",
-      label: "Akun Pengguna",
-      group: "Data",
-      status: totalUsers === 0 ? "fail" : "ok",
-      detail:
-        totalUsers === 0
-          ? "Belum ada akun pengguna; seeder belum dijalankan."
-          : `${totalUsers} akun terdaftar, ${activeUsers} aktif.`,
-      hint: totalUsers === 0 ? "Jalankan npm run prisma:seed untuk mengisi akun awal." : undefined,
-    });
-  } catch (error: any) {
-    push({
-      id: "users",
-      label: "Akun Pengguna",
-      group: "Data",
-      status: "fail",
-      detail: "Gagal membaca tabel users.",
-    });
-    logServerError("GET /api/admin/system-check (users)", error);
-  }
-
-  // 7. Slider hero halaman depan
-  try {
-    const [totalSliders, activeSliders] = await Promise.all([
-      prisma.bannerSlider.count(),
-      prisma.bannerSlider.count({ where: { active: true } }),
-    ]);
-    push({
-      id: "sliders",
-      label: "Slider Hero Halaman Depan",
-      group: "Data",
-      status: activeSliders === 0 ? "warn" : "ok",
-      detail: `${totalSliders} slide tersimpan, ${activeSliders} aktif ditampilkan.`,
-      hint: activeSliders === 0 ? "Tambahkan slide aktif agar hero landing page tidak kosong." : undefined,
-    });
-  } catch (error: any) {
-    push({
-      id: "sliders",
-      label: "Slider Hero Halaman Depan",
-      group: "Data",
-      status: "fail",
-      detail: "Gagal membaca tabel banner_sliders.",
-    });
-    logServerError("GET /api/admin/system-check (sliders)", error);
-  }
-
-  // 8. Konfigurasi lingkungan kritis (tanpa membocorkan nilai rahasia)
-  const envIssues: string[] = [];
-  if (!process.env.JWT_SECRET) envIssues.push("JWT_SECRET belum diisi");
-  if (!process.env.DATABASE_URL) envIssues.push("DATABASE_URL belum diisi");
-  if (!process.env.PUBLIC_BASE_URL) envIssues.push("PUBLIC_BASE_URL memakai nilai bawaan");
-  push({
-    id: "env",
-    label: "Konfigurasi Lingkungan",
-    group: "Infrastruktur",
-    status: envIssues.length > 0 ? "warn" : "ok",
-    detail: envIssues.length === 0 ? "Variabel lingkungan wajib sudah terisi." : envIssues.join("; ") + ".",
-    hint: envIssues.length > 0 ? "Lengkapi variabel pada berkas .env sebelum dipakai produksi." : undefined,
-  });
-
-  const summary = {
-    total: checks.length,
-    ok: checks.filter((c) => c.status === "ok").length,
-    warn: checks.filter((c) => c.status === "warn").length,
-    fail: checks.filter((c) => c.status === "fail").length,
-  };
-
-  res.json({
-    status: true,
-    data: {
-      checkedAt: new Date().toISOString(),
-      overall: summary.fail > 0 ? "fail" : summary.warn > 0 ? "warn" : "ok",
-      summary,
-      checks,
-    },
-  });
 });
 
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.

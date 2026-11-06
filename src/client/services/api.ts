@@ -310,27 +310,20 @@ export const deleteAdminSlider = (id: number) =>
   api.delete<{ status: boolean; message: string }>(`/admin/sliders/${id}`);
 
 // ==========================================
-// DIAGNOSTIK SISTEM (Pemeriksaan Kesiapan Data)
+// KATALOG APLIKASI PUBLIK (hanya yang terhubung ke registry SSO)
 // ==========================================
-export type SystemCheckStatus = 'ok' | 'warn' | 'fail';
-
-export interface SystemCheckItem {
-  id: string;
-  label: string;
-  group: string;
-  status: SystemCheckStatus;
-  detail: string;
-  hint?: string;
+export interface AppCatalogItem {
+  id: number;
+  clientId: string;
+  name: string;
+  description: string | null;
+  badge: string | null;
+  icon: string | null;
+  targetRoles: string[];
+  origin: string;
 }
 
-export interface SystemCheckResult {
-  checkedAt: string;
-  overall: SystemCheckStatus;
-  summary: { total: number; ok: number; warn: number; fail: number };
-  checks: SystemCheckItem[];
-}
-
-export const fetchSystemCheck = () =>
-  api.get<{ status: boolean; data: SystemCheckResult }>('/admin/system-check');
+export const fetchAppCatalog = () =>
+  api.get<{ status: boolean; data: AppCatalogItem[] }>('/applications/catalog');
 
 export default api;

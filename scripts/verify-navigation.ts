@@ -29,8 +29,8 @@ function evaluateRoute(
   // GuestOnly routes (/login, /register)
   if (path === '/login' || path === '/register' || path === '/auth/register') {
     if (cachedUser) {
-      const landingPath = cachedUser.role === 'SUPERADMIN' ? '/admin' : '/dashboard';
-      return { rendered: 'Redirect', redirectedTo: landingPath };
+      // SEMUA peran mendarat di /dashboard (lihat src/client/lib/landing.ts).
+      return { rendered: 'Redirect', redirectedTo: '/dashboard' };
     }
     return { rendered: path === '/login' ? 'LoginPage' : 'RegisterPage' };
   }

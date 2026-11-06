@@ -65,11 +65,15 @@ export function canOpenAdminPanel(user: UserProfile | null | undefined): boolean
 }
 
 /**
- * Tujuan setelah login: pengelola panel ke /admin, civitas lain ke /dashboard.
- * Menjaga pemisahan tegas antara admin SSO dan admin aplikasi cabang.
+ * Tujuan setelah login: SELALU ke Dashboard SSO (`/dashboard`).
+ *
+ * Halaman `/admin` berisi Registrasi SSO (tata kelola aplikasi), bukan dashboard.
+ * Mengarahkan pengelola panel ke sana membuat login terasa "dilempar ke
+ * registrasi". Halaman Registrasi SSO tetap dapat dibuka lewat menu sidebar.
+ * `canOpenAdminPanel` dipakai hanya untuk menentukan tampilnya menu panel.
  */
-export function resolveLandingPath(user: UserProfile | null | undefined): string {
-  return canOpenAdminPanel(user) ? ADMIN_PANEL_PATH : DASHBOARD_PATH;
+export function resolveLandingPath(_user: UserProfile | null | undefined): string {
+  return DASHBOARD_PATH;
 }
 
 /** Nama aplikasi yang dikelola peran pengguna (kosong bila bukan admin aplikasi). */

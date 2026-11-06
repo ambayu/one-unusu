@@ -1,5 +1,22 @@
 # ONE UNUSU — Changelog
 
+## [2026-11-06] — Seksi Tentang Platform, Perbaikan Status Aktif Sidebar & Verifikasi Routing
+
+### Changed
+- **Seksi Tentang Platform** (`src/client/components/home/ProfileSection.tsx`): blok profil beranda diimplementasikan langsung dengan pola baku teks di kiri dan foto potret di kanan. Foto memakai `public/assets/profil-mahasiswa.png` (PNG 726×962 dengan alpha channel, diproses `assetUrl`).
+- **Komponen `TentangPlatform` dibatalkan**: `src/client/components/TentangPlatform.tsx` dihapus karena hanya menjadi pembungkus tambahan untuk satu pemakaian. Implementasi tunggal kini berada di `home/ProfileSection.tsx`.
+- **Anchor `#tentang` dipindahkan** ke seksi Tentang Platform (dari `id="profil"`), dan `HowItWorksSection` yang sebelumnya memakai `id="tentang"` (padahal komponen itu tidak pernah dirender) diubah menjadi `id="cara-kerja"` agar tidak ada anchor ganda.
+
+### Fixed
+- **Sidebar `isActive`** (`src/client/components/SidebarLayout.tsx`): versi lama memakai `pathname === path` sehingga menu `/admin` tetap menyala saat berada di `/admin/pengguna` dan dua menu tampak aktif bersamaan. Kini memakai batas segmen (`to + '/'`) dengan aturan **kecocokan terpanjang menang**.
+- **Verifikasi routing** (`src/client/tests/e2e-auth-routing.verify.ts`, `scripts/verify-navigation.ts`): assertion diubah dari `/admin` ke `/dashboard`, sesuai perilaku `resolveLandingPath` yang mengarahkan **semua peran** ke dashboard portal setelah login.
+
+### Verification
+- `scripts/tsc --noEmit` — bersih.
+- `src/client/tests/e2e-auth-routing.verify.ts` — 10/10 pengujian lulus.
+- `vite build` — berhasil.
+
+
 Semua perubahan penting pada repositori ONE UNUSU dicatat dalam dokumen ini.
 
 ---

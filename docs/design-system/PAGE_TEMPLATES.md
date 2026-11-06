@@ -80,3 +80,47 @@ Jika di masa depan ada halaman baru yang akan dibangun:
 1. Periksa apakah halaman bertipe **katalog/ringkasan**, **formulir**, **tabel data**, atau **informasi publik**.
 2. Gunakan template yang cocok dari daftar di atas.
 3. Tambahkan rute dan konfigurasinya ke dalam dokumentasi `docs/routes/{module}/RULES.md`.
+
+---
+
+## 6. Template 6: Form Page Template (`FormPageTemplate`)
+
+- **Digunakan oleh**: **seluruh** halaman formulir tambah/ubah data (mis. `/penelitian/tambah`, `/penelitian/edit/:id`, `/admin/surat-form`, `/admin/standar/tambah`). **Dashboard tidak memakai template ini.**
+- **Tanggung Jawab**: Menyeragamkan kerangka halaman formulir di seluruh aplikasi sehingga tata letaknya identik antar menu: header panel + pesan galat + area isian + baris aksi tetap di bawah.
+- **Komposisi Struktur**:
+  ```tsx
+  <FormPageTemplate
+    title="Tambah Proposal Riset Baru"
+    description="Formulir pencatatan lengkap proposal penelitian."
+    backTo="/penelitian"
+    isEdit={isEdit}
+    submitLabel={isEdit ? 'Perbarui Data' : 'Simpan Proposal'}
+    submitting={submitting}
+    error={error}
+    onSubmit={handleSubmit}
+    accentClassName="bg-violet-700 hover:bg-violet-800"
+  >
+    <CardContainer title="Informasi Judul & Tim Peneliti">
+      {/* field-field formulir */}
+    </CardContainer>
+  </FormPageTemplate>
+  ```
+- **Poin Penting**:
+  1. Tidak perlu lagi menulis `<form>`, blok galat, dan baris tombol Batal/Simpan secara manual — semuanya disediakan template.
+  2. Baris aksi (Batal + Simpan) selalu berada di **bawah** formulir dengan tap target minimal 42px.
+  3. `submitLabel` default otomatis: `Simpan Perubahan` saat `isEdit`, `Simpan Data` saat menambah.
+  4. Tombol "Batal" mengarah ke `backTo`; tombol "Kembali" pada header juga mengarah ke sana.
+  5. `accentClassName` disesuaikan dengan palette aplikasi (ESurat emerald, LPM/LPPM biru/violet, dll).
+- **Dilarang**: Membuat struktur header formulir + baris aksi sendiri di halaman baru. Gunakan template ini agar konsisten.
+
+---
+
+## 7. Aturan Status Aktif Menu Sidebar (`isActive`)
+
+Semua sidebar panel **wajib** memakai aturan kecocokan yang sama agar tidak pernah ada dua menu aktif sekaligus:
+
+1. **Cocok persis** — `pathname === to` → aktif.
+2. **Cocok batas segmen** — `pathname.startsWith(to + '/')` → kandidat aktif. Dilarang memakai `startsWith(to)` tanpa garis miring, karena `/peran` akan ikut menyala di `/perangkat`.
+3. **Kecocokan terpanjang menang** — bila beberapa menu berbagi prefix yang sama (mis. `/admin` dan `/admin/pengguna`), hanya menu dengan path **terpanjang** yang dianggap aktif.
+4. **Menu ber-`end`** — menu yang menunjuk rute akar (mis. `/`) wajib ditandai `end: true` agar tidak menyala di semua halaman. Rute turunannya (mis. `/class/:id`) dipetakan manual ke menu induk.
+5. **Reaktif** — status harus dihitung dari `useLocation()` (bukan `window.location.pathname`), supaya ikut berubah saat navigasi client-side.

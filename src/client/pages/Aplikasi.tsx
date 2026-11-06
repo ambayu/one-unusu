@@ -1,19 +1,120 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Topbar } from "../components/layout/Topbar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { mainNavigation } from "../data/navigation";
 import { externalUrls } from "../data/site";
-import { digitalServices } from "../data/services";
 import { Container } from "../components/ui/Container";
 import { SectionHeading } from "../components/ui/SectionHeading";
 import { Icon } from "../components/ui/Icon";
-import type { DigitalService } from "../data/types";
+import {
+  AppCatalogItem,
+  DirectoryItem,
+  fetchAppCatalog,
+  fetchDirectories,
+} from "../services/api";
+
+/**
+ * Katalog aplikasi publik.
+ *
+ * Daftar TIDAK lagi memakai data statis: hanya aplikasi yang benar-benar
+ * terhubung ke ONE UNUSU yang ditampilkan.
+ * - Seksi SSO     : `GET /api/applications/catalog` (registry `sso_apps` aktif).
+ * - Seksi Non-SSO : `GET /api/directories` (direktori publik yang aktif).
+ * Dengan begitu katalog selalu mencerminkan kondisi integrasi sebenarnya.
+ */
+
+interface CatalogEntry {
+  key: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  badge: string;
+  icon: "shield" | "globe";
+  image?: string | null;
+  targetRoles?: string[];
+  isSso: boolean;
+  url?: string | null;
+}
+
+const isImageSource = (value?: string | null): boolean =>
+  Boolean(
+    value &&
+      (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")),
+  );
+
+const toSsoEntry = (app: AppCatalogItem): CatalogEntry => ({
+  key: `sso-${app.id}-${app.clientId}`,
+  name: app.name,
+  subtitle: app.clientId,
+  description: app.description || "Layanan digital kampus yang terhubung ke SSO ONE UNUSU.",
+  badge: app.badge || "Sistem",
+  icon: "shield",
+  image: isImageSource(app.icon) ? app.icon : null,
+  targetRoles: app.targetRoles,
+  isSso: true,
+  url: null,
+});
+
+const toDirectoryEntry = (item: DirectoryItem): CatalogEntry => ({
+  key: `dir-${item.id}`,
+  name: item.nama,
+  subtitle: item.kategori,
+  description: item.deskripsi || "Portal mandiri di luar integrasi Single Sign-On.",
+  badge: item.kategori || "Mandiri",
+  icon: "globe",
+  image: isImageSource(item.icon) ? item.icon : null,
+  isSso: false,
+  url: item.urlTarget,
+});
 
 export const AplikasiPage: React.FC = () => {
-  const ssoApps = digitalServices.filter((s) => s.isSsoIntegrated);
-  const nonSsoApps = digitalServices.filter((s) => !s.isSsoIntegrated);
+  const [ssoApps, setSsoApps] = useState<CatalogEntry[]>([]);
+  const [nonSsoApps, setNonSsoApps] = useState<CatalogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadCatalog = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const [ssoResult, directoryResult] = await Promise.allSettled([
+        fetchAppCatalog(),
+        fetchDirectories(),
+      ]);
+
+      if (ssoResult.status === "fulfilled" && ssoResult.value.data.status) {
+        setSsoApps(ssoResult.value.data.data.map(toSsoEntry));
+      } else {
+        setSsoApps([]);
+      }
+
+      if (directoryResult.status === "fulfilled" && directoryResult.value.data.status) {
+        setNonSsoApps(directoryResult.value.data.data.map(toDirectoryEntry));
+      } else {
+        setNonSsoApps([]);
+      }
+
+      if (ssoResult.status === "rejected" && directoryResult.status === "rejected") {
+        setErrorMessage(
+          "Katalog aplikasi tidak dapat dimuat. Periksa koneksi ke server ONE UNUSU.",
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
+
+  const totalLayanan = useMemo(
+    () => ssoApps.length + nonSsoApps.length,
+    [ssoApps, nonSsoApps],
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -25,15 +126,44 @@ export const AplikasiPage: React.FC = () => {
           <SectionHeading
             eyebrow="Portal Ekosistem Kampus"
             title="Katalog Aplikasi ONE UNUSU"
-            description="Daftar lengkap sistem layanan digital kampus. Bedakan aplikasi yang sudah terintegrasi Single Sign-On (SSO) langsung dengan akun NIM/NIDN dan aplikasi mandiri/eksternal."
+            description="Hanya aplikasi yang sudah benar-benar terhubung ke ONE UNUSU yang ditampilkan di sini. Aplikasi ber-SSO memakai akun NIM/NIDN yang sama, sedangkan portal mandiri tetap memakai kredensialnya sendiri."
           />
 
-          {/* Daftar Aplikasi: Ditampilkan Semua & Dipisahkan Per Section */}
+          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-800">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {ssoApps.length} aplikasi terhubung SSO
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 font-semibold text-stone-700">
+              <span className="size-1.5 rounded-full bg-amber-500" />
+              {nonSsoApps.length} portal mandiri
+            </span>
+            <span className="text-stone-500">Total {totalLayanan} layanan terdaftar</span>
+            <button
+              type="button"
+              onClick={() => void loadCatalog()}
+              disabled={isLoading}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
+            >
+              <Icon name="clock" className="size-3.5" />
+              {isLoading ? "Memuat…" : "Muat ulang"}
+            </button>
+          </div>
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              {errorMessage}
+            </div>
+          )}
+
           <div className="mt-12 space-y-16">
-            {/* Section 1: Aplikasi Terintegrasi Single Sign-On (SSO) */}
+            {/* Section 1: Aplikasi yang terhubung ke SSO ONE UNUSU */}
             <div className="space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-stone-200">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-200">
+                <div className="flex flex-wrap items-center gap-2.5">
                   <span className="size-3 rounded-full bg-emerald-500 animate-pulse" />
                   <h2 className="text-xl font-bold font-display text-brand-950">
                     Aplikasi Terintegrasi Single Sign-On (SSO)
@@ -47,20 +177,29 @@ export const AplikasiPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {ssoApps.map((service) => (
-                  <AppCatalogCard key={service.id} service={service} />
-                ))}
-              </div>
+              {isLoading ? (
+                <SkeletonGrid />
+              ) : ssoApps.length === 0 ? (
+                <EmptyState
+                  title="Belum ada aplikasi yang terhubung"
+                  description="Aplikasi cabang akan muncul di sini setelah didaftarkan pada panel Registrasi SSO ONE UNUSU."
+                />
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {ssoApps.map((entry) => (
+                    <AppCatalogCard key={entry.key} entry={entry} />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Section 2: Aplikasi Eksternal / Mandiri (Non-SSO) */}
+            {/* Section 2: Portal mandiri / non-SSO dari direktori publik */}
             <div className="space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-stone-200">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-200">
+                <div className="flex flex-wrap items-center gap-2.5">
                   <span className="size-3 rounded-full bg-amber-500" />
                   <h2 className="text-xl font-bold font-display text-stone-900">
-                    Aplikasi Mandiri & Eksternal (Non-SSO)
+                    Aplikasi Mandiri &amp; Eksternal (Non-SSO)
                   </h2>
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                     {nonSsoApps.length} Layanan
@@ -71,11 +210,20 @@ export const AplikasiPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {nonSsoApps.map((service) => (
-                  <AppCatalogCard key={service.id} service={service} />
-                ))}
-              </div>
+              {isLoading ? (
+                <SkeletonGrid />
+              ) : nonSsoApps.length === 0 ? (
+                <EmptyState
+                  title="Belum ada portal mandiri terdaftar"
+                  description="Portal non-SSO akan tampil setelah ditambahkan pada menu Aplikasi Non-SSO di panel administrasi."
+                />
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {nonSsoApps.map((entry) => (
+                    <AppCatalogCard key={entry.key} entry={entry} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Container>
@@ -86,8 +234,38 @@ export const AplikasiPage: React.FC = () => {
   );
 };
 
-function AppCatalogCard({ service }: { service: DigitalService }) {
-  const isSso = Boolean(service.isSsoIntegrated);
+function SkeletonGrid() {
+  return (
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+      {[0, 1, 2].map((index) => (
+        <div
+          key={index}
+          className="animate-pulse overflow-hidden rounded-2xl border border-stone-200 bg-white"
+        >
+          <div className="aspect-[16/10] bg-stone-200/70" />
+          <div className="space-y-3 p-5">
+            <div className="h-3.5 w-2/3 rounded bg-stone-200" />
+            <div className="h-3 w-1/2 rounded bg-stone-200/80" />
+            <div className="h-3 w-full rounded bg-stone-200/60" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 px-6 py-10 text-center">
+      <Icon name="layers" className="mx-auto size-8 text-stone-400" />
+      <p className="mt-3 text-sm font-bold text-stone-700">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">{description}</p>
+    </div>
+  );
+}
+
+function AppCatalogCard({ entry }: { entry: CatalogEntry }) {
+  const isSso = entry.isSso;
 
   return (
     <div
@@ -98,29 +276,27 @@ function AppCatalogCard({ service }: { service: DigitalService }) {
       }`}
     >
       <div>
-        {/* Mockup Banner Aplikasi */}
+        {/* Banner Aplikasi */}
         <div className="relative aspect-[16/10] overflow-hidden bg-brand-950">
-          {service.image ? (
+          {entry.image ? (
             <img
-              src={service.image}
-              alt={`Screenshot ${service.name}`}
+              src={entry.image}
+              alt={`Tampilan ${entry.name}`}
               className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-102"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-brand-900 text-white">
-              <Icon name={service.icon} className="size-12 opacity-50" />
+              <Icon name={entry.icon} className="size-12 opacity-50" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
 
-          {/* Badge Kategori Kiri Atas */}
           <div className="absolute top-3 left-3">
             <span className="rounded-md bg-brand-950/85 px-2.5 py-1 text-[11px] font-semibold text-white border border-white/10 backdrop-blur-xs">
-              {service.badge || "Sistem"}
+              {entry.badge}
             </span>
           </div>
 
-          {/* Badge Status SSO vs Non-SSO di Kanan Atas */}
           <div className="absolute top-3 right-3">
             {isSso ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-2.5 py-1 text-[10.5px] font-bold shadow-xs">
@@ -145,29 +321,26 @@ function AppCatalogCard({ service }: { service: DigitalService }) {
                   : "bg-stone-100 text-stone-700 border-stone-200"
               }`}
             >
-              <Icon name={service.icon} className="size-5" />
+              <Icon name={entry.icon} className="size-5" />
             </span>
             <div className="min-w-0">
               <h3 className="font-bold text-base text-[#1E293B] group-hover:text-brand-700 transition-colors truncate">
-                {service.name}
+                {entry.name}
               </h3>
-              <p className="text-[11px] font-semibold text-[#64748B] truncate">
-                {service.fullName}
+              <p className="text-[11px] font-semibold text-[#64748B] truncate font-mono">
+                {entry.subtitle}
               </p>
             </div>
           </div>
 
-          <p className="text-xs text-[#475569] leading-relaxed line-clamp-3">
-            {service.description}
-          </p>
+          <p className="text-xs text-[#475569] leading-relaxed line-clamp-3">{entry.description}</p>
 
-          {/* Target Roles */}
-          {service.targetRoles && (
+          {entry.targetRoles && entry.targetRoles.length > 0 && (
             <div className="pt-1 flex flex-wrap gap-1.5 items-center">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
                 Akses:
               </span>
-              {service.targetRoles.map((role) => (
+              {entry.targetRoles.map((role) => (
                 <span
                   key={role}
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 border border-stone-200"
@@ -204,9 +377,9 @@ function AppCatalogCard({ service }: { service: DigitalService }) {
             <span>Masuk via SSO</span>
             <Icon name="arrow-right" className="size-3" />
           </Link>
-        ) : service.url ? (
+        ) : entry.url ? (
           <a
-            href={service.url}
+            href={entry.url}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs transition-colors shadow-xs"
