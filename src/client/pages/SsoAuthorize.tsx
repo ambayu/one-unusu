@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowPathIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
+import { ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import { getSsoRedirectV2 } from '../services/api';
 
 /**
@@ -69,12 +69,27 @@ export const SsoAuthorize: React.FC = () => {
     };
   }, [clientId]);
 
+  // Selama belum ada error, tugas halaman ini murni menerbitkan tiket lalu
+  // meneruskan pengguna. Durasinya sangat singkat (satu panggilan API internal),
+  // jadi SENGAJA hanya latar polos berwarna brand — tanpa logo, tanpa teks,
+  // tanpa animasi.
+  //
+  // Alasannya: layar loading bernuansa lengkap (logo + judul + titik berdenyut)
+  // yang muncul lalu hilang dalam sepersekian detik justru terbaca sebagai
+  // kedipan/kerusakan. Latar polos membuat transisinya tidak terasa sebagai
+  // layar tersendiri, sementara halaman login dan callback tetap memakai
+  // `SsoLoadingScreen` lengkap karena keduanya memang menunggu jaringan nyata.
+  if (!error) {
+    return <div aria-hidden="true" className="min-h-screen w-full bg-[#0B2E1C]" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F1F5F2] flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-lg bg-white rounded-[20px] border border-[#D8E5DC] shadow-2xl overflow-hidden">
         <div className="h-1.5 w-full bg-[#166534]" />
-        {error ? (
-          <>
+        {/* Sampai di sini `error` pasti terisi (kasus tanpa error sudah
+            ditangani layar tunggu di atas), jadi tidak perlu ternary lagi. */}
+        <>
             <div className="bg-[#F0FDF4] border-b border-[#D8E5DC] px-6 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6 flex items-center gap-4">
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] flex items-center justify-center flex-shrink-0 shadow-2xs">
                 <ShieldExclamationIcon className="w-8 h-8 sm:w-9 sm:h-9" aria-hidden="true" />
@@ -117,17 +132,6 @@ export const SsoAuthorize: React.FC = () => {
               </Link>
             </div>
           </>
-        ) : (
-          <div className="p-8 sm:p-10 text-center">
-            <div className="w-16 h-16 rounded-[16px] bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] mx-auto flex items-center justify-center mb-4">
-              <ArrowPathIcon className="w-8 h-8 animate-spin" aria-hidden="true" />
-            </div>
-            <h1 className="text-lg sm:text-xl font-extrabold text-[#1E293B]">Menghubungkan Akun</h1>
-            <p className="mt-2 text-sm text-[#475569] leading-relaxed">
-              Mohon tunggu, sesi ONE UNUSU Anda sedang diteruskan ke aplikasi tujuan.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

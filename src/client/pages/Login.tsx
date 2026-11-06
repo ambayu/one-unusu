@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
 import { resolveLandingPath } from '../lib/landing';
 import { assetUrl } from '../lib/assets';
+import { SsoLoadingScreen } from '../components/SsoLoadingScreen';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -19,6 +20,16 @@ export const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // True setelah kredensial diterima server sampai navigasi ke panel selesai.
+  // Selama itu layar tunggu penuh ditampilkan agar pengguna tidak menekan
+  // tombol masuk berulang kali.
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Tujuan yang dituju setelah layar tunggu selesai. Disimpan di state agar
+  // perpindahan halaman baru terjadi ketika `SsoLoadingScreen` memanggil
+  // `onReady`, bukan seketika setelah server merespons.
+  const [destination, setDestination] = useState<string | null>(null);
 
   // Captcha Matematika Sederhana
   const [captchaNum1, setCaptchaNum1] = useState(3);
@@ -89,6 +100,10 @@ export const Login: React.FC = () => {
 
       const res = await loginSso(identifier, password);
       if (res.data.status) {
+        // Tampilkan layar tunggu penuh; sengaja tidak direset di `finally`
+        // supaya overlay tetap tampil selama navigasi ke panel berlangsung.
+        setRedirecting(true);
+
         // Hanya profil umum yang disimpan; token sesi berada di cookie HttpOnly.
         localStorage.setItem('one_unusu_user', JSON.stringify(res.data.data));
 
@@ -99,11 +114,13 @@ export const Login: React.FC = () => {
         // pengguna tidak berhenti di panel portal. Selain itu pengguna selalu
         // masuk ke panel; kelengkapan biodata diperiksa saat membuka aplikasi
         // SSO, bukan pada langkah login.
-        if (nextPath) {
-          navigate(nextPath);
-        } else {
-          navigate(resolveLandingPath(userData));
-        }
+        //
+        // Perpindahan ditunda sebentar lewat `onReady` pada SsoLoadingScreen
+        // supaya animasi logo tidak terpotong saat server merespons sangat
+        // cepat. Tombol sudah ditutup layar tunggu, jadi tidak ada risiko klik
+        // ganda selama jeda ini.
+        const destination = nextPath || resolveLandingPath(userData);
+        setDestination(destination);
       } else {
         setError(res.data.message || 'Login gagal.');
         generateCaptcha();
@@ -120,6 +137,23 @@ export const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Layar tunggu satu halaman penuh setelah kredensial diterima, selama sesi
+  // disiapkan dan aplikasi berpindah ke panel/tujuan SSO. Ditampilkan di sini
+  // (bukan per halaman tujuan) supaya pengguna hanya melihat SATU layar loading
+  // dalam seluruh rangkaian login.
+  if (redirecting) {
+    return (
+      <SsoLoadingScreen
+        title="Menyiapkan sesi ONE UNUSU"
+        description="Kredensial diterima. Anda sedang diarahkan ke panel kampus."
+        delayMs={1400}
+        onReady={() => {
+          if (destination) navigate(destination, { replace: true });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white relative">
