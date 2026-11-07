@@ -110,7 +110,7 @@ app.use(
 
 // Hanya route yang menerima gambar base64 yang boleh memakai limit besar.
 // Route lain dibatasi ketat agar tidak bisa dipakai membanjiri memori server.
-const UPLOAD_ROUTE_PATTERN = /^\/api\/(admin\/apps|auth\/profile)(\/|$)/;
+const UPLOAD_ROUTE_PATTERN = /^\/api\/(admin\/apps|admin\/directories|admin\/sliders|auth\/profile)(\/|$)/;
 const smallJson = express.json({ limit: "1mb" });
 const largeJson = express.json({ limit: "50mb" });
 const smallUrlEncoded = express.urlencoded({ extended: true, limit: "1mb" });
@@ -1317,6 +1317,169 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
   } catch (error: any) {
     logServerError("POST /api/admin/users", error);
     res.status(500).json({ status: false, message: "Gagal menambahkan pengguna." });
+  }
+});
+
+// PUT /api/admin/users/:id (Ubah Data Pengguna)
+app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ status: false, message: "ID pengguna tidak valid." });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
+      return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
+    }
+
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { nama, email, noHp, role, nim, nidn, fakultas, prodi, isActive, password } = body;
+
+    const updateData: any = {};
+
+    if (nama !== undefined) {
+      if (typeof nama !== "string" || !nama.trim() || nama.trim().length > 120) {
+        return res.status(400).json({ status: false, message: "Nama wajib diisi maksimal 120 karakter." });
+      }
+      updateData.nama = nama.trim();
+    }
+
+    if (role !== undefined) {
+      if (!ALLOWED_ROLES.includes(role as UserRole)) {
+        return res.status(400).json({ status: false, message: "Peran pengguna tidak valid." });
+      }
+      // Proteksi: jangan izinkan menurunkan peran SUPERADMIN bila diri sendiri
+      if (req.user?.id === userId && targetUser.role === "SUPERADMIN" && role !== "SUPERADMIN") {
+        return res.status(400).json({ status: false, message: "Anda tidak dapat menurunkan peran Superadmin pada akun sendiri." });
+      }
+      updateData.role = role as UserRole;
+    }
+
+    if (email !== undefined) {
+      if (email === null || email === "") {
+        updateData.email = null;
+      } else if (typeof email === "string") {
+        const trimmedEmail = email.trim();
+        if (trimmedEmail.length > 120 || !EMAIL_PATTERN.test(trimmedEmail)) {
+          return res.status(400).json({ status: false, message: "Format email tidak valid." });
+        }
+        const duplicateEmail = await prisma.user.findFirst({
+          where: { email: trimmedEmail, NOT: { id: userId } }
+        });
+        if (duplicateEmail) {
+          return res.status(400).json({ status: false, message: "Email sudah digunakan oleh akun lain." });
+        }
+        updateData.email = trimmedEmail;
+      }
+    }
+
+    if (noHp !== undefined) {
+      if (noHp === null || noHp === "") {
+        updateData.noHp = null;
+      } else if (typeof noHp === "string") {
+        const trimmedPhone = noHp.trim();
+        if (!PHONE_PATTERN.test(trimmedPhone)) {
+          return res.status(400).json({ status: false, message: "Format nomor WhatsApp tidak valid." });
+        }
+        updateData.noHp = trimmedPhone;
+      }
+    }
+
+    if (fakultas !== undefined) {
+      updateData.fakultas = typeof fakultas === "string" && fakultas.trim() ? fakultas.trim() : null;
+    }
+
+    if (prodi !== undefined) {
+      updateData.prodi = typeof prodi === "string" && prodi.trim() ? prodi.trim() : null;
+    }
+
+    if (nim !== undefined) {
+      updateData.nim = typeof nim === "string" && nim.trim() ? nim.trim() : null;
+    }
+
+    if (nidn !== undefined) {
+      updateData.nidn = typeof nidn === "string" && nidn.trim() ? nidn.trim() : null;
+    }
+
+    if (typeof isActive === "boolean") {
+      if (req.user?.id === userId && !isActive) {
+        return res.status(400).json({ status: false, message: "Anda tidak dapat menonaktifkan akun sendiri." });
+      }
+      updateData.isActive = isActive;
+    }
+
+    // Reset password opsional
+    if (typeof password === "string" && password.trim().length > 0) {
+      if (password.length < 8 || password.length > 200) {
+        return res.status(400).json({ status: false, message: "Password baru minimal 8 karakter." });
+      }
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        nama: true,
+        email: true,
+        noHp: true,
+        role: true,
+        nim: true,
+        nidn: true,
+        fakultas: true,
+        prodi: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({ status: true, message: "Data pengguna berhasil diperbarui.", data: updatedUser });
+  } catch (error: any) {
+    logServerError("PUT /api/admin/users/:id", error);
+    res.status(500).json({ status: false, message: "Gagal memperbarui data pengguna." });
+  }
+});
+
+// DELETE /api/admin/users/:id (Hapus Pengguna)
+app.delete("/api/admin/users/:id", authenticateToken, requirePermission("user:delete"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ status: false, message: "ID pengguna tidak valid." });
+    }
+
+    if (req.user?.id === userId) {
+      return res.status(400).json({ status: false, message: "Anda tidak dapat menghapus akun Anda sendiri." });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, role: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
+    }
+
+    if (targetUser.username.toLowerCase() === "admin" || targetUser.username.toLowerCase() === "superadmin") {
+      return res.status(400).json({ status: false, message: "Akun Super Administrator utama dilindungi dan tidak dapat dihapus." });
+    }
+
+    // Bersihkan relasi dependent sebelum menghapus user
+    // actorId pada AuditLog menggunakan onDelete: SetNull sesuai skema Prisma
+    await prisma.$transaction([
+      prisma.ssoAuthToken.deleteMany({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } })
+    ]);
+
+    res.json({ status: true, message: `Pengguna '${targetUser.username}' berhasil dihapus permanen.` });
+  } catch (error: any) {
+    logServerError("DELETE /api/admin/users/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus pengguna." });
   }
 });
 

@@ -221,6 +221,12 @@ export const fetchAdminUsers = () =>
 export const createAdminUser = (data: Partial<UserProfile> & { password: string }) =>
   api.post<{ status: boolean; message: string; data: UserProfile }>('/admin/users', data);
 
+export const updateAdminUser = (id: number, data: Partial<UserProfile> & { password?: string }) =>
+  api.put<{ status: boolean; message: string; data: UserProfile }>(`/admin/users/${id}`, data);
+
+export const deleteAdminUser = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/users/${id}`);
+
 // ==========================================
 // ADMIN API — REGISTRY APLIKASI
 // ==========================================

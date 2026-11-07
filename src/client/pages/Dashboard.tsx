@@ -184,6 +184,15 @@ export const Dashboard: React.FC = () => {
         : 'Data Akademik Mahasiswa';
 
   const renderDirectoryIcon = (iconName: string | null) => {
+    if (isImageSource(iconName)) {
+      return (
+        <img
+          src={iconName as string}
+          alt="Logo direktori"
+          className="w-full h-full object-cover rounded-[8px]"
+        />
+      );
+    }
     switch (iconName) {
       case 'UserIcon':
         return <UserIcon className="w-5 h-5" />;

@@ -407,21 +407,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              to="/"
-              data-testid="link-halaman-depan"
-              title="Kembali ke Halaman Depan ONE UNUSU"
-              className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#D8E5DC] bg-white text-[#1E293B] hover:bg-[#F0FDF4] hover:text-[#166534] text-xs font-semibold transition shadow-2xs"
-            >
-              <GlobeAltIcon className="w-4 h-4 text-[#166534]" />
-              <span>Halaman Depan</span>
-            </Link>
-
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2.5 p-1.5 pr-3 rounded-full bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] transition focus:outline-none shadow-2xs"
+                className="flex items-center gap-2.5 px-3 py-1.5 border-x border-[#D8E5DC] bg-transparent hover:bg-[#F0FDF4]/60 transition focus:outline-none"
               >
                 <div className="w-8 h-8 rounded-full bg-[#166534] text-white flex items-center justify-center flex-shrink-0">
                   {user?.avatar ? (
@@ -451,6 +441,14 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
                   </div>
 
                   <div className="py-1">
+                    <Link
+                      to="/"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="w-full text-left px-3.5 py-2 text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] flex items-center gap-2.5 font-medium transition"
+                    >
+                      <GlobeAltIcon className="w-4 h-4 text-[#166534]" />
+                      <span>Halaman Depan</span>
+                    </Link>
                     <button
                       onClick={() => { navigate('/profil'); setProfileDropdownOpen(false); }}
                       className="w-full text-left px-3.5 py-2 text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] flex items-center gap-2.5 font-medium transition"
@@ -458,15 +456,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
                       <IdentificationIcon className="w-4 h-4 text-[#166534]" />
                       <span>Biodata Saya</span>
                     </button>
-                    {hasPermission(user, PERMISSIONS.applicationMenu) && (
-                      <button
-                        onClick={() => { navigate('/admin'); setProfileDropdownOpen(false); }}
-                        className="w-full text-left px-3.5 py-2 text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] flex items-center gap-2.5 font-medium transition"
-                      >
-                        <Cog6ToothIcon className="w-4 h-4 text-[#166534]" />
-                        <span>Registrasi Aplikasi</span>
-                      </button>
-                    )}
                   </div>
 
                   <div className="pt-1 border-t border-[#E8EFEA]">

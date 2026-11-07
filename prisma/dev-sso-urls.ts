@@ -16,12 +16,12 @@ const prisma = new PrismaClient();
  *   npm run prisma:sso-dev-urls
  */
 const DEV_CALLBACKS: Record<string, string> = {
-  "unusu-lms": "http://localhost:3001/sso/callback",
+  "unusu-lms": "http://localhost:5174/sso/callback",
   "lpm-unusu": "http://localhost:5177/sso/callback",
   "lppm-unusu": "http://localhost:5178/sso/callback",
   "esurat-unusu": "http://localhost:5175/sso/callback",
-  "sdm-sarpras-unusu": "http://localhost:3003/sso/callback",
-  "unusu-akreditasi": "http://localhost:3002/sso/callback",
+  "sdm-sarpras-unusu": "http://localhost:5179/sso/callback",
+  "unusu-akreditasi": "http://localhost:5176/sso/callback",
 };
 
 async function main() {

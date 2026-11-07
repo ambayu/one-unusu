@@ -215,7 +215,7 @@ model LayananKampus {
   kategori    String
   deskripsi   String?
   urlTarget   String
-  icon        String?  @default("ExternalLink")
+  icon        String?  @db.LongText
   isExternal  Boolean  @default(false)
   urutan      Int      @default(0)
   active      Boolean  @default(true)

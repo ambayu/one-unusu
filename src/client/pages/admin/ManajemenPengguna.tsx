@@ -5,9 +5,12 @@ import {
   BriefcaseIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
+  ExclamationTriangleIcon,
   MagnifyingGlassIcon,
+  PencilSquareIcon,
   PlusIcon,
   ShieldCheckIcon,
+  TrashIcon,
   UsersIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -15,6 +18,8 @@ import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplat
 import { useAdminData } from '../../hooks/useAdminData';
 import {
   createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
   UserProfile,
   UserRole,
 } from '../../services/api';
@@ -153,6 +158,24 @@ export const ManajemenPengguna: React.FC = () => {
   const [newFakultas, setNewFakultas] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // State Edit Pengguna
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editNama, setEditNama] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('MAHASISWA');
+  const [editEmail, setEditEmail] = useState('');
+  const [editNoHp, setEditNoHp] = useState('');
+  const [editProdi, setEditProdi] = useState('');
+  const [editFakultas, setEditFakultas] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // State Hapus Pengguna
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -215,6 +238,89 @@ export const ManajemenPengguna: React.FC = () => {
       setMessage({ type: 'error', text: text || 'Gagal membuat akun pengguna.' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEdit = (user: UserProfile) => {
+    setEditingUser(user);
+    setEditNama(user.nama);
+    setEditRole(user.role);
+    setEditEmail(user.email || '');
+    setEditNoHp(user.noHp || '');
+    setEditProdi(user.prodi || '');
+    setEditFakultas(user.fakultas || '');
+    setEditIsActive(Boolean(user.isActive));
+    setEditNewPassword('');
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      setIsUpdating(true);
+      const payload: Partial<UserProfile> & { password?: string } = {
+        nama: editNama.trim(),
+        role: editRole,
+        email: editEmail.trim() || undefined,
+        noHp: editNoHp.trim() || undefined,
+        prodi: editProdi.trim() || undefined,
+        fakultas: editFakultas.trim() || undefined,
+        isActive: editIsActive,
+      };
+
+      if (editNewPassword.trim()) {
+        payload.password = editNewPassword.trim();
+      }
+
+      const res = await updateAdminUser(editingUser.id, payload);
+      if (res.data.status) {
+        setMessage({ type: 'success', text: `Data akun ${editingUser.username} berhasil diperbarui.` });
+        setShowEditModal(false);
+        setEditingUser(null);
+        await reload();
+      } else {
+        setMessage({ type: 'error', text: res.data.message || 'Gagal memperbarui akun.' });
+      }
+    } catch (error: unknown) {
+      const text =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
+          : '';
+      setMessage({ type: 'error', text: text || 'Gagal memperbarui data pengguna.' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleOpenDelete = (user: UserProfile) => {
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingUser) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await deleteAdminUser(deletingUser.id);
+      if (res.data.status) {
+        setMessage({ type: 'success', text: `Akun ${deletingUser.username} berhasil dihapus.` });
+        setShowDeleteModal(false);
+        setDeletingUser(null);
+        await reload();
+      } else {
+        setMessage({ type: 'error', text: res.data.message || 'Gagal menghapus akun.' });
+      }
+    } catch (error: unknown) {
+      const text =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
+          : '';
+      setMessage({ type: 'error', text: text || 'Gagal menghapus akun pengguna.' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -551,12 +657,13 @@ export const ManajemenPengguna: React.FC = () => {
                 <th className="py-3 px-4">Program Studi</th>
                 <th className="py-3 px-4">Kontak</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8E5DC]/50">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center">
+                  <td colSpan={7} className="py-10 text-center">
                     <p className="text-xs font-semibold text-[#475569]">
                       Tidak ada akun yang sesuai dengan filter
                       {filterRole !== 'ALL' ? ` "${ROLE_LABEL[filterRole as UserRole] ?? filterRole}"` : ''}
@@ -603,6 +710,29 @@ export const ManajemenPengguna: React.FC = () => {
                         <ShieldCheckIcon className="w-3.5 h-3.5" />
                         <span>{user.isActive ? 'Aktif' : 'Nonaktif'}</span>
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(user)}
+                          title="Ubah Pengguna"
+                          aria-label={`Ubah Pengguna ${user.nama}`}
+                          className="p-1.5 rounded-lg text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] transition"
+                        >
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDelete(user)}
+                          title="Hapus Pengguna"
+                          aria-label={`Hapus Pengguna ${user.nama}`}
+                          disabled={user.username.toLowerCase() === 'admin' || user.id === currentUser?.id}
+                          className="p-1.5 rounded-lg text-[#B91C1C] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -739,6 +869,214 @@ export const ManajemenPengguna: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Pengguna */}
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] my-8">
+            <div className="flex justify-between items-start pb-3 border-b border-[#E8EFEA]">
+              <div>
+                <h3 className="font-bold text-[#1E293B] text-sm">Ubah Akun Pengguna</h3>
+                <p className="text-[11px] text-[#64748B]">
+                  Perbarui profil, hak akses peran, status keaktifan, atau kata sandi akun SSO.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingUser(null);
+                }}
+                className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">Username / NIM / NIDN</label>
+                <input
+                  type="text"
+                  disabled
+                  value={editingUser.username}
+                  className="w-full px-3 py-2 bg-[#F1F5F2] border border-[#D8E5DC] text-[#64748B] rounded-lg cursor-not-allowed font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">Peran (Role)</label>
+                <select
+                  value={editRole}
+                  onChange={(event) => setEditRole(event.target.value as UserRole)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                >
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABEL[role]} ({role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  required
+                  value={editNama}
+                  onChange={(event) => setEditNama(event.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(event) => setEditEmail(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">Nomor WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editNoHp}
+                    onChange={(event) => setEditNoHp(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">Program Studi</label>
+                  <input
+                    type="text"
+                    value={editProdi}
+                    onChange={(event) => setEditProdi(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">Fakultas</label>
+                  <input
+                    type="text"
+                    value={editFakultas}
+                    onChange={(event) => setEditFakultas(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">Status Keaktifan</label>
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editStatus"
+                      checked={editIsActive}
+                      onChange={() => setEditIsActive(true)}
+                      className="text-[#166534] focus:ring-[#166534]"
+                    />
+                    <span className="text-xs font-semibold text-[#166534]">Aktif</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editStatus"
+                      checked={!editIsActive}
+                      onChange={() => setEditIsActive(false)}
+                      className="text-[#B91C1C] focus:ring-[#B91C1C]"
+                    />
+                    <span className="text-xs font-semibold text-[#B91C1C]">Nonaktif</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">
+                  Kata Sandi Baru <span className="font-normal text-[#94A3B8]">(kosongkan bila tidak diubah)</span>
+                </label>
+                <input
+                  type="password"
+                  minLength={8}
+                  placeholder="Minimal 8 karakter..."
+                  value={editNewPassword}
+                  onChange={(event) => setEditNewPassword(event.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#E8EFEA]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingUser(null);
+                  }}
+                  className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+                >
+                  {isUpdating ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog Konfirmasi Hapus */}
+      {showDeleteModal && deletingUser && (
+        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-[#FECACA]">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-[#FEF2F2] text-[#B91C1C]">
+                <ExclamationTriangleIcon className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-[#1E293B] text-sm">Hapus Akun Pengguna</h3>
+                <p className="text-xs text-[#64748B]">
+                  Apakah Anda yakin ingin menghapus akun{' '}
+                  <strong className="text-[#1E293B]">{deletingUser.nama}</strong> ({deletingUser.username})? Tindakan ini
+                  akan mencabut seluruh tiket sesi SSO dan tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-[#E8EFEA]">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingUser(null);
+                }}
+                disabled={isDeleting}
+                className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-[8px] text-white bg-[#B91C1C] hover:bg-[#991B1B] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus Akun'}
+              </button>
+            </div>
           </div>
         </div>
       )}

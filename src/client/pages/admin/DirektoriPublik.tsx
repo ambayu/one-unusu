@@ -11,6 +11,7 @@ import {
   TrashIcon,
   UserIcon,
   XMarkIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
@@ -23,6 +24,7 @@ import {
 } from '../../services/api';
 import { hasPermission, PERMISSIONS } from '../../lib/permissions';
 import { NotificationModal, NotificationType } from '../../components/NotificationModal';
+import { isImageSource } from '../../lib/appIcon';
 
 interface ModalNotification {
   isOpen: boolean;
@@ -56,6 +58,8 @@ export const DirektoriPublik: React.FC = () => {
   const [deskripsi, setDeskripsi] = useState('');
   const [urlTarget, setUrlTarget] = useState('');
   const [icon, setIcon] = useState('GlobeAltIcon');
+  const [iconType, setIconType] = useState<'preset' | 'upload'>('preset');
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isExternal, setIsExternal] = useState(false);
   const [urutan, setUrutan] = useState(1);
   const [active, setActive] = useState(true);
@@ -107,6 +111,8 @@ export const DirektoriPublik: React.FC = () => {
     setDeskripsi('');
     setUrlTarget('');
     setIcon('GlobeAltIcon');
+    setIconType('preset');
+    setUploadedImage(null);
     setIsExternal(false);
     setUrutan(items.length + 1);
     setActive(true);
@@ -119,11 +125,55 @@ export const DirektoriPublik: React.FC = () => {
     setKategori(item.kategori);
     setDeskripsi(item.deskripsi || '');
     setUrlTarget(item.urlTarget);
-    setIcon(item.icon || 'GlobeAltIcon');
+    
+    if (isImageSource(item.icon)) {
+      setIconType('upload');
+      setUploadedImage(item.icon);
+      setIcon('GlobeAltIcon');
+    } else {
+      setIconType('preset');
+      setIcon(item.icon || 'GlobeAltIcon');
+      setUploadedImage(null);
+    }
+
     setIsExternal(item.isExternal);
     setUrutan(item.urutan);
     setActive(item.active);
     setShowModal(true);
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Format Tidak Sesuai',
+        message: 'Berkas harus berupa gambar PNG, JPG, WebP, atau SVG.',
+      });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Ukuran Terlalu Besar',
+        message: 'Ukuran berkas logo maksimal 2 MB.',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setUploadedImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,12 +191,14 @@ export const DirektoriPublik: React.FC = () => {
 
     try {
       setIsSubmitting(true);
+      const chosenIcon = iconType === 'upload' && uploadedImage ? uploadedImage : icon;
+
       const payload = {
         nama: nama.trim(),
         kategori: kategori.trim(),
         deskripsi: deskripsi.trim() || null,
         urlTarget: urlTarget.trim(),
-        icon,
+        icon: chosenIcon,
         isExternal,
         urutan: Number(urutan),
         active,
@@ -215,6 +267,15 @@ export const DirektoriPublik: React.FC = () => {
   };
 
   const renderIconComponent = (iconName: string | null) => {
+    if (isImageSource(iconName)) {
+      return (
+        <img
+          src={iconName as string}
+          alt="Logo direktori"
+          className="w-full h-full object-cover rounded-[8px]"
+        />
+      );
+    }
     const found = AVAILABLE_ICONS.find((i) => i.value === iconName);
     const Component = found ? found.component : GlobeAltIcon;
     return <Component className="w-5 h-5" />;
@@ -446,28 +507,98 @@ export const DirektoriPublik: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-[#1E293B] mb-1.5">Pilih Ikon</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {AVAILABLE_ICONS.map((ic) => {
-                    const isSelected = icon === ic.value;
-                    const IconComp = ic.component;
-                    return (
-                      <button
-                        key={ic.value}
-                        type="button"
-                        onClick={() => setIcon(ic.value)}
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? 'bg-[#DCFCE7] border-[#166534] text-[#166534] font-bold shadow-2xs'
-                            : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F1F5F2]'
-                        }`}
-                      >
-                        <IconComp className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-[11px] truncate">{ic.label}</span>
-                      </button>
-                    );
-                  })}
+                <label className="block font-semibold text-[#1E293B] mb-1.5">Ikon / Logo Direktori</label>
+
+                {/* Tab Pilihan: Preset Icon vs Unggah Foto */}
+                <div className="flex items-center gap-2 p-1 bg-[#F1F5F2] rounded-lg border border-[#D8E5DC] mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setIconType('preset')}
+                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
+                      iconType === 'preset'
+                        ? 'bg-white text-[#166534] shadow-2xs'
+                        : 'text-[#64748B] hover:text-[#1E293B]'
+                    }`}
+                  >
+                    Ikon Preset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIconType('upload')}
+                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
+                      iconType === 'upload'
+                        ? 'bg-white text-[#166534] shadow-2xs'
+                        : 'text-[#64748B] hover:text-[#1E293B]'
+                    }`}
+                  >
+                    Unggah Logo / Foto
+                  </button>
                 </div>
+
+                {iconType === 'preset' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {AVAILABLE_ICONS.map((ic) => {
+                      const isSelected = icon === ic.value;
+                      const IconComp = ic.component;
+                      return (
+                        <button
+                          key={ic.value}
+                          type="button"
+                          onClick={() => setIcon(ic.value)}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
+                            isSelected
+                              ? 'bg-[#DCFCE7] border-[#166534] text-[#166534] font-bold shadow-2xs'
+                              : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F1F5F2]'
+                          }`}
+                        >
+                          <IconComp className="w-4 h-4 flex-shrink-0" />
+                          <span className="text-[11px] truncate">{ic.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="relative border-2 border-dashed border-[#D8E5DC] hover:border-[#166534] rounded-[12px] p-3 text-center transition flex flex-col items-center justify-center min-h-[140px] bg-[#F0FDF4]/30">
+                      {uploadedImage ? (
+                        <div className="relative w-full flex flex-col items-center py-2">
+                          <div className="w-20 h-20 rounded-[12px] overflow-hidden border border-[#D8E5DC] bg-white shadow-2xs flex items-center justify-center">
+                            <img
+                              src={uploadedImage}
+                              alt="Pratinjau logo direktori"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <p className="text-[11px] font-semibold text-[#166534] mt-2">Gambar terpilih</p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUploadedImage(null);
+                            }}
+                            className="mt-1 text-[11px] text-[#B91C1C] hover:underline font-semibold"
+                          >
+                            Hapus Gambar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 py-3">
+                          <div className="w-10 h-10 rounded-full bg-[#DCFCE7] text-[#166534] mx-auto flex items-center justify-center">
+                            <PhotoIcon className="w-5 h-5" />
+                          </div>
+                          <p className="text-xs font-semibold text-[#1E293B]">Klik untuk unggah logo / foto</p>
+                          <p className="text-[10px] text-[#64748B]">PNG, JPG, WebP, atau SVG (maks. 2 MB)</p>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex flex-col sm:flex-row gap-4 border-t border-[#E8EFEA]">
