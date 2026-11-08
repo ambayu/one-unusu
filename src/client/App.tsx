@@ -132,8 +132,8 @@ const PermissionRoute = ({ permission, children }: PermissionRouteProps) => {
 /**
  * Penjaga khusus panel administrasi ONE UNUSU.
  *
- * Memastikan admin aplikasi cabang (ADMIN_LPM, ADMIN_LPPM, dst.) tidak pernah
- * merender panel SSO: peran mereka hanya memiliki izin dashboard/profil.
+ * Memastikan hanya akun dengan izin panel admin SSO yang dapat merender
+ * panel tata kelola.
  */
 const AdminPanelRoute = ({ children }: { children: React.ReactElement }) => {
   const cachedUser = readCachedUser();

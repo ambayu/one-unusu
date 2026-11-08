@@ -28,3 +28,13 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 ## 4. Aturan Notifikasi & Konfirmasi
 - Seluruh notifikasi sukses, pesan error server, dan konfirmasi hapus data pada rute tata kelola wajib menggunakan komponen dialog `NotificationModal`. Dilarang menggunakan banner alert teks inline atau fungsi `alert()` bawaan browser.
 - Setiap aksi destruktif (seperti menghapus aplikasi atau menghapus peran) wajib menampilkan modal konfirmasi bertipe `confirm` dengan tombol aksi merah sebelum request API dijalankan.
+
+---
+
+## 5. Aturan Manajemen Pengguna & Peran Dinamis (Baru)
+- **Otorisasi via `roleId`**: Form penambahan dan pengeditan pengguna mengirimkan `roleId` (ID peran di database), bukan string enum peran.
+- **Pemuatan Peran Dinamis**: Dropdown pilihan peran di `/admin/users` dimuat langsung dari `GET /api/admin/roles` (`fetchAdminRoles()`), tidak pernah di-hardcode di kode frontend.
+- **Identifikasi Masukan Otomatis**: Label input identitas menyesuaikan peran yang dipilih: `Nomor Induk Mahasiswa (NIM)` untuk kode peran `MAHASISWA`, `NIDN / NUP` untuk kode `DOSEN`, dan `Username` untuk peran lainnya.
+- **Badge Warna Dinamis**: Penanda badge peran pada tabel pengguna menggunakan helper `badgeForRole(code)` yang menghasilkan warna konsisten secara deterministik untuk peran kustom maupun sistem.
+- **Proteksi Penguncian Diri**: Super Administrator dicegah dari menurunkan perannya sendiri (`SUPERADMIN`) saat mengedit profil akun sendiri untuk mencegah kehilangan akses panel secara permanen.
+- **Peran Kustom oleh Superadmin**: Super Administrator dapat membuat peran kustom di `/admin/roles` dan mengatur izin fitur serta izin masuk aplikasi (`<clientId>:masuk_*`) di `/admin/permissions`, lalu menautkan peran tersebut ke pengguna di `/admin/users`. Peran admin per-aplikasi kaku telah dihapus dari sistem.

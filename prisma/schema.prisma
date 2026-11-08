@@ -8,18 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum UserRole {
-  SUPERADMIN
-  DOSEN
-  MAHASISWA
-  ADMIN_SSO
-  ADMIN_LPM
-  ADMIN_LPPM
-  ADMIN_ESURAT
-  ADMIN_SARPRAS
-  ADMIN_AKREDITASI
-  ADMIN_LMS
-}
 
 // 1. MASTER PENGGUNA SSO
 model User {
@@ -29,7 +17,6 @@ model User {
   nama        String
   email       String?        @unique
   noHp        String?
-  role        UserRole       @default(MAHASISWA)
   roleId      Int?
   roleRef     Role?          @relation(fields: [roleId], references: [id], onDelete: SetNull)
   nim         String?        // Khusus Mahasiswa
@@ -49,7 +36,7 @@ model User {
   @@index([nim])
   @@index([nidn])
   // Dashboard admin menghitung user per role & memfilter akun aktif.
-  @@index([role, isActive])
+  @@index([roleId, isActive])
   // Filter daftar pengguna per program studi.
   @@index([prodi])
   @@map("users")

@@ -84,100 +84,48 @@ export function semuaKunciIzinMasuk(clientId: string): string[] {
 }
 
 /**
- * Tingkat masuk DEFAULT untuk tiap peran sistem pada setiap aplikasi.
+ * Tingkat masuk yang melekat pada peran sistem saat penyemaian awal.
  *
- * Ini hanya cetak biru penyemaian awal; sekali baris `role_permissions`
- * terbentuk, administrator dapat mengubah pemetaannya lewat halaman
- * Peran & Izin tanpa menyentuh kode.
+ * Peran aplikasi (`ADMIN_LMS`, `ADMIN_LPPM`, dst.) sudah dihapus. Daftar peran
+ * kini sepenuhnya dikelola Superadmin lewat panel Peran & Izin, sehingga peran
+ * khusus sebuah aplikasi dibuat sebagai peran biasa dan cukup diberi izin
+ * masuk `<clientId>:masuk_admin` — tanpa perlu menambah nilai enum di kode.
  *
- * Aturannya:
- *  - SUPERADMIN / ADMIN_SSO : masuk sebagai apa pun di semua aplikasi.
- *  - ADMIN_<APP>            : masuk sebagai admin HANYA di aplikasinya sendiri.
- *  - DOSEN                  : masuk sebagai dosen di semua aplikasi.
- *  - MAHASISWA              : masuk sebagai mahasiswa di semua aplikasi.
+ * Peta ini hanya cetak biru penyemaian: peran yang kode-nya tidak ada di sini
+ * (semua peran buatan Superadmin) tidak mendapat izin apa pun secara otomatis.
+ *
+ *  - SUPERADMIN : administrator platform, masuk sebagai admin di semua aplikasi.
+ *  - ADMIN_SSO  : pengelola portal, juga masuk sebagai admin di semua aplikasi.
+ *  - DOSEN      : masuk sebagai dosen di semua aplikasi.
+ *  - MAHASISWA  : masuk sebagai mahasiswa di semua aplikasi.
  */
 export const IZIN_MASUK_BAWAAN: Record<string, readonly TingkatMasuk[]> = {
   SUPERADMIN: ["admin", "dosen", "mahasiswa"],
   ADMIN_SSO: ["admin", "dosen", "mahasiswa"],
   DOSEN: ["dosen"],
   MAHASISWA: ["mahasiswa"],
-  ADMIN_LMS: ["admin"],
-  ADMIN_LPPM: ["admin"],
-  ADMIN_LPM: ["admin"],
-  ADMIN_ESURAT: ["admin"],
-  ADMIN_SARPRAS: ["admin"],
-  ADMIN_AKREDITASI: ["admin"],
-  ADMIN_PRODI: ["admin"],
 };
 
 /**
- * Tingkat masuk yang diberikan sebuah peran pada aplikasi tertentu.
+ * Tingkat masuk bawaan sebuah peran.
  *
- * `clientId` diperlukan agar `ADMIN_LPPM` hanya menjadi administrator di
- * `lppm-unusu`, bukan di semua aplikasi.
+ * `clientId` sengaja TIDAK dipakai lagi untuk menyaring: dulu dipakai agar
+ * `ADMIN_<APP>` hanya berwenang atas aplikasinya sendiri, tetapi peran aplikasi
+ * sudah tidak ada. Pembatasan sekarang dilakukan dengan memilih izin mana yang
+ * diberikan kepada sebuah peran.
  */
-export function tingkatMasukBawaan(kodePeran: string, clientId: string): TingkatMasuk[] {
-  const tingkat = IZIN_MASUK_BAWAAN[kodePeran];
-  if (!tingkat) return [];
-
-  // ADMIN_<APP> hanya berwenang atas aplikasinya sendiri.
-  if (/^ADMIN_/.test(kodePeran) && kodePeran !== "ADMIN_SSO") {
-    return peranMengelola(kodePeran, clientId) ? [...tingkat] : [];
-  }
-
-  return [...tingkat];
+export function tingkatMasukBawaan(kodePeran: string): TingkatMasuk[] {
+  return [...(IZIN_MASUK_BAWAAN[kodePeran] ?? [])];
 }
 
 /**
- * Kata kunci penghubung antara kode peran administrator dan clientId aplikasi.
+ * Menerjemahkan peran menjadi tingkat izin masuk.
  *
- * Tidak memakai pencocokan awalan karena nama peran dan nama aplikasi tidak
- * selalu sejajar: `ADMIN_LMS` berpasangan dengan `unusu-lms`, `ADMIN_SARPRAS`
- * dengan `sdm-sarpras-unusu`, dan `ADMIN_AKREDITASI` dengan
- * `unusu-akreditasi`.
- */
-const KATA_KUNCI_PERAN_APP: Record<string, string[]> = {
-  ADMIN_LMS: ["lms"],
-  ADMIN_LPPM: ["lppm"],
-  ADMIN_LPM: ["lpm"],
-  ADMIN_ESURAT: ["esurat"],
-  ADMIN_SARPRAS: ["sarpras"],
-  ADMIN_AKREDITASI: ["akreditasi"],
-  ADMIN_PRODI: ["prodi"],
-};
-
-/**
- * Apakah peran administrator ini mengelola aplikasi `clientId`?
- *
- * Dicocokkan per kata agar `ADMIN_LPM` tidak dianggap mengelola `lppm-unusu`
- * (karena "lpm" adalah bagian dari "lppm").
- */
-export function peranMengelola(kodePeran: string, clientId: string): boolean {
-  const kataKunci = KATA_KUNCI_PERAN_APP[kodePeran];
-  if (!kataKunci) return false;
-
-  // "sdm-sarpras-unusu" → ["sdm", "sarpras", "unusu"]
-  const kataApp = clientId.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-
-  return kataKunci.some((kunci) => kataApp.includes(kunci));
-}
-
-/**
- * Daftar aplikasi cabang yang izin masuknya ikut di-seed.
- *
- * `clientId` HARUS sama dengan kolom `sso_apps.clientId` supaya kunci izin
- * dapat diturunkan kembali dari registry aplikasi (lihat `kunciIzinMasuk`).
- * Aplikasi baru yang didaftarkan lewat panel akan otomatis mendapat izin
- * masuknya karena disinkronkan dari tabel `sso_apps`, bukan dari daftar ini.
- */
-/**
- * Menerjemahkan peran ONE UNUSU lama menjadi tingkat izin masuk.
- *
- * Hanya dipakai sebagai rujukan dokumentasi. Keputusan akses selalu dibaca
- * dari tabel `role_permissions`, bukan dari pemetaan ini.
+ * Hanya rujukan dokumentasi. Keputusan akses selalu dibaca dari tabel
+ * `role_permissions`, bukan dari pemetaan ini.
  */
 export function tingkatDariPeran(kodePeran: string): TingkatMasuk[] {
-  return tingkatMasukBawaan(kodePeran, "semua-aplikasi");
+  return tingkatMasukBawaan(kodePeran);
 }
 
 const ALL_PERMISSIONS = "ALL" as const;
@@ -204,97 +152,6 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     description: "Administrator panel SSO dan master data kampus.",
     isSystem: true,
     permissionKeys: ALL_PERMISSIONS,
-  },
-  {
-    code: "ADMIN_LPM",
-    name: "Administrator LPM",
-    description: "Administrator khusus Lembaga Penjaminan Mutu Internal.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_LPPM",
-    name: "Administrator LPPM",
-    description: "Administrator khusus Lembaga Penelitian & Pengabdian Masyarakat.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_ESURAT",
-    name: "Administrator E-Surat",
-    description: "Administrator khusus Tata Naskah Dinas & Persuratan Digital.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_SARPRAS",
-    name: "Administrator Sarpras",
-    description: "Administrator khusus Sarana, Prasarana & Kepegawaian.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_AKREDITASI",
-    name: "Administrator Akreditasi",
-    description: "Administrator khusus instrumen dan penilaian akreditasi.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_LMS",
-    name: "Administrator LMS",
-    description: "Administrator khusus platform perkuliahan dan kelas daring.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
-  },
-  {
-    code: "ADMIN_PRODI",
-    name: "Administrator Prodi",
-    description: "Administrator khusus portal program studi.",
-    isSystem: true,
-    permissionKeys: [
-      "dashboard:menu",
-      "dashboard:view",
-      "profile:menu",
-      "profile:view",
-      "profile:edit",
-    ],
   },
   {
     code: "DOSEN",
@@ -447,7 +304,7 @@ async function syncIzinMasukAplikasi(prisma: PrismaClient): Promise<void> {
       // Peran ini sudah diatur administrator → jangan ditambah otomatis.
       if (peranSudahPunya.has(role.id)) continue;
 
-      for (const tingkat of tingkatMasukBawaan(role.code, app.clientId)) {
+      for (const tingkat of tingkatMasukBawaan(role.code)) {
         const permissionId = permissionIdByTingkat.get(tingkat);
         if (permissionId) data.push({ roleId: role.id, permissionId });
       }
@@ -460,22 +317,27 @@ async function syncIzinMasukAplikasi(prisma: PrismaClient): Promise<void> {
 }
 
 /**
- * Menyamakan `User.roleId` dengan peran sistem yang sesuai `User.role`.
- * Diperlukan karena semua otorisasi membaca izin lewat relasi role, bukan
- * lewat kolom enum `role`.
+ * Memberi setiap pengguna peran bawaan bila belum punya peran sama sekali.
+ *
+ * Tanpa peran, pengguna tidak memegang izin apa pun dan tidak dapat membuka
+ * satu aplikasi pun. Penautan peran berikutnya dilakukan Superadmin lewat
+ * panel Manajemen Pengguna; fungsi ini hanya mencegah akun yatim, tidak pernah
+ * mengubah peran yang sudah ditautkan.
  */
 async function syncUserRoles(prisma: PrismaClient): Promise<void> {
   const roles = await prisma.role.findMany({ select: { id: true, code: true } });
   const roleIdByCode = new Map(roles.map((role) => [role.code, role.id]));
 
-  const users = await prisma.user.findMany({ select: { id: true, role: true, roleId: true } });
+  const penggunaTanpaPeran = await prisma.user.findMany({
+    where: { roleId: null },
+    select: { id: true, nim: true, nidn: true },
+  });
 
-  for (const user of users) {
-    const targetRoleId = roleIdByCode.get(user.role);
-
-    if (!targetRoleId || user.roleId === targetRoleId) {
-      continue;
-    }
+  for (const user of penggunaTanpaPeran) {
+    // NIM menandai mahasiswa, NIDN menandai dosen; sisanya akun staf.
+    const kode = user.nim ? "MAHASISWA" : user.nidn ? "DOSEN" : "MAHASISWA";
+    const targetRoleId = roleIdByCode.get(kode);
+    if (!targetRoleId) continue;
 
     await prisma.user.update({ where: { id: user.id }, data: { roleId: targetRoleId } });
   }

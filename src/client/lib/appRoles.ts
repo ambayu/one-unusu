@@ -1,33 +1,21 @@
 export const APP_ROLES = [
   'SUPERADMIN',
   'ADMIN_SSO',
-  'ADMIN_LPM',
-  'ADMIN_LPPM',
-  'ADMIN_ESURAT',
-  'ADMIN_SARPRAS',
-  'ADMIN_AKREDITASI',
-  'ADMIN_LMS',
   'DOSEN',
   'MAHASISWA',
 ] as const;
 
-export type AppRole = (typeof APP_ROLES)[number];
+export type AppRole = (typeof APP_ROLES)[number] | string;
 
-export const ROLE_LABEL: Record<AppRole, string> = {
+export const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: 'Superadmin',
   ADMIN_SSO: 'Admin ONE UNUSU',
-  ADMIN_LPM: 'Admin LPM',
-  ADMIN_LPPM: 'Admin LPPM',
-  ADMIN_ESURAT: 'Admin E-Surat',
-  ADMIN_SARPRAS: 'Admin Sarpras',
-  ADMIN_AKREDITASI: 'Admin Akreditasi',
-  ADMIN_LMS: 'Admin LMS',
   DOSEN: 'Dosen',
   MAHASISWA: 'Mahasiswa',
 };
 
-export function isAppRole(value: unknown): value is AppRole {
-  return typeof value === 'string' && (APP_ROLES as readonly string[]).includes(value);
+export function isAppRole(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Z][A-Z0-9_]{1,49}$/.test(value);
 }
 
 /**

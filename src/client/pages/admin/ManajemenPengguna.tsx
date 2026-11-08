@@ -20,6 +20,8 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  fetchAdminRoles,
+  RoleItem,
   UserProfile,
   UserRole,
 } from '../../services/api';
@@ -29,48 +31,76 @@ interface FeedbackMessage {
   text: string;
 }
 
-const ROLE_OPTIONS: UserRole[] = [
-  'SUPERADMIN',
-  'ADMIN_SSO',
-  'ADMIN_LPM',
-  'ADMIN_LPPM',
-  'ADMIN_ESURAT',
-  'ADMIN_SARPRAS',
-  'ADMIN_AKREDITASI',
-  'ADMIN_LMS',
-  'DOSEN',
-  'MAHASISWA',
-];
-
-const ROLE_BADGE: Record<UserRole, string> = {
+const ROLE_BADGE: Record<string, string> = {
   SUPERADMIN: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
   ADMIN_SSO: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  ADMIN_LPM: 'bg-blue-50 text-blue-800 border-blue-200',
-  ADMIN_LPPM: 'bg-purple-50 text-purple-800 border-purple-200',
-  ADMIN_ESURAT: 'bg-amber-50 text-amber-800 border-amber-200',
-  ADMIN_SARPRAS: 'bg-cyan-50 text-cyan-800 border-cyan-200',
-  ADMIN_AKREDITASI: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  ADMIN_LMS: 'bg-orange-50 text-orange-800 border-orange-200',
   DOSEN: 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]',
   MAHASISWA: 'bg-[#F1F5F2] text-[#475569] border-[#D8E5DC]',
 };
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  SUPERADMIN: 'Superadmin',
-  ADMIN_SSO: 'Admin SSO',
-  ADMIN_LPM: 'Admin LPM',
-  ADMIN_LPPM: 'Admin LPPM',
-  ADMIN_ESURAT: 'Admin E-Surat',
-  ADMIN_SARPRAS: 'Admin Sarpras',
-  ADMIN_AKREDITASI: 'Admin Akreditasi',
-  ADMIN_LMS: 'Admin LMS',
-  DOSEN: 'Dosen',
-  MAHASISWA: 'Mahasiswa',
-};
+/**
+ * Warna lencana untuk peran buatan Superadmin.
+ *
+ * Peran kustom tidak punya warna tetap di kode, jadi dipilih deterministik dari
+ * kodenya agar satu peran selalu tampil dengan warna yang sama.
+ */
+const BADGE_PALETTE = [
+  'bg-blue-50 text-blue-800 border-blue-200',
+  'bg-purple-50 text-purple-800 border-purple-200',
+  'bg-amber-50 text-amber-800 border-amber-200',
+  'bg-cyan-50 text-cyan-800 border-cyan-200',
+  'bg-indigo-50 text-indigo-800 border-indigo-200',
+  'bg-orange-50 text-orange-800 border-orange-200',
+];
+
+function badgeForRole(code: string): string {
+  const tetap = ROLE_BADGE[code];
+  if (tetap) return tetap;
+
+  let hash = 0;
+  for (let i = 0; i < code.length; i += 1) {
+    hash = (hash * 31 + code.charCodeAt(i)) % BADGE_PALETTE.length;
+  }
+  return BADGE_PALETTE[hash];
+}
 
 export const ManajemenPengguna: React.FC = () => {
   const { currentUser, stats, users, loading, reload } = useAdminData();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Peran dimuat dari database: Superadmin dapat membuat peran baru kapan saja,
+  // jadi daftar tetap di kode akan selalu tertinggal.
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    fetchAdminRoles()
+      .then((res) => {
+        if (!cancelled && res.data?.data) setRoles(res.data.data);
+      })
+      .catch(() => {
+        if (!cancelled) setMessage({ type: 'error', text: 'Gagal memuat daftar peran.' });
+      })
+      .finally(() => {
+        if (!cancelled) setRolesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const ROLE_OPTIONS = React.useMemo<UserRole[]>(
+    () => roles.map((role) => role.code),
+    [roles]
+  );
+
+  const ROLE_LABEL = React.useMemo<Record<string, string>>(
+    () => Object.fromEntries(roles.map((role) => [role.code, role.name])),
+    [roles]
+  );
 
   const roleParam = searchParams.get('role');
   const validRoleFilter: 'ALL' | UserRole =
@@ -148,7 +178,7 @@ export const ManajemenPengguna: React.FC = () => {
   };
 
   const [showModal, setShowModal] = useState(false);
-  const [newRole, setNewRole] = useState<UserRole>('MAHASISWA');
+  const [newRoleId, setNewRoleId] = useState<number | ''>('');
   const [newUsername, setNewUsername] = useState('');
   const [newNama, setNewNama] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -162,7 +192,7 @@ export const ManajemenPengguna: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [editNama, setEditNama] = useState('');
-  const [editRole, setEditRole] = useState<UserRole>('MAHASISWA');
+  const [editRoleId, setEditRoleId] = useState<number | ''>('');
   const [editEmail, setEditEmail] = useState('');
   const [editNoHp, setEditNoHp] = useState('');
   const [editProdi, setEditProdi] = useState('');
@@ -196,7 +226,8 @@ export const ManajemenPengguna: React.FC = () => {
   }, [users, search, filterRole, filterStatus]);
 
   const openModal = () => {
-    setNewRole('MAHASISWA');
+    const defaultRole = roles.find((r) => r.code === 'MAHASISWA') || roles[0];
+    setNewRoleId(defaultRole ? defaultRole.id : '');
     setNewUsername('');
     setNewNama('');
     setNewPassword('');
@@ -210,13 +241,18 @@ export const ManajemenPengguna: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    if (newRoleId === '') {
+      setMessage({ type: 'error', text: 'Silakan pilih peran pengguna terlebih dahulu.' });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const res = await createAdminUser({
         username: newUsername,
         password: newPassword,
         nama: newNama,
-        role: newRole,
+        roleId: Number(newRoleId),
         email: newEmail || null,
         noHp: newNoHp || null,
         prodi: newProdi || null,
@@ -244,7 +280,10 @@ export const ManajemenPengguna: React.FC = () => {
   const handleOpenEdit = (user: UserProfile) => {
     setEditingUser(user);
     setEditNama(user.nama);
-    setEditRole(user.role);
+    const matchedRole = user.roleId
+      ? roles.find((r) => r.id === user.roleId)
+      : roles.find((r) => r.code === user.role);
+    setEditRoleId(matchedRole ? matchedRole.id : (user.roleId ?? ''));
     setEditEmail(user.email || '');
     setEditNoHp(user.noHp || '');
     setEditProdi(user.prodi || '');
@@ -262,7 +301,7 @@ export const ManajemenPengguna: React.FC = () => {
       setIsUpdating(true);
       const payload: Partial<UserProfile> & { password?: string } = {
         nama: editNama.trim(),
-        role: editRole,
+        roleId: editRoleId === '' ? undefined : Number(editRoleId),
         email: editEmail.trim() || undefined,
         noHp: editNoHp.trim() || undefined,
         prodi: editProdi.trim() || undefined,
@@ -691,7 +730,7 @@ export const ManajemenPengguna: React.FC = () => {
                     <td className="py-3 px-4 font-semibold text-[#1E293B]">{user.nama}</td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${ROLE_BADGE[user.role]}`}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(user.role)}`}
                       >
                         {ROLE_LABEL[user.role] ?? user.role}
                       </span>
@@ -762,13 +801,15 @@ export const ManajemenPengguna: React.FC = () => {
               <div>
                 <label className="block font-semibold text-[#475569] mb-1">Peran (Role)</label>
                 <select
-                  value={newRole}
-                  onChange={(event) => setNewRole(event.target.value as UserRole)}
+                  value={newRoleId}
+                  onChange={(event) => setNewRoleId(event.target.value ? Number(event.target.value) : '')}
+                  required
                   className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
                 >
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
+                  <option value="" disabled>-- Pilih Peran --</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name} ({role.code})
                     </option>
                   ))}
                 </select>
@@ -776,7 +817,14 @@ export const ManajemenPengguna: React.FC = () => {
 
               <div>
                 <label className="block font-semibold text-[#475569] mb-1">
-                  {newRole === 'MAHASISWA' ? 'Nomor Induk Mahasiswa (NIM)' : newRole === 'DOSEN' ? 'NIDN / NUP' : 'Username'}
+                  {(() => {
+                    const code = roles.find((r) => r.id === Number(newRoleId))?.code;
+                    return code === 'MAHASISWA'
+                      ? 'Nomor Induk Mahasiswa (NIM)'
+                      : code === 'DOSEN'
+                      ? 'NIDN / NUP'
+                      : 'Username';
+                  })()}
                 </label>
                 <input
                   type="text"
@@ -909,13 +957,15 @@ export const ManajemenPengguna: React.FC = () => {
               <div>
                 <label className="block font-semibold text-[#475569] mb-1">Peran (Role)</label>
                 <select
-                  value={editRole}
-                  onChange={(event) => setEditRole(event.target.value as UserRole)}
+                  value={editRoleId}
+                  onChange={(event) => setEditRoleId(event.target.value ? Number(event.target.value) : '')}
+                  required
                   className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
                 >
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABEL[role]} ({role})
+                  <option value="" disabled>-- Pilih Peran --</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name} ({role.code})
                     </option>
                   ))}
                 </select>

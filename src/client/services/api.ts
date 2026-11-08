@@ -62,17 +62,17 @@ api.interceptors.response.use(
   }
 );
 
-export type UserRole =
-  | 'SUPERADMIN'
-  | 'ADMIN_SSO'
-  | 'ADMIN_LPM'
-  | 'ADMIN_LPPM'
-  | 'ADMIN_ESURAT'
-  | 'ADMIN_SARPRAS'
-  | 'ADMIN_AKREDITASI'
-  | 'ADMIN_LMS'
-  | 'DOSEN'
-  | 'MAHASISWA';
+/**
+ * Kode peran pengguna.
+ *
+ * Bukan lagi daftar tertutup: peran dibuat Superadmin di panel Peran & Izin,
+ * sehingga kodenya bisa bertambah tanpa mengubah aplikasi. Konstanta di sini
+ * hanya peran sistem yang dibutuhkan kode untuk keputusan tampilan.
+ */
+export type UserRole = string;
+
+/** Peran yang dibutuhkan kode klien untuk keputusan tampilan. */
+export const SUPERADMIN_ROLE = 'SUPERADMIN';
 
 export interface UserProfile {
   id: number;
@@ -80,7 +80,10 @@ export interface UserProfile {
   nama: string;
   email?: string | null;
   noHp?: string | null;
+  /** Kode peran hasil join `roleId` → `roles.code` (hanya baca). */
   role: UserRole;
+  /** Peran yang ditautkan; inilah yang dikirim saat membuat/mengubah pengguna. */
+  roleId?: number | null;
   nim?: string | null;
   nidn?: string | null;
   fakultas?: string | null;
@@ -223,10 +226,10 @@ export const fetchAdminStats = () =>
 export const fetchAdminUsers = () =>
   api.get<{ status: boolean; data: UserProfile[] }>('/admin/users');
 
-export const createAdminUser = (data: Partial<UserProfile> & { password: string }) =>
+export const createAdminUser = (data: Omit<Partial<UserProfile>, 'role'> & { password: string; roleId: number }) =>
   api.post<{ status: boolean; message: string; data: UserProfile }>('/admin/users', data);
 
-export const updateAdminUser = (id: number, data: Partial<UserProfile> & { password?: string }) =>
+export const updateAdminUser = (id: number, data: Omit<Partial<UserProfile>, 'role'> & { password?: string }) =>
   api.put<{ status: boolean; message: string; data: UserProfile }>(`/admin/users/${id}`, data);
 
 export const deleteAdminUser = (id: number) =>

@@ -1,5 +1,25 @@
 # Changelog — Admin Panel
 
+## [2026-11-09] - Otorisasi Berbasis Izin Masuk Dinamis & Migrasi RoleId
+
+### Added
+- Migrasi database `20261109100200_backfill_user_roleid`: backfill `roleId` pengguna dari data enum lama, pelepasan kolom `users.role`, dan pembuatan indeks komposit `users(roleId, isActive)`.
+- Migrasi database `20261109100300_drop_application_admin_roles`: migrasi seluruh pengguna ber-peran admin cabang ke `SUPERADMIN` dan penghapusan 7 peran `ADMIN_<APP>` dari tabel `roles`.
+- Helper `badgeForRole(code)` di `ManajemenPengguna.tsx` dengan palet warna deterministik untuk peran kustom buatan Super Administrator.
+- Registrasi otomatis aplikasi Portal Prodi UNUSU (`prodi-unusu`) dan 14 website program studi ke direktori aplikasi non-SSO.
+
+### Changed
+- Refaktor `ManajemenPengguna.tsx`: pemuatan daftar peran kini dinamis via API `GET /api/admin/roles` (`fetchAdminRoles()`); pembuatan dan pengeditan pengguna mengirimkan `roleId`.
+- Label input identifier pada formulir tambah akun berubah secara dinamis (NIM untuk Mahasiswa, NIDN untuk Dosen, Username untuk peran lainnya).
+- Otorisasi pintu masuk aplikasi cabang beralih sepenuhnya ke izin masuk standar `<clientId>:masuk_*` (`masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`) via fungsi `decideAppAccess()`.
+- Super Administrator dan Admin SSO otomatis memiliki seluruh izin masuk ke semua aplikasi cabang.
+- `seed.ts` diperbarui: akun bawaan hanya `admin` (`SUPERADMIN`) dan `admin_sso` (`ADMIN_SSO`). Penautan pengguna dilakukan sesudah penyiapan peran (`roleId`).
+
+### Removed
+- Kolom enum `users.role` pada schema database dan TypeScript.
+- Definisi peran kaku per aplikasi (`ADMIN_LPM`, `ADMIN_LPPM`, `ADMIN_ESURAT`, `ADMIN_SARPRAS`, `ADMIN_AKREDITASI`, `ADMIN_LMS`, `ADMIN_PRODI`).
+- Pemfilteran peran hardcoded (`ROLE_OPTIONS`, `ROLE_LABEL`, `APP_ROLES`) yang sebelumnya membatasi pengelolaan peran.
+
 ## [2026-10-30] - Seeder Direktori Non-SSO
 
 ### Added

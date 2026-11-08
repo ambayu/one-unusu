@@ -56,15 +56,28 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - `SUPERADMIN`: Menampilkan Username, Unit Kerja PUSTIK, hak akses Root SSO, dan tab Registry SSO Apps & Civitas User Management.
 4. **SSO Ticket Protocol**: Otorisasi ke aplikasi turunan (LMS, SIAKAD, dsb) wajib menggunakan `GET /api/sso/app-client/:clientId/v2/redirect`. Endpoint ini menerbitkan token acak 64 karakter, single-use, berlaku 5 menit, dan disimpan di tabel `sso_auth_tokens`. Verifikasi dilakukan server-ke-server melalui `POST /api/v2/website/verify-token` dengan `client_id`, `client_key`, dan `token`.
 
-### 4.1 Aturan Otorisasi Aplikasi Cabang (Mandatory)
+### 4.1 Aturan Otorisasi Aplikasi Cabang & Model Peran (Permission-First, Mandatory)
 
-Otorisasi akses ke aplikasi cabang memakai **dua lapis terpisah tanpa tabel perantara**. Allowlist per pengguna (`user_app_accesses` / model `UserAppAccess`) **sudah dihapus** dan **dilarang dihidupkan kembali**.
+Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First via `<clientId>:masuk_*`**.
 
-1. **Lapis Portal â€” `sso_apps.targetRoles`**: Satu-satunya sumber kebenaran di ONE UNUSU. Server membandingkan `User.role` dengan array JSON `SsoApp.targetRoles` (`evaluateRoleAccess()`), lalu memakainya untuk katalog aplikasi (`GET /api/sso/apps`), navigasi pasca-login (`GET /api/auth/panel-access`), penerbitan tiket (`GET /api/sso/app-client/:clientId/v2/redirect`), dan verifikasi token (`POST /api/v2/website/verify-token`). Dilarang menambah tabel allowlist, kolom kunci per pengguna, atau endpoint `app-access` baru.
-2. **Lapis Aplikasi Cabang â€” `ALLOWED_SSO_ROLES`**: Setiap aplikasi cabang (`unusu-lms`, `lpm-unusu`, `lppm-unusu`, `esurat-unusu`, `unusu-akreditasi`, `unusu-sarpras`) **wajib** memvalidasi ulang `ssoUser.role` pada `POST /api/auth/sso` dan menolak peran di luar daftar dengan HTTP `403`. Peran admin aplikasi lain wajib ditolak secara eksplisit (contoh pola: `FOREIGN_APP_ADMIN_ROLES` di `lppm-unusu`), agar admin unit tidak masuk ke panel unit lain.
-3. **Konsistensi Dua Lapis**: Menambah atau mencabut peran pada `targetRoles` **wajib** disertai penyesuaian `ALLOWED_SSO_ROLES` di aplikasi cabang terkait. Ketidaksesuaian menyebabkan ikon tampil tetapi login ditolak (atau sebaliknya), sehingga dianggap bug, bukan konfigurasi.
-4. **Isolasi Admin Unit**: Pembatasan admin unit ke aplikasinya sendiri **bukan** tugas portal, melainkan tugas aplikasi cabang lewat lapis ke-2. Portal tetap mengizinkan `SUPERADMIN` dan `ADMIN_SSO` pada seluruh aplikasi.
-5. **Fail-Closed**: `targetRoles` yang bukan JSON array peran yang dikenal harus menolak akses (`invalid-config`), tidak pernah membuka akses.
+1. **Model Peran Pengguna Dinamis (`users.roleId`)**:
+   - Kolom enum `users.role` **sudah dihapus** (migrasi `20261109100200_backfill_user_roleid`).
+   - Penautan peran civitas dilakukan melalui relasi foreign key `users.roleId` ke tabel `roles`.
+   - Peran admin cabang kaku (`ADMIN_LPM`, `ADMIN_LPPM`, `ADMIN_ESURAT`, `ADMIN_SARPRAS`, `ADMIN_AKREDITASI`, `ADMIN_LMS`, `ADMIN_PRODI`) **sudah dihapus** (migrasi `20261109100300_drop_application_admin_roles`).
+   - Platform hanya menyemai 4 peran bawaan sistem: `SUPERADMIN`, `ADMIN_SSO`, `DOSEN`, dan `MAHASISWA`.
+   - Peran kustom untuk unit/fakultas/staf dibuat secara dinamis oleh Super Administrator melalui panel **Peran & Izin** (`/admin/roles`), kemudian ditautkan ke civitas pada panel **Manajemen Pengguna** (`/admin/users`).
+2. **Kunci Izin Masuk Standar (`<clientId>:masuk_*`)**:
+   - Setiap aplikasi cabang di `sso_apps` memiliki 3 kunci izin masuk: `<clientId>:masuk_admin`, `<clientId>:masuk_dosen`, dan `<clientId>:masuk_mahasiswa`.
+   - Keputusan izin masuk dihitung oleh fungsi `decideAppAccess(permissionKeys, clientId)`.
+   - `SUPERADMIN` dan `ADMIN_SSO` secara bawaan memegang seluruh izin masuk ke semua aplikasi cabang, sehingga dapat masuk ke aplikasi mana pun.
+3. **Pemberian Hak Akses di Portal**:
+   - Super Administrator mengatur hak masuk aplikasi maupun hak fitur per sub-menu dengan menghubungkan permission ke role pada tabel `role_permissions`.
+   - Tiket SSO (`POST /api/v2/website/verify-token`) mengirimkan data `access: { allowed, tingkat, permissions }` serta `user.role` (berasal dari `roleRef.code`).
+4. **Validasi Berbasis Permission di Aplikasi Cabang**:
+   - Aplikasi cabang **DILARANG mengecek nama peran mentah (`role === 'ADMIN_...'`)** untuk otorisasi.
+   - Pintu masuk cabang memeriksa `data.access.allowed` dan `data.access.tingkat` (apakah memuat `admin`, `dosen`, atau `mahasiswa`).
+   - Otorisasi fitur per sub-menu menegakkan izin fitur (contoh: `lppm:penelitian:create`, `sarpras:aset:delete`, dsb.) yang diteruskan oleh token SSO.
+5. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran (`roleId === null`) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
 
 ---
 

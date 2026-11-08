@@ -8,13 +8,14 @@ import path from "path";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import {
   TINGKAT_MASUK,
   kunciIzinMasuk,
   tingkatMasukBawaan,
   type TingkatMasuk
 } from "./lib/accessControl.js";
+import { buildSsoAppDefinitions, seedSsoApps } from "./lib/ssoApps.js";
 
 dotenv.config();
 
@@ -217,7 +218,8 @@ interface AuthRequest extends Request {
   user?: {
     id: number;
     username: string;
-    role: UserRole;
+    /** Kode peran (`users.roleId` → `roles.code`), mis. "SUPERADMIN". */
+    role: string;
     nama: string;
   };
 }
@@ -290,7 +292,6 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,40}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\-\s()]{8,20}$/;
-const ALLOWED_ROLES: UserRole[] = Object.values(UserRole);
 const MAX_IMAGE_LENGTH = 8 * 1024 * 1024; // ± 6 MB biner setelah decode base64
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -339,11 +340,12 @@ function logServerError(context: string, error: unknown): void {
   console.error(`[${new Date().toISOString()}] ${context}: ${detail}`);
 }
 
-const ALLOWED_ROLE_SET = new Set<string>(ALLOWED_ROLES);
-
 /**
- * Menormalkan daftar peran target menjadi JSON array yang hanya berisi peran
- * yang dikenal sistem. Mengembalikan null bila format tidak valid.
+ * Menormalkan daftar peran target menjadi JSON array.
+ *
+ * Sejak peran dikelola Superadmin di database, daftar peran tidak lagi berupa
+ * enum di kode. Validasi ke tabel `roles` dilakukan di pemanggil; di sini
+ * cukup memastikan bentuknya array string yang wajar.
  */
 function normalizeTargetRoles(value: unknown): string | null {
   let list: unknown = value;
@@ -362,7 +364,7 @@ function normalizeTargetRoles(value: unknown): string | null {
 
   const roles: string[] = [];
   for (const item of list) {
-    if (typeof item !== "string" || !ALLOWED_ROLE_SET.has(item)) {
+    if (typeof item !== "string" || !/^[A-Z][A-Z0-9_]{1,49}$/.test(item)) {
       return null;
     }
     roles.push(item);
@@ -398,6 +400,21 @@ async function getUserPermissionKeys(userId: number): Promise<string[]> {
 }
 
 /**
+ * Kode peran pengguna, dibaca dari `users.roleId` → `roles.code`.
+ *
+ * Satu-satunya sumber peran sejak enum `UserRole` dihapus. Nilai `null`
+ * berarti pengguna belum ditautkan ke peran mana pun.
+ */
+async function getUserRoleCode(userId: number): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { roleRef: { select: { code: true } } },
+  });
+
+  return user?.roleRef?.code ?? null;
+}
+
+/**
  * Boleh atau tidaknya pengguna melihat `clientKey` aplikasi SSO.
  *
  * `clientKey` adalah rahasia server-to-server untuk memvalidasi tiket antar
@@ -411,7 +428,6 @@ async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
   if (!user) return false;
 
   if (user.role !== "SUPERADMIN" && user.role !== "ADMIN_SSO") return false;
-
   const keys = await getUserPermissionKeys(user.id);
   return keys.includes("application:edit");
 }
@@ -499,7 +515,7 @@ async function siapkanIzinMasukAplikasi(
 
   const data: { roleId: number; permissionId: number }[] = [];
   for (const role of roles) {
-    for (const tingkat of tingkatMasukBawaan(role.code, clientId)) {
+    for (const tingkat of tingkatMasukBawaan(role.code)) {
       if (!tingkatDiminta.includes(tingkat)) continue;
       const permissionId = permissionIdByTingkat.get(tingkat);
       if (permissionId) data.push({ roleId: role.id, permissionId });
@@ -707,7 +723,8 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
           { nim: trimmedIdentifier },
           { nidn: trimmedIdentifier }
         ]
-      }
+      },
+      include: { roleRef: { select: { code: true } } }
     });
 
     if (!user) {
@@ -735,12 +752,23 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       });
     }
 
+    // Tanpa peran, pengguna tidak memegang izin apa pun. Tolak lebih awal
+    // dengan pesan yang jelas daripada membiarkan mereka masuk lalu gagal di
+    // setiap halaman karena setiap pemeriksaan izin akan menolak.
+    const roleCode = user.roleRef?.code ?? null;
+    if (!roleCode) {
+      return res.status(403).json({
+        status: false,
+        message: "Akun Anda belum ditautkan ke peran. Hubungi Administrator ONE UNUSU."
+      });
+    }
+
     // Generate JWT Session Token (Berlaku 1 hari)
     const token = jwt.sign(
       {
         id: user.id,
         username: user.username,
-        role: user.role,
+        role: roleCode,
         nama: user.nama
       },
       JWT_SECRET as string,
@@ -762,7 +790,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
         username: user.username,
         nama: user.nama,
         email: user.email,
-        role: user.role,
+        role: roleCode,
         nim: user.nim,
         nidn: user.nidn,
         fakultas: user.fakultas,
@@ -795,7 +823,7 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
         nama: true,
         email: true,
         noHp: true,
-        role: true,
+        roleRef: { select: { code: true } },
         nim: true,
         nidn: true,
         fakultas: true,
@@ -813,7 +841,12 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
 
     const permissionKeys = await getUserPermissionKeys(user.id);
 
-    res.json({ status: true, data: { ...user, permissions: permissionKeys } });
+    const { roleRef, ...profil } = user;
+
+    res.json({
+      status: true,
+      data: { ...profil, role: roleRef?.code ?? null, permissions: permissionKeys },
+    });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal mengambil data profil pengguna." });
   }
@@ -830,7 +863,7 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, role: true, isActive: true }
+      select: { id: true, roleRef: { select: { code: true } }, isActive: true }
     });
 
     if (!user || !user.isActive) {
@@ -859,7 +892,7 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
     res.json({
       status: true,
       data: {
-        role: user.role,
+        role: user.roleRef?.code ?? null,
         permissions: permissionKeys,
         panel: canOpenAdminPanel ? "admin" : "dashboard",
         canOpenAdminPanel,
@@ -946,7 +979,7 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
         nama: true,
         email: true,
         noHp: true,
-        role: true,
+        roleRef: { select: { code: true } },
         nim: true,
         nidn: true,
         fakultas: true,
@@ -973,7 +1006,7 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
     // langsung berlaku walau token lama masih aktif.
     const currentUser = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, role: true, isActive: true }
+      select: { id: true, roleRef: { select: { code: true } }, isActive: true }
     });
 
     if (!currentUser || !currentUser.isActive) {
@@ -1036,7 +1069,7 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
     // Status akun dibaca dari database, bukan dari isi token.
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, isActive: true }
+      select: { id: true, roleRef: { select: { code: true } }, isActive: true }
     });
 
     if (!currentUser || !currentUser.isActive) {
@@ -1197,7 +1230,8 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
 
     // 5. Ambil Data Profil Pengguna Asli
     const user = await prisma.user.findUnique({
-      where: { id: authToken.userId }
+      where: { id: authToken.userId },
+      include: { roleRef: { select: { code: true } } }
     });
 
     if (!user || !user.isActive) {
@@ -1242,7 +1276,7 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
           nama: user.nama,
           email: user.email,
           noHp: user.noHp,
-          role: user.role,
+          role: user.roleRef?.code ?? "",
           nim: user.nim,
           nidn: user.nidn,
           fakultas: user.fakultas,
@@ -1280,8 +1314,9 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
 app.get("/api/admin/stats", authenticateToken, requireAnyPermission([...APP_ACCESS_PERMISSION_KEYS]), async (req: AuthRequest, res: Response) => {
   try {
     const totalUsers = await prisma.user.count();
-    const totalMahasiswa = await prisma.user.count({ where: { role: "MAHASISWA" } });
-    const totalDosen = await prisma.user.count({ where: { role: "DOSEN" } });
+    // Mahasiswa & dosen dikenali dari peran yang ditautkan, bukan dari enum.
+    const totalMahasiswa = await prisma.user.count({ where: { roleRef: { code: "MAHASISWA" } } });
+    const totalDosen = await prisma.user.count({ where: { roleRef: { code: "DOSEN" } } });
     const totalApps = await prisma.ssoApp.count();
     const totalTokens = await prisma.ssoAuthToken.count();
 
@@ -1310,7 +1345,7 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         nama: true,
         email: true,
         noHp: true,
-        role: true,
+        roleRef: { select: { code: true } },
         nim: true,
         nidn: true,
         fakultas: true,
@@ -1330,10 +1365,10 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
 app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const body = isPlainObject(req.body) ? req.body : {};
-    const { username, password, nama, email, noHp, role, nim, nidn, fakultas, prodi } = body;
+    const { username, password, nama, email, noHp, roleId, nim, nidn, fakultas, prodi } = body;
 
-    if (typeof username !== "string" || typeof password !== "string" || typeof nama !== "string" || typeof role !== "string") {
-      return res.status(400).json({ status: false, message: "Username/NIM/NIDN, password, nama, dan role wajib diisi." });
+    if (typeof username !== "string" || typeof password !== "string" || typeof nama !== "string" || roleId === undefined || roleId === null) {
+      return res.status(400).json({ status: false, message: "Username/NIM/NIDN, password, nama, dan peran wajib diisi." });
     }
 
     const trimmedUsername = username.trim();
@@ -1351,7 +1386,14 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
     if (password.length < 8 || password.length > 200) {
       return res.status(400).json({ status: false, message: "Password minimal 8 karakter." });
     }
-    if (!ALLOWED_ROLES.includes(role as UserRole)) {
+
+    // Peran divalidasi ke tabel `roles`, bukan ke daftar tetap di kode: peran
+    // kini dibuat Superadmin, jadi isinya bisa berubah tanpa mengubah server.
+    const peran = await prisma.role.findUnique({
+      where: { id: Number(roleId) },
+      select: { id: true, code: true },
+    });
+    if (!peran) {
       return res.status(400).json({ status: false, message: "Peran pengguna tidak valid." });
     }
 
@@ -1379,9 +1421,9 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
         nama: trimmedNama,
         email: typeof email === "string" && email.trim() ? email.trim() : null,
         noHp: typeof noHp === "string" && noHp.trim() ? noHp.trim() : null,
-        role: role as UserRole,
-        nim: role === "MAHASISWA" ? (typeof nim === "string" && nim.trim() ? nim.trim() : trimmedUsername) : null,
-        nidn: role === "DOSEN" ? (typeof nidn === "string" && nidn.trim() ? nidn.trim() : trimmedUsername) : null,
+        roleId: peran.id,
+        nim: peran.code === "MAHASISWA" ? (typeof nim === "string" && nim.trim() ? nim.trim() : trimmedUsername) : null,
+        nidn: peran.code === "DOSEN" ? (typeof nidn === "string" && nidn.trim() ? nidn.trim() : trimmedUsername) : null,
         fakultas: typeof fakultas === "string" && fakultas.trim() ? fakultas.trim() : null,
         prodi: typeof prodi === "string" && prodi.trim() ? prodi.trim() : null,
         isActive: true
@@ -1393,7 +1435,7 @@ app.post("/api/admin/users", authenticateToken, requirePermission("user:edit"), 
         nama: true,
         email: true,
         noHp: true,
-        role: true,
+        roleRef: { select: { code: true } },
         nim: true,
         nidn: true,
         fakultas: true,
@@ -1424,7 +1466,7 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
     }
 
     const body = isPlainObject(req.body) ? req.body : {};
-    const { nama, email, noHp, role, nim, nidn, fakultas, prodi, isActive, password } = body;
+    const { nama, email, noHp, roleId, nim, nidn, fakultas, prodi, isActive, password } = body;
 
     const updateData: any = {};
 
@@ -1435,15 +1477,24 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
       updateData.nama = nama.trim();
     }
 
-    if (role !== undefined) {
-      if (!ALLOWED_ROLES.includes(role as UserRole)) {
+    if (roleId !== undefined) {
+      const peran = await prisma.role.findUnique({
+        where: { id: Number(roleId) },
+        select: { id: true, code: true },
+      });
+      if (!peran) {
         return res.status(400).json({ status: false, message: "Peran pengguna tidak valid." });
       }
-      // Proteksi: jangan izinkan menurunkan peran SUPERADMIN bila diri sendiri
-      if (req.user?.id === userId && targetUser.role === "SUPERADMIN" && role !== "SUPERADMIN") {
+
+      // Proteksi: jangan izinkan menurunkan peran Superadmin pada akun sendiri,
+      // supaya tidak ada yang tanpa sengaja mengunci dirinya dari panel.
+      const peranSaatIni = targetUser.roleId
+        ? await getUserRoleCode(targetUser.id)
+        : null;
+      if (req.user?.id === userId && peranSaatIni === "SUPERADMIN" && peran.code !== "SUPERADMIN") {
         return res.status(400).json({ status: false, message: "Anda tidak dapat menurunkan peran Superadmin pada akun sendiri." });
       }
-      updateData.role = role as UserRole;
+      updateData.roleId = peran.id;
     }
 
     if (email !== undefined) {
@@ -1516,7 +1567,7 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
         nama: true,
         email: true,
         noHp: true,
-        role: true,
+        roleRef: { select: { code: true } },
         nim: true,
         nidn: true,
         fakultas: true,
@@ -1548,7 +1599,7 @@ app.delete("/api/admin/users/:id", authenticateToken, requirePermission("user:de
 
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, role: true }
+      select: { id: true, username: true, roleRef: { select: { code: true } } }
     });
 
     if (!targetUser) {
@@ -1602,134 +1653,19 @@ app.get("/api/admin/apps", authenticateToken, requirePermission("application:vie
 // POST /api/admin/apps/sync — Sinkronisasi registry aplikasi bawaan kampus & kunci admin
 app.post("/api/admin/apps/sync", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const rawBaseUrl = process.env.PUBLIC_BASE_URL || "http://localhost:5173";
-    const baseUrl = rawBaseUrl.replace(/\/+$/, "");
-
-    // Definisi standar aplikasi cabang terpadu UNUSU
-    const defaultApps = [
-      {
-        clientId: "unusu-lms",
-        clientKey: process.env.SSO_CLIENT_KEY_LMS_UNUSU || "lms_secret_key_unusu_2026_supersecure",
-        nameApp: "LMS UNUSU",
-        description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
-        icon: "GraduationCap",
-        badge: "Pembelajaran",
-        urlRedirect: `${baseUrl}/lms/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_LMS", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
-        order: 1,
-      },
-      {
-        clientId: "lppm-unusu",
-        clientKey: process.env.SSO_CLIENT_KEY_LPPM_UNUSU || "lppm_secret_key_unusu_2026_supersecure",
-        nameApp: "LPPM UNUSU",
-        description: "Portal Riset, Pengabdian Kepada Masyarakat, Publikasi Jurnal, dan Hibah Dosen.",
-        icon: "FlaskConical",
-        badge: "Penelitian",
-        urlRedirect: `${baseUrl}/lppm/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_LPPM", "DOSEN", "SUPERADMIN"]),
-        order: 2,
-      },
-      {
-        clientId: "lpm-unusu",
-        clientKey: process.env.SSO_CLIENT_KEY_LPM_UNUSU || "lpm_secret_key_unusu_2026_supersecure",
-        nameApp: "LPM UNUSU",
-        description: "Lembaga Penjaminan Mutu, Audit Mutu Internal (AMI), & Instrumen Akreditasi.",
-        icon: "Award",
-        badge: "Penjaminan Mutu",
-        urlRedirect: `${baseUrl}/lpm/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_LPM", "DOSEN", "SUPERADMIN"]),
-        order: 3,
-      },
-      {
-        clientId: "esurat-unusu",
-        clientKey: process.env.SSO_CLIENT_KEY_ESURAT_UNUSU || "esurat_secret_key_unusu_2026_supersecure",
-        nameApp: "E-Surat UNUSU",
-        description: "Tata Naskah Dinas, Disposisi Digital, & Surat Keterangan Mahasiswa/Dosen.",
-        icon: "MailCheck",
-        badge: "Administrasi",
-        urlRedirect: `${baseUrl}/esurat/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_ESURAT", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
-        order: 4,
-      },
-      {
-        clientId: "sdm-sarpras-unusu",
-        clientKey: process.env.SSO_CLIENT_KEY_SDM_SARPRAS || "sarpras_secret_key_unusu_2026_supersecure",
-        nameApp: "SDM & Sarpras",
-        description: "Manajemen Kepegawaian, Fasilitas Kampus, & Inventaris Sarana Prasarana.",
-        icon: "Building2",
-        badge: "Kepegawaian",
-        urlRedirect: `${baseUrl}/sarpras/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_SARPRAS", "DOSEN", "SUPERADMIN"]),
-        order: 5,
-      },
-      {
-        clientId: "unusu-akreditasi",
-        clientKey: process.env.SSO_CLIENT_KEY_UNUSU_AKREDITASI || "akreditasi_secret_key_unusu_2026_supersecure",
-        nameApp: "Akreditasi UNUSU",
-        description: "Instrumen akreditasi, bukti dokumen, dan penilaian butir mutu program studi.",
-        icon: "ClipboardCheck",
-        badge: "Penjaminan Mutu",
-        urlRedirect: `${baseUrl}/akreditasi/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_AKREDITASI", "DOSEN", "SUPERADMIN"]),
-        order: 6,
-      },
-      {
-        clientId: "prodi-unusu",
-        clientKey: process.env.SSO_CLIENT_KEY_PRODI_UNUSU || "",
-        nameApp: "Portal Prodi UNUSU",
-        description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
-        icon: "AcademicCap",
-        badge: "Akademik",
-        // Domain sendiri, bukan sub-path portal (bandingkan `baseUrl` di atas).
-        urlRedirect: `${(process.env.PRODI_BASE_URL || "http://localhost:5180").replace(/\/+$/, "")}/sso/callback`,
-        targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
-        order: 7,
-      },
-    ];
-
-    let createdCount = 0;
-    let updatedCount = 0;
-
-    for (const app of defaultApps) {
-      const existing = await prisma.ssoApp.findUnique({
-        where: { clientId: app.clientId },
+    const publicBaseUrl = process.env.PUBLIC_BASE_URL || "";
+    const prodiBaseUrl = process.env.PRODI_BASE_URL || "";
+    if (!publicBaseUrl || !prodiBaseUrl) {
+      return res.status(500).json({
+        status: false,
+        message: "PUBLIC_BASE_URL dan PRODI_BASE_URL wajib diisi di .env sebelum sinkronisasi.",
       });
-
-      if (existing) {
-        await prisma.ssoApp.update({
-          where: { clientId: app.clientId },
-          data: {
-            nameApp: app.nameApp,
-            description: app.description,
-            icon: app.icon,
-            badge: app.badge,
-            targetRoles: app.targetRoles,
-            order: app.order,
-            isActive: true,
-            // Kunci hanya ditimpa bila memang disediakan; registri lama yang
-            // kuncinya sudah diisi lewat panel tidak boleh dikosongkan.
-            ...(app.clientKey ? { clientKey: app.clientKey } : {}),
-          },
-        });
-        updatedCount++;
-      } else {
-        await prisma.ssoApp.create({
-          data: {
-            clientId: app.clientId,
-            clientKey: app.clientKey,
-            nameApp: app.nameApp,
-            description: app.description,
-            icon: app.icon,
-            badge: app.badge,
-            urlRedirect: app.urlRedirect,
-            targetRoles: app.targetRoles,
-            order: app.order,
-            isActive: true,
-          },
-        });
-        createdCount++;
-      }
     }
+
+    // Registri aplikasi didefinisikan satu kali di `prisma/ssoApps.ts`, sama
+    // persis dengan yang dipakai seeder. Server tidak menyimpan salinan daftar.
+    const defaultApps = buildSsoAppDefinitions(process.env, { publicBaseUrl, prodiBaseUrl });
+    const { createdCount, updatedCount } = await seedSsoApps(prisma, defaultApps);
 
     res.json({
       status: true,
