@@ -466,7 +466,20 @@ function tingkatMasukDimiliki(permissionKeys: string[], clientId: string): Tingk
   );
 }
 
-function decideAppAccess(permissionKeys: string[], clientId: string): AppAccessDecision {
+function decideAppAccess(
+  permissionKeys: string[],
+  clientId: string,
+  userRoleCodes: string[] = []
+): AppAccessDecision {
+  // SUPERADMIN dan ADMIN_SSO memiliki hak akses penuh ke seluruh peluncur aplikasi SSO
+  if (userRoleCodes.includes("SUPERADMIN") || userRoleCodes.includes("ADMIN_SSO")) {
+    return {
+      allowed: true,
+      reason: "permission-allowed",
+      tingkat: ["admin"],
+    };
+  }
+
   const tingkat = tingkatMasukDimiliki(permissionKeys, clientId);
   return {
     allowed: tingkat.length > 0,
@@ -908,7 +921,7 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
     });
 
     const appAccess = apps.map((app) => {
-      const decision = decideAppAccess(permissionKeys, app.clientId);
+      const decision = decideAppAccess(permissionKeys, app.clientId, roleCodes);
       return {
         clientId: app.clientId,
         nameApp: app.nameApp,
@@ -1069,11 +1082,13 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       }
     });
 
+    const userRoleCodes = await getUserRoleCodes(currentUser.id);
+
     // Katalog dikirim lengkap; status izin dihitung per pengguna dari izin
     // masuk (`<clientId>:masuk_admin|dosen|mahasiswa`) yang tersimpan di
     // `role_permissions`. Aplikasi cabang memvalidasi ulang saat login.
     const appsWithAccess = apps.map((app) => {
-      const decision = decideAppAccess(permissionKeys, app.clientId);
+      const decision = decideAppAccess(permissionKeys, app.clientId, userRoleCodes);
       return {
         ...app,
         // `targetRoles` tidak lagi menjadi sumber otorisasi; dikirim kosong
@@ -1124,8 +1139,11 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
     // Otorisasi aplikasi tujuan: izin masuk `<clientId>:masuk_*` yang dibaca
     // dari `role_permissions`. Fail-closed bila pengguna tidak memilikinya.
     // Aplikasi cabang memvalidasi ulang saat menukar tiket.
-    const permissionKeys = await getUserPermissionKeys(userId);
-    const decision = decideAppAccess(permissionKeys, ssoApp.clientId);
+    const [permissionKeys, userRoleCodes] = await Promise.all([
+      getUserPermissionKeys(userId),
+      getUserRoleCodes(userId)
+    ]);
+    const decision = decideAppAccess(permissionKeys, ssoApp.clientId, userRoleCodes);
 
     if (!decision.allowed) {
       return res.status(403).json({
@@ -1291,7 +1309,7 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     //    Sumber: izin masuk `<clientId>:masuk_*` milik pengguna di
     //    `role_permissions`. Peran mentah tidak lagi dipakai.
     const verifyPermissionKeys = await getUserPermissionKeys(user.id);
-    const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.clientId);
+    const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.clientId, roleCodes);
 
     if (!verifyDecision.allowed) {
       return res.status(403).json({
