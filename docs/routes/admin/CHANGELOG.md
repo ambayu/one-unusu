@@ -3,7 +3,12 @@
 ## [2026-11-09] - Otorisasi Berbasis Izin Masuk Dinamis & Migrasi RoleId
 
 ### Added
-- Migrasi database `20261109100200_backfill_user_roleid`: backfill `roleId` pengguna dari data enum lama, pelepasan kolom `users.role`, dan pembuatan indeks komposit `users(roleId, isActive)`.
+- Dukungan **Multi-Role** pengguna di portal ONE UNUSU: pembuatan model tabel relasi `user_roles`, migrasi database `20261109110000_multi_role_user_roles`, dan backfill data dari `roleId`.
+- Antarmuka pemilihan multi-role (checkbox checklist) pada form tambah dan ubah pengguna di `/admin/pengguna`.
+- Penampilan badges multi-role pada tabel daftar pengguna.
+- Pembersihan katalog izin portal ONE UNUSU SSO agar murni mengelola portal internal SSO tanpa izin cabang.
+- Endpoint API `POST /api/admin/permissions` dan `DELETE /api/admin/permissions/:id` untuk pembuatan dan penghapusan izin secara mandiri.
+- Tombol dan form modal ringkas **"+ Tambah Izin"** pada halaman `/admin/izin`.
 - Migrasi database `20261109100300_drop_application_admin_roles`: migrasi seluruh pengguna ber-peran admin cabang ke `SUPERADMIN` dan penghapusan 7 peran `ADMIN_<APP>` dari tabel `roles`.
 - Helper `badgeForRole(code)` di `ManajemenPengguna.tsx` dengan palet warna deterministik untuk peran kustom buatan Super Administrator.
 - Registrasi otomatis aplikasi Portal Prodi UNUSU (`prodi-unusu`) dan 14 website program studi ke direktori aplikasi non-SSO.

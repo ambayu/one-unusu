@@ -80,9 +80,12 @@ export interface UserProfile {
   nama: string;
   email?: string | null;
   noHp?: string | null;
-  /** Kode peran hasil join `roleId` → `roles.code` (hanya baca). */
+  /** Kode peran utama / representasi teks peran. */
   role: UserRole;
-  /** Peran yang ditautkan; inilah yang dikirim saat membuat/mengubah pengguna. */
+  /** Seluruh peran yang dimiliki pengguna (multi-role). */
+  roles?: RoleItem[];
+  /** ID seluruh peran yang ditautkan. */
+  roleIds?: number[];
   roleId?: number | null;
   nim?: string | null;
   nidn?: string | null;
@@ -226,10 +229,10 @@ export const fetchAdminStats = () =>
 export const fetchAdminUsers = () =>
   api.get<{ status: boolean; data: UserProfile[] }>('/admin/users');
 
-export const createAdminUser = (data: Omit<Partial<UserProfile>, 'role'> & { password: string; roleId: number }) =>
+export const createAdminUser = (data: Omit<Partial<UserProfile>, 'role' | 'roleId'> & { password: string; roleIds?: number[]; roleId?: number | null }) =>
   api.post<{ status: boolean; message: string; data: UserProfile }>('/admin/users', data);
 
-export const updateAdminUser = (id: number, data: Omit<Partial<UserProfile>, 'role'> & { password?: string }) =>
+export const updateAdminUser = (id: number, data: Omit<Partial<UserProfile>, 'role' | 'roleId'> & { password?: string; roleIds?: number[]; roleId?: number | null }) =>
   api.put<{ status: boolean; message: string; data: UserProfile }>(`/admin/users/${id}`, data);
 
 export const deleteAdminUser = (id: number) =>
@@ -266,6 +269,12 @@ export const deleteAdminApp = (id: number) =>
 // ==========================================
 export const fetchAdminPermissions = () =>
   api.get<{ status: boolean; data: PermissionItem[] }>('/admin/permissions');
+
+export const createAdminPermission = (data: { resource: string; action: string; label?: string }) =>
+  api.post<{ status: boolean; message: string; data: PermissionItem }>('/admin/permissions', data);
+
+export const deleteAdminPermission = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/permissions/${id}`);
 
 export const cleanupUnusedPermissions = () =>
   api.post<{ status: boolean; message: string; data: { cleanedCount: number; cleanedKeys: string[] } }>(

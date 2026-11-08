@@ -164,7 +164,7 @@ async function seedUsers(
 
     const existing = await prisma.user.findUnique({
       where: { username: user.username },
-      select: { id: true, roleId: true },
+      select: { id: true },
     });
 
     if (existing) {
@@ -176,9 +176,13 @@ async function seedUsers(
           prodi: user.prodi,
           fakultas: user.fakultas,
           isActive: true,
-          ...(existing.roleId === null ? { roleId } : {}),
         },
       });
+
+      const userRoleCount = await prisma.userRole.count({ where: { userId: existing.id } });
+      if (userRoleCount === 0) {
+        await prisma.userRole.create({ data: { userId: existing.id, roleId } });
+      }
       continue;
     }
 
@@ -189,10 +193,12 @@ async function seedUsers(
         nama: user.nama,
         email: user.email,
         noHp: "081234567890",
-        roleId,
         prodi: user.prodi,
         fakultas: user.fakultas,
         isActive: true,
+        roles: {
+          create: [{ roleId }]
+        }
       },
     });
   }

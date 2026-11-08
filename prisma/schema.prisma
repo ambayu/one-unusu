@@ -17,8 +17,7 @@ model User {
   nama        String
   email       String?        @unique
   noHp        String?
-  roleId      Int?
-  roleRef     Role?          @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  roles       UserRole[]
   nim         String?        // Khusus Mahasiswa
   nidn        String?        // Khusus Dosen
   fakultas    String?
@@ -35,8 +34,8 @@ model User {
   // Login mencari OR(username, nim, nidn) -> nim & nidn butuh index sendiri.
   @@index([nim])
   @@index([nidn])
-  // Dashboard admin menghitung user per role & memfilter akun aktif.
-  @@index([roleId, isActive])
+  // Dashboard admin memfilter akun aktif.
+  @@index([isActive])
   // Filter daftar pengguna per program studi.
   @@index([prodi])
   @@map("users")
@@ -90,9 +89,23 @@ model Role {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   permissions RolePermission[]
-  users       User[]
+  userRoles   UserRole[]
 
   @@map("roles")
+}
+
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  roleId    Int      @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
 }
 
 model RolePermission {

@@ -178,7 +178,7 @@ export const ManajemenPengguna: React.FC = () => {
   };
 
   const [showModal, setShowModal] = useState(false);
-  const [newRoleId, setNewRoleId] = useState<number | ''>('');
+  const [newRoleIds, setNewRoleIds] = useState<number[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newNama, setNewNama] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -192,7 +192,7 @@ export const ManajemenPengguna: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [editNama, setEditNama] = useState('');
-  const [editRoleId, setEditRoleId] = useState<number | ''>('');
+  const [editRoleIds, setEditRoleIds] = useState<number[]>([]);
   const [editEmail, setEditEmail] = useState('');
   const [editNoHp, setEditNoHp] = useState('');
   const [editProdi, setEditProdi] = useState('');
@@ -210,7 +210,10 @@ export const ManajemenPengguna: React.FC = () => {
     const term = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const matchRole = filterRole === 'ALL' || user.role === filterRole;
+      const userRoleCodes = user.roles && user.roles.length > 0
+        ? user.roles.map((r) => r.code)
+        : [user.role];
+      const matchRole = filterRole === 'ALL' || userRoleCodes.includes(filterRole);
       const matchStatus =
         filterStatus === 'ALL' ||
         (filterStatus === 'AKTIF' ? user.isActive : !user.isActive);
@@ -227,7 +230,7 @@ export const ManajemenPengguna: React.FC = () => {
 
   const openModal = () => {
     const defaultRole = roles.find((r) => r.code === 'MAHASISWA') || roles[0];
-    setNewRoleId(defaultRole ? defaultRole.id : '');
+    setNewRoleIds(defaultRole ? [defaultRole.id] : []);
     setNewUsername('');
     setNewNama('');
     setNewPassword('');
@@ -238,11 +241,23 @@ export const ManajemenPengguna: React.FC = () => {
     setShowModal(true);
   };
 
+  const toggleNewRole = (roleId: number) => {
+    setNewRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+    );
+  };
+
+  const toggleEditRole = (roleId: number) => {
+    setEditRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+    );
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (newRoleId === '') {
-      setMessage({ type: 'error', text: 'Silakan pilih peran pengguna terlebih dahulu.' });
+    if (newRoleIds.length === 0) {
+      setMessage({ type: 'error', text: 'Silakan pilih minimal satu peran pengguna.' });
       return;
     }
 
@@ -252,7 +267,7 @@ export const ManajemenPengguna: React.FC = () => {
         username: newUsername,
         password: newPassword,
         nama: newNama,
-        roleId: Number(newRoleId),
+        roleIds: newRoleIds,
         email: newEmail || null,
         noHp: newNoHp || null,
         prodi: newProdi || null,
@@ -280,10 +295,20 @@ export const ManajemenPengguna: React.FC = () => {
   const handleOpenEdit = (user: UserProfile) => {
     setEditingUser(user);
     setEditNama(user.nama);
-    const matchedRole = user.roleId
-      ? roles.find((r) => r.id === user.roleId)
-      : roles.find((r) => r.code === user.role);
-    setEditRoleId(matchedRole ? matchedRole.id : (user.roleId ?? ''));
+
+    let initialRoleIds: number[] = [];
+    if (user.roles && user.roles.length > 0) {
+      initialRoleIds = user.roles.map((r) => r.id);
+    } else if (user.roleIds && user.roleIds.length > 0) {
+      initialRoleIds = user.roleIds;
+    } else if (user.roleId) {
+      initialRoleIds = [user.roleId];
+    } else {
+      const matched = roles.find((r) => r.code === user.role);
+      if (matched) initialRoleIds = [matched.id];
+    }
+
+    setEditRoleIds(initialRoleIds);
     setEditEmail(user.email || '');
     setEditNoHp(user.noHp || '');
     setEditProdi(user.prodi || '');
@@ -297,11 +322,16 @@ export const ManajemenPengguna: React.FC = () => {
     event.preventDefault();
     if (!editingUser) return;
 
+    if (editRoleIds.length === 0) {
+      setMessage({ type: 'error', text: 'Pengguna harus memiliki minimal satu peran.' });
+      return;
+    }
+
     try {
       setIsUpdating(true);
-      const payload: Partial<UserProfile> & { password?: string } = {
+      const payload: Partial<UserProfile> & { password?: string; roleIds?: number[] } = {
         nama: editNama.trim(),
-        roleId: editRoleId === '' ? undefined : Number(editRoleId),
+        roleIds: editRoleIds,
         email: editEmail.trim() || undefined,
         noHp: editNoHp.trim() || undefined,
         prodi: editProdi.trim() || undefined,
@@ -729,11 +759,24 @@ export const ManajemenPengguna: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 font-semibold text-[#1E293B]">{user.nama}</td>
                     <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(user.role)}`}
-                      >
-                        {ROLE_LABEL[user.role] ?? user.role}
-                      </span>
+                      <div className="flex flex-wrap gap-1 max-w-[220px]">
+                        {user.roles && user.roles.length > 0 ? (
+                          user.roles.map((r) => (
+                            <span
+                              key={r.id}
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(r.code)}`}
+                            >
+                              {r.name || r.code}
+                            </span>
+                          ))
+                        ) : (
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(user.role)}`}
+                          >
+                            {ROLE_LABEL[user.role] ?? user.role}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-[#475569]">{user.prodi || '-'}</td>
                     <td className="py-3 px-4 text-[#475569]">
@@ -799,31 +842,43 @@ export const ManajemenPengguna: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-[#475569] mb-1">Peran (Role)</label>
-                <select
-                  value={newRoleId}
-                  onChange={(event) => setNewRoleId(event.target.value ? Number(event.target.value) : '')}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                >
-                  <option value="" disabled>-- Pilih Peran --</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name} ({role.code})
-                    </option>
-                  ))}
-                </select>
+                <label className="block font-semibold text-[#475569] mb-1">
+                  Peran (Role) <span className="text-[#B91C1C]">*</span> (Bisa Multi-Role)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-[#F9FDFB] border border-[#D8E5DC] rounded-lg max-h-40 overflow-y-auto">
+                  {roles.map((role) => {
+                    const isChecked = newRoleIds.includes(role.id);
+                    return (
+                      <label
+                        key={role.id}
+                        className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition text-xs ${
+                          isChecked
+                            ? 'bg-[#F0FDF4] border-[#86EFAC] text-[#166534] font-semibold'
+                            : 'bg-white border-[#E2E8F0] text-[#475569] hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleNewRole(role.id)}
+                          className="w-3.5 h-3.5 rounded text-[#166534] accent-[#166534]"
+                        />
+                        <span className="truncate">{role.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-[#475569] mb-1">
                   {(() => {
-                    const code = roles.find((r) => r.id === Number(newRoleId))?.code;
-                    return code === 'MAHASISWA'
-                      ? 'Nomor Induk Mahasiswa (NIM)'
-                      : code === 'DOSEN'
-                      ? 'NIDN / NUP'
-                      : 'Username';
+                    const selectedRoleCodes = roles
+                      .filter((r) => newRoleIds.includes(r.id))
+                      .map((r) => r.code);
+                    if (selectedRoleCodes.includes('MAHASISWA')) return 'Nomor Induk Mahasiswa (NIM)';
+                    if (selectedRoleCodes.includes('DOSEN')) return 'NIDN / NUP';
+                    return 'Username';
                   })()}
                 </label>
                 <input
@@ -955,20 +1010,32 @@ export const ManajemenPengguna: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-[#475569] mb-1">Peran (Role)</label>
-                <select
-                  value={editRoleId}
-                  onChange={(event) => setEditRoleId(event.target.value ? Number(event.target.value) : '')}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                >
-                  <option value="" disabled>-- Pilih Peran --</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name} ({role.code})
-                    </option>
-                  ))}
-                </select>
+                <label className="block font-semibold text-[#475569] mb-1">
+                  Peran (Role) <span className="text-[#B91C1C]">*</span> (Bisa Multi-Role)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-[#F9FDFB] border border-[#D8E5DC] rounded-lg max-h-40 overflow-y-auto">
+                  {roles.map((role) => {
+                    const isChecked = editRoleIds.includes(role.id);
+                    return (
+                      <label
+                        key={role.id}
+                        className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition text-xs ${
+                          isChecked
+                            ? 'bg-[#F0FDF4] border-[#86EFAC] text-[#166534] font-semibold'
+                            : 'bg-white border-[#E2E8F0] text-[#475569] hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleEditRole(role.id)}
+                          className="w-3.5 h-3.5 rounded text-[#166534] accent-[#166534]"
+                        />
+                        <span className="truncate">{role.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

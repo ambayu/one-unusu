@@ -1,18 +1,13 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { seedAccessControl, cleanupUnusedPermissions } from "./access-control.js";
+import { seedAccessControl } from "../src/server/lib/accessControl.js";
 
 const prisma = new PrismaClient();
 
 try {
-  console.log("Seeding katalog izin, peran sistem, dan pemetaan role pengguna...");
+  console.log("Seeding katalog izin portal ONE UNUSU SSO dan peran sistem...");
   await seedAccessControl(prisma);
-
-  console.log("Membersihkan data izin yang tidak aktif / usang...");
-  const cleanupResult = await cleanupUnusedPermissions(prisma);
-  console.log(`Izin dibersihkan: ${cleanupResult.removedCount} (${cleanupResult.removedKeys.join(", ") || "tidak ada"})`);
-
-  console.log("Selesai.");
+  console.log("Selesai menyinkronkan izin dan peran portal ONE UNUSU.");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

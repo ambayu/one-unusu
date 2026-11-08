@@ -8,15 +8,20 @@ import {
   TrashIcon,
   XMarkIcon,
   ArrowPathIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
 import {
   PermissionItem,
   RoleItem,
+  SsoAppItem,
   cleanupUnusedPermissions,
   syncAdminPermissions,
   fetchAdminPermissions,
+  createAdminPermission,
+  deleteAdminPermission,
+  fetchAdminApps,
   fetchAdminRoles,
   updateAdminRolePermissions,
 } from '../../services/api';
@@ -69,6 +74,13 @@ export const Izin: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'used' | 'unused'>('all');
   const [message, setMessage] = useState<FeedbackMessage | null>(null);
+
+  // State Tambah Izin Baru
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newResource, setNewResource] = useState('');
+  const [newAction, setNewAction] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [isSubmittingPerm, setIsSubmittingPerm] = useState(false);
 
   const loadMatrix = useCallback(async () => {
     try {
@@ -220,6 +232,42 @@ export const Izin: React.FC = () => {
     }
   };
 
+  const handleCreatePermission = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newResource.trim() || !newAction.trim()) {
+      setMessage({ type: 'error', text: 'Resource/Aplikasi dan Aksi izin wajib diisi.' });
+      return;
+    }
+
+    try {
+      setIsSubmittingPerm(true);
+      const res = await createAdminPermission({
+        resource: newResource.trim(),
+        action: newAction.trim(),
+        label: newLabel.trim() || undefined,
+      });
+
+      if (res.data.status) {
+        setMessage({ type: 'success', text: res.data.message || 'Izin berhasil ditambahkan.' });
+        setShowAddModal(false);
+        setNewResource('');
+        setNewAction('');
+        setNewLabel('');
+        await loadMatrix();
+      } else {
+        setMessage({ type: 'error', text: res.data.message || 'Gagal menambahkan izin.' });
+      }
+    } catch (error: unknown) {
+      const text =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
+          : '';
+      setMessage({ type: 'error', text: text || 'Gagal menambahkan izin baru.' });
+    } finally {
+      setIsSubmittingPerm(false);
+    }
+  };
+
   return (
     <AdminPanelTemplate
       user={currentUser}
@@ -282,6 +330,14 @@ export const Izin: React.FC = () => {
               <span>{isCleaning ? 'Membersihkan...' : `Bersihkan ${unusedCount} Izin Kosong`}</span>
             </button>
           )}
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-xs transition whitespace-nowrap"
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+            <span>Tambah Izin</span>
+          </button>
 
           <button
             onClick={handleSave}
@@ -421,6 +477,88 @@ export const Izin: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tambah Izin Baru */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white rounded-[16px] border border-[#D8E5DC] p-6 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8E5DC] mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-[#1E293B]">Tambah Izin Baru</h3>
+                <p className="text-[11px] text-[#64748B]">Buat izin akses untuk aplikasi atau fitur.</p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePermission} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">
+                  Resource / Aplikasi <span className="text-[#B91C1C]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="mis. lppm-unusu, esurat-unusu, dashboard"
+                  value={newResource}
+                  onChange={(e) => setNewResource(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                />
+                <p className="mt-1 text-[10px] text-[#94A3B8]">Gunakan clientId aplikasi untuk izin masuk aplikasi cabang.</p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">
+                  Aksi (Action) <span className="text-[#B91C1C]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="mis. masuk_admin, masuk_dosen, view, edit"
+                  value={newAction}
+                  onChange={(e) => setNewAction(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                />
+                <p className="mt-1 text-[10px] text-[#94A3B8]">
+                  Kunci yang terbentuk: <span className="font-mono font-semibold text-[#166534]">{newResource.trim() || 'resource'}:{newAction.trim() || 'action'}</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#475569] mb-1">Label Izin</label>
+                <input
+                  type="text"
+                  placeholder="mis. LPPM UNUSU · Masuk Administrator"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8E5DC]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3 py-2 rounded-lg border border-[#D8E5DC] text-[#475569] hover:bg-[#F1F5F2] font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingPerm}
+                  className="px-4 py-2 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold transition disabled:opacity-50"
+                >
+                  {isSubmittingPerm ? 'Menyimpan...' : 'Tambah Izin'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
