@@ -44,10 +44,15 @@ const PUBLIC_BASE_URL = requireEnv("SEED_PUBLIC_BASE_URL").replace(/\/+$/, "");
  */
 const PRODI_BASE_URL = requireEnv("SEED_PRODI_BASE_URL").replace(/\/+$/, "");
 
+/** Mode URL callback: "vps" atau "local" (default: "local" bila port localhost, "vps" bila domain). */
+const SEED_TARGET = (process.env.SEED_TARGET as "vps" | "local" | undefined) ??
+  (PUBLIC_BASE_URL.includes("localhost") ? "local" : "vps");
+
 /** Registri aplikasi cabang — definisi bersama dengan endpoint sync server. */
 const SSO_APPS = buildSsoAppDefinitions(process.env, {
   publicBaseUrl: PUBLIC_BASE_URL,
   prodiBaseUrl: PRODI_BASE_URL,
+  mode: SEED_TARGET,
 });
 
 const DEFAULT_ADMIN_PASSWORD = "password123";
