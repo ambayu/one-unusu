@@ -6,6 +6,43 @@ import { PrismaClient } from "@prisma/client";
  *
  * `icon` mengikuti daftar `AVAILABLE_ICONS` di `src/client/pages/admin/DirektoriPublik.tsx`.
  */
+/**
+ * Website program studi.
+ *
+ * Ke-14 prodi ini adalah situs mandiri di repositori `prodi-unusu`, satu
+ * tenant per hostname (mis. `tif.unusu.ac.id`). Karena itu alamatnya
+ * `https://<kode>.unusu.ac.id` dan bukan sub-path portal.
+ *
+ * `kode` harus sama dengan kode prodi pada `prodi-unusu`; mengubahnya di sini
+ * tanpa mengubah tenant di sana akan menghasilkan tautan mati.
+ */
+const PRODI_SITES = [
+  { kode: "tif", nama: "Teknik Informatika" },
+  { kode: "sin", nama: "Sistem Informasi" },
+  { kode: "iko", nama: "Ilmu Komputer" },
+  { kode: "pgsd", nama: "Pendidikan Guru Sekolah Dasar" },
+  { kode: "manajemen", nama: "Manajemen" },
+  { kode: "agribisnis", nama: "Agribisnis" },
+  { kode: "itp", nama: "Ilmu dan Teknologi Pangan" },
+  { kode: "bdp", nama: "Budidaya Pertanian" },
+  { kode: "ilmugizi", nama: "Ilmu Gizi" },
+  { kode: "ankes", nama: "Analisis Kesehatan" },
+  { kode: "piaud", nama: "Pendidikan Islam Anak Usia Dini" },
+  { kode: "pai", nama: "Pendidikan Agama Islam" },
+  { kode: "hki", nama: "Hukum Keluarga Islam" },
+  { kode: "studislam", nama: "Studi Islam" },
+] as const;
+
+const PRODI_DIRECTORY_ENTRIES = PRODI_SITES.map((prodi, index) => ({
+  nama: `Website ${prodi.nama}`,
+  kategori: "Website Prodi",
+  deskripsi: `Profil, kurikulum, dosen, berita, dan informasi akademik Program Studi ${prodi.nama}.`,
+  urlTarget: `https://${prodi.kode}.unusu.ac.id`,
+  icon: "AcademicCapIcon",
+  isExternal: true,
+  urutan: 10 + index,
+}));
+
 export const DIRECTORY_ENTRIES = [
   {
     nama: "SIAKAD UNUSU",
@@ -27,6 +64,7 @@ export const DIRECTORY_ENTRIES = [
     isExternal: true,
     urutan: 2,
   },
+  ...PRODI_DIRECTORY_ENTRIES,
 ] as const;
 
 /**

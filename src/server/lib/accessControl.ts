@@ -284,6 +284,19 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     ],
   },
   {
+    code: "ADMIN_PRODI",
+    name: "Administrator Prodi",
+    description: "Administrator khusus portal program studi.",
+    isSystem: true,
+    permissionKeys: [
+      "dashboard:menu",
+      "dashboard:view",
+      "profile:menu",
+      "profile:view",
+      "profile:edit",
+    ],
+  },
+  {
     code: "DOSEN",
     name: "Dosen",
     description: "Akses dashboard dan biodata pribadi.",

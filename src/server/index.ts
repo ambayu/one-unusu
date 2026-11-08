@@ -1680,7 +1680,8 @@ app.post("/api/admin/apps/sync", authenticateToken, requirePermission("applicati
         description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
         icon: "AcademicCap",
         badge: "Akademik",
-        urlRedirect: `${baseUrl}/sso/callback`,
+        // Domain sendiri, bukan sub-path portal (bandingkan `baseUrl` di atas).
+        urlRedirect: `${(process.env.PRODI_BASE_URL || "http://localhost:5180").replace(/\/+$/, "")}/sso/callback`,
         targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
         order: 7,
       },

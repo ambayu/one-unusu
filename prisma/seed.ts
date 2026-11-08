@@ -50,6 +50,12 @@ const SSO_CLIENT_KEYS = {
  * tidak menimpa kata sandi yang sudah diganti lewat panel admin.
  */
 const PUBLIC_BASE_URL = requireEnv("SEED_PUBLIC_BASE_URL").replace(/\/+$/, "");
+
+/**
+ * Alamat Portal Prodi. Aplikasi ini berjalan di domain sendiri, jadi tidak
+ * dapat diturunkan dari `SEED_PUBLIC_BASE_URL` seperti cabang lainnya.
+ */
+const PRODI_BASE_URL = (process.env.SEED_PRODI_BASE_URL || "http://localhost:5180").replace(/\/+$/, "");
 const DEFAULT_ADMIN_PASSWORD = "password123";
 const ADMIN_PASSWORD =
   process.env.SEED_ADMIN_PASSWORD?.trim() || DEFAULT_ADMIN_PASSWORD;
@@ -246,7 +252,9 @@ async function main() {
       description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
       icon: "AcademicCap",
       badge: "Akademik",
-      urlRedirect: `${PUBLIC_BASE_URL}/sso/callback`,
+      // Portal Prodi adalah aplikasi multi-domain terpisah (Vite 5180 di lokal,
+      // `prodi.unusu.ac.id` di produksi), bukan sub-path di bawah portal.
+      urlRedirect: PRODI_BASE_URL + "/sso/callback",
       targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
       order: 7,
       isActive: true,
