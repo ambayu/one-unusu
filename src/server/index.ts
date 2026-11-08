@@ -58,13 +58,17 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        // Cloudflare Web Analytics menyuntikkan beacon.min.js ketika situs
+        // di-proxy Cloudflare. Tanpa izin ini browser menolaknya dan menulis
+        // galat CSP di console meski halaman tetap berjalan.
+        scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
         // Google Fonts dipakai di index.html; gaya inline dibutuhkan Tailwind/React.
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         // Ikon aplikasi disimpan sebagai data URL base64.
         imgSrc: ["'self'", "data:", "https:"],
         fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
-        connectSrc: ["'self'"],
+        // Beacon analitik Cloudflare mengirim laporan ke domain ini.
+        connectSrc: ["'self'", "https://cloudflareinsights.com"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
         baseUri: ["'self'"],
