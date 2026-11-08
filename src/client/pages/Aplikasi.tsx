@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Topbar } from "../components/layout/Topbar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
@@ -13,7 +13,9 @@ import {
   DirectoryItem,
   fetchAppCatalog,
   fetchDirectories,
+  getSsoRedirectV2,
 } from "../services/api";
+import { openTabTujuan, arahkanTab, tutupTab } from "../lib/ssoLaunch";
 
 /**
  * Katalog aplikasi publik.
@@ -36,6 +38,8 @@ interface CatalogEntry {
   targetRoles?: string[];
   isSso: boolean;
   url?: string | null;
+  /** Hanya terisi untuk entri SSO; dipakai menerbitkan tiket sekali pakai. */
+  clientId?: string;
 }
 
 const isImageSource = (value?: string | null): boolean =>
@@ -55,6 +59,7 @@ const toSsoEntry = (app: AppCatalogItem): CatalogEntry => ({
   targetRoles: app.targetRoles,
   isSso: true,
   url: null,
+  clientId: app.clientId,
 });
 
 const toDirectoryEntry = (item: DirectoryItem): CatalogEntry => ({
@@ -70,10 +75,12 @@ const toDirectoryEntry = (item: DirectoryItem): CatalogEntry => ({
 });
 
 export const AplikasiPage: React.FC = () => {
+  const navigate = useNavigate();
   const [ssoApps, setSsoApps] = useState<CatalogEntry[]>([]);
   const [nonSsoApps, setNonSsoApps] = useState<CatalogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [launchingKey, setLaunchingKey] = useState<string | null>(null);
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -110,6 +117,52 @@ export const AplikasiPage: React.FC = () => {
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog]);
+
+  /**
+   * Membuka aplikasi cabang di tab baru.
+   *
+   * Halaman katalog dapat dibuka tanpa sesi, sehingga status masuk diperiksa
+   * lebih dulu. Bila belum masuk, pengguna dikirim ke halaman login portal
+   * dengan `next` menuju katalog ini — halaman katalog tidak punya hak
+   * menerbitkan tiket SSO tanpa sesi.
+   */
+  const handleLaunch = useCallback(
+    async (entry: CatalogEntry) => {
+      if (!entry.clientId) return;
+
+      const sesiAktif = Boolean(
+        localStorage.getItem('one_unusu_token') || localStorage.getItem('one_unusu_user'),
+      );
+      if (!sesiAktif) {
+        navigate(`/login?next=${encodeURIComponent('/aplikasi')}`);
+        return;
+      }
+
+      // Jendela tujuan dibuka di dalam gestur klik; lihat `lib/ssoLaunch`.
+      const tabTujuan = openTabTujuan();
+
+      try {
+        setLaunchingKey(entry.key);
+        const res = await getSsoRedirectV2(entry.clientId);
+        if (res.data.status && res.data.redirectUrl) {
+          arahkanTab(tabTujuan, res.data.redirectUrl);
+        } else {
+          tutupTab(tabTujuan);
+          setErrorMessage(
+            res.data.message || "Akses ditolak. Anda tidak memiliki akses ke aplikasi ini.",
+          );
+        }
+      } catch (err: any) {
+        tutupTab(tabTujuan);
+        setErrorMessage(
+          err.response?.data?.message || "Gagal membuka aplikasi. Periksa sesi Anda lalu coba lagi.",
+        );
+      } finally {
+        setLaunchingKey(null);
+      }
+    },
+    [navigate],
+  );
 
   const totalLayanan = useMemo(
     () => ssoApps.length + nonSsoApps.length,
@@ -187,7 +240,12 @@ export const AplikasiPage: React.FC = () => {
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {ssoApps.map((entry) => (
-                    <AppCatalogCard key={entry.key} entry={entry} />
+                    <AppCatalogCard
+                      key={entry.key}
+                      entry={entry}
+                      onLaunch={handleLaunch}
+                      launching={launchingKey === entry.key}
+                    />
                   ))}
                 </div>
               )}
@@ -220,7 +278,12 @@ export const AplikasiPage: React.FC = () => {
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {nonSsoApps.map((entry) => (
-                    <AppCatalogCard key={entry.key} entry={entry} />
+                    <AppCatalogCard
+                      key={entry.key}
+                      entry={entry}
+                      onLaunch={handleLaunch}
+                      launching={launchingKey === entry.key}
+                    />
                   ))}
                 </div>
               )}
@@ -264,7 +327,15 @@ function EmptyState({ title, description }: { title: string; description: string
   );
 }
 
-function AppCatalogCard({ entry }: { entry: CatalogEntry }) {
+function AppCatalogCard({
+  entry,
+  onLaunch,
+  launching,
+}: {
+  entry: CatalogEntry;
+  onLaunch: (entry: CatalogEntry) => void;
+  launching: boolean;
+}) {
   const isSso = entry.isSso;
 
   return (
@@ -370,13 +441,15 @@ function AppCatalogCard({ entry }: { entry: CatalogEntry }) {
         </div>
 
         {isSso ? (
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs transition-colors shadow-xs"
+          <button
+            type="button"
+            onClick={() => onLaunch(entry)}
+            disabled={launching}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-60 disabled:cursor-wait"
           >
-            <span>Masuk via SSO</span>
-            <Icon name="arrow-right" className="size-3" />
-          </Link>
+            <span>{launching ? "Membuka Tab Baru…" : "Buka Aplikasi"}</span>
+            <Icon name="external" className="size-3" />
+          </button>
         ) : entry.url ? (
           <a
             href={entry.url}

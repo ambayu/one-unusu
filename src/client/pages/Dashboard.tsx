@@ -12,13 +12,8 @@ import {
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isImageSource } from '../lib/appIcon';
 import { isBiodataComplete } from '../lib/biodata';
+import { openTabTujuan, arahkanTab, tutupTab } from '../lib/ssoLaunch';
 import { assetUrl } from '../lib/assets';
-import {
-  ADMIN_PANEL_PATH,
-  MANAGED_APP_BY_ROLE,
-  ROLE_LABELS,
-  canOpenAdminPanel,
-} from '../lib/landing';
 import {
   AcademicCapIcon,
   BuildingOffice2Icon,
@@ -29,6 +24,7 @@ import {
   UserIcon,
   LinkIcon,
   ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
@@ -130,12 +126,20 @@ export const Dashboard: React.FC = () => {
       return;
     }
 
+    // Tab tujuan dibuka LEBIH DULU, sebelum permintaan jaringan, karena
+    // `window.open` hanya diizinkan browser selama masih di dalam gestur klik.
+    // Bila dipanggil setelah `await`, jendela sudah dianggap tidak dipicu
+    // pengguna dan diblokir popup blocker. Rinciannya ada di `lib/ssoLaunch`.
+    const tabTujuan = openTabTujuan();
+
     try {
       setRedirectingAppId(app.id);
       const res = await getSsoRedirectV2(app.clientId);
       if (res.data.status && res.data.redirectUrl) {
-        window.location.href = res.data.redirectUrl;
+        // Portal tetap terbuka di tab ini; aplikasi cabang tampil di tab baru.
+        arahkanTab(tabTujuan, res.data.redirectUrl);
       } else {
+        tutupTab(tabTujuan);
         setNotify({
           isOpen: true,
           type: 'denied',
@@ -144,6 +148,7 @@ export const Dashboard: React.FC = () => {
         });
       }
     } catch (err: any) {
+      tutupTab(tabTujuan);
       console.error('SSO Redirect error:', err);
       const isForbidden = err.response?.status === 403;
       setNotify({
@@ -346,36 +351,6 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Cakupan kewenangan: menegaskan pemisahan admin panel vs admin aplikasi */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-[12px] border border-[#D8E5DC] bg-[#F9FDFB] px-3.5 py-3">
-          <div className="flex items-start gap-2 min-w-0">
-            <IdentificationIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#1E293B]">
-                Cakupan akses Anda:{' '}
-                <span className="text-[#166534]">
-                  {user ? ROLE_LABELS[user.role] ?? user.role : 'Memuat...'}
-                </span>
-                {user && MANAGED_APP_BY_ROLE[user.role] ? ` Â· ${MANAGED_APP_BY_ROLE[user.role]}` : ''}
-              </p>
-              <p className="text-[11px] text-[#64748B] mt-0.5">
-                Aplikasi bertanda <span className="font-semibold">Terkunci</span> dikelola unit lain
-                dan tidak dapat Anda buka.
-              </p>
-            </div>
-          </div>
-          {canOpenAdminPanel(user) && (
-            <button
-              type="button"
-              onClick={() => navigate(ADMIN_PANEL_PATH)}
-              className="self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] text-[11px] font-bold transition"
-            >
-              <Squares2X2Icon className="w-3.5 h-3.5" />
-              Panel Admin
-            </button>
-          )}
-        </div>
-
         {error && (
           <div className="flex items-start gap-2.5 rounded-[12px] border border-[#FECACA] bg-[#FEE2E2] px-3.5 py-3 text-xs font-medium text-[#B91C1C]">
             <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
@@ -484,7 +459,7 @@ export const Dashboard: React.FC = () => {
                 >
                   <span>
                     {redirectingAppId === app.id
-                      ? 'Mengarahkan SSO...'
+                      ? 'Membuka Tab Baru...'
                       : isLocked
                         ? 'Tidak Ada Akses'
                         : 'Buka Aplikasi'}
@@ -492,7 +467,7 @@ export const Dashboard: React.FC = () => {
                   {isLocked ? (
                     <LockClosedIcon className="w-3.5 h-3.5" />
                   ) : (
-                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                    <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                   )}
                 </button>
               </div>
