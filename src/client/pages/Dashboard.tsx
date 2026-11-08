@@ -173,12 +173,14 @@ export const Dashboard: React.FC = () => {
     // Cek `prodi` SEBELUM `lms` agar kartu Portal Prodi tidak meminjam gambar
     // LMS hanya karena kebetulan urutannya lebih dulu (belum ada aset khusus).
     if (id.includes('prodi')) return assetUrl('/assets/apps/app-siakad.png');
+    // Cek `lppm` SEBELUM `lpm` karena kata 'lppm' mengandung 'lpm' jika menggunakan partial matching yang salah
+    if (id.includes('lppm')) return assetUrl('/assets/apps/app-lppm.png');
+    if (id.includes('lpm')) return assetUrl('/assets/apps/app-lpm.png');
     if (id.includes('lms')) return assetUrl('/assets/apps/app-lms.png');
     if (id.includes('esurat') || id.includes('e-surat')) return assetUrl('/assets/apps/app-esurat.png');
     if (id.includes('siakad')) return assetUrl('/assets/apps/app-siakad.png');
     if (id.includes('sarpras')) return assetUrl('/assets/apps/app-sarpras.png');
-    if (id.includes('lpm')) return assetUrl('/assets/apps/app-lpm.png');
-    if (id.includes('lppm')) return assetUrl('/assets/apps/app-lppm.png');
+    if (id.includes('akreditasi')) return assetUrl('/assets/apps/app-sarpras.png');
     return assetUrl('/assets/apps/app-lms.png');
   };
 
