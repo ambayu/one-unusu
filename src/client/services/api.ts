@@ -126,8 +126,11 @@ export interface SsoAppItem {
   icon?: string;
   badge?: string;
   urlRedirect: string;
+  /** Keterangan saja; otorisasi memakai izin masuk (`tingkatMasuk`). */
   targetRoles: string;
-  /** Dihitung server dari `targetRoles` vs peran pengguna yang sedang login. */
+  /** Tingkat masuk yang dimiliki pengguna untuk aplikasi ini. */
+  tingkatMasuk?: string[];
+  /** Dihitung server dari izin masuk `<clientId>:masuk_*` milik pengguna. */
   isAllowed?: boolean;
   isActive: boolean;
   order: number;
@@ -180,6 +183,8 @@ export interface PanelAppAccess {
   clientId: string;
   nameApp: string;
   isAllowed: boolean;
+  /** Tingkat masuk yang dimiliki pengguna (admin/dosen/mahasiswa). */
+  tingkat?: string[];
 }
 
 export interface PanelAccess {
@@ -332,6 +337,7 @@ export interface AppCatalogItem {
   badge: string | null;
   icon: string | null;
   targetRoles: string[];
+  tingkatMasuk: string[];
   origin: string;
 }
 

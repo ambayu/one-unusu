@@ -36,6 +36,8 @@ interface CatalogEntry {
   icon: "shield" | "globe";
   image?: string | null;
   targetRoles?: string[];
+  /** Tingkat masuk yang tersedia (admin/dosen/mahasiswa) — pengganti targetRoles. */
+  tingkatMasuk?: string[];
   isSso: boolean;
   url?: string | null;
   /** Hanya terisi untuk entri SSO; dipakai menerbitkan tiket sekali pakai. */
@@ -57,6 +59,7 @@ const toSsoEntry = (app: AppCatalogItem): CatalogEntry => ({
   icon: "shield",
   image: isImageSource(app.icon) ? app.icon : null,
   targetRoles: app.targetRoles,
+  tingkatMasuk: app.tingkatMasuk,
   isSso: true,
   url: null,
   clientId: app.clientId,
@@ -406,17 +409,17 @@ function AppCatalogCard({
 
           <p className="text-xs text-[#475569] leading-relaxed line-clamp-3">{entry.description}</p>
 
-          {entry.targetRoles && entry.targetRoles.length > 0 && (
+          {entry.tingkatMasuk && entry.tingkatMasuk.length > 0 && (
             <div className="pt-1 flex flex-wrap gap-1.5 items-center">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
-                Akses:
+                Dapat dipakai oleh:
               </span>
-              {entry.targetRoles.map((role) => (
+              {entry.tingkatMasuk.map((tingkat) => (
                 <span
-                  key={role}
+                  key={tingkat}
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 border border-stone-200"
                 >
-                  {role}
+                  {tingkat === "admin" ? "Administrator" : tingkat === "dosen" ? "Dosen" : "Mahasiswa"}
                 </span>
               ))}
             </div>

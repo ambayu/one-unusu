@@ -9,6 +9,12 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient, UserRole } from "@prisma/client";
+import {
+  TINGKAT_MASUK,
+  kunciIzinMasuk,
+  tingkatMasukBawaan,
+  type TingkatMasuk
+} from "./lib/accessControl.js";
 
 dotenv.config();
 
@@ -413,43 +419,96 @@ async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
 /**
  * Keputusan akses satu pengguna ke satu aplikasi cabang.
  *
- * Satu-satunya sumber kebenaran otorisasi aplikasi adalah `SsoApp.targetRoles`
- * di portal ini. Aplikasi cabang melakukan pemeriksaan terpisah saat login
- * (konstanta `ALLOWED_SSO_ROLES` di server masing-masing), sehingga tidak ada
- * allowlist per pengguna yang perlu disinkronkan.
+ * Sumber kebenarannya adalah tabel `permissions` + `role_permissions`:
+ * pengguna boleh masuk aplikasi `clientId` bila salah satu perannya memegang
+ * izin `<clientId>:masuk_admin`, `<clientId>:masuk_dosen`, atau
+ * `<clientId>:masuk_mahasiswa`.
  *
- * Dipakai konsisten oleh katalog aplikasi, penerbitan tiket SSO, verifikasi
- * token server-to-server, dan endpoint navigasi klien.
+ * Kolom `sso_apps.targetRoles` TIDAK lagi dipakai untuk memutuskan akses.
+ * Nilainya hanya dipertahankan sebagai keterangan peran yang disarankan dan
+ * sebagai bahan penyusunan izin awal ketika aplikasi baru didaftarkan.
+ *
+ * Karena izin dibaca dari database pada setiap permintaan, pencabutan akses
+ * oleh administrator langsung berlaku tanpa menunggu JWT kedaluwarsa.
  */
-type AppAccessReason = "role-allowed" | "role-denied" | "invalid-config";
+type AppAccessReason = "permission-allowed" | "permission-denied";
 
 interface AppAccessDecision {
   allowed: boolean;
   reason: AppAccessReason;
+  /** Tingkat masuk yang dimiliki pengguna, mis. ["admin"] atau ["dosen"]. */
+  tingkat: TingkatMasuk[];
 }
 
-interface AppLike {
-  id: number;
-  targetRoles: string;
+/** Izin masuk yang dimiliki pengguna untuk satu aplikasi. */
+function tingkatMasukDimiliki(permissionKeys: string[], clientId: string): TingkatMasuk[] {
+  return TINGKAT_MASUK.filter((tingkat) =>
+    permissionKeys.includes(kunciIzinMasuk(clientId, tingkat))
+  );
 }
 
-function evaluateRoleAccess(role: string, app: AppLike): AppAccessDecision["allowed"] {
-  try {
-    const allowedRoles: unknown = JSON.parse(app.targetRoles);
-    return Array.isArray(allowedRoles) && allowedRoles.includes(role);
-  } catch (error) {
-    logServerError(`targetRoles tidak valid pada aplikasi ${app.id}`, app.targetRoles);
-    return false;
-  }
-}
-
-/** Peta appId → status izin eksplisit untuk satu pengguna. */
-function decideAppAccess(role: string, app: AppLike): AppAccessDecision {
-  const roleAllowed = evaluateRoleAccess(role, app);
+function decideAppAccess(permissionKeys: string[], clientId: string): AppAccessDecision {
+  const tingkat = tingkatMasukDimiliki(permissionKeys, clientId);
   return {
-    allowed: roleAllowed,
-    reason: roleAllowed ? "role-allowed" : "role-denied"
+    allowed: tingkat.length > 0,
+    reason: tingkat.length > 0 ? "permission-allowed" : "permission-denied",
+    tingkat,
   };
+}
+
+/**
+ * Menyiapkan tiga izin masuk `<clientId>:masuk_*` untuk sebuah aplikasi baru
+ * lalu melekatkannya ke peran sesuai cetak biru bawaan.
+ *
+ * Dipanggil saat aplikasi cabang didaftarkan lewat panel, sehingga registri
+ * baru langsung punya izin yang dapat diatur administrator di halaman
+ * Peran & Izin — tanpa perlu menjalankan seeder.
+ */
+async function siapkanIzinMasukAplikasi(
+  clientId: string,
+  nameApp: string,
+  tingkatDiminta: TingkatMasuk[]
+): Promise<void> {
+  const actionByTingkat: Record<TingkatMasuk, string> = {
+    admin: "masuk_admin",
+    dosen: "masuk_dosen",
+    mahasiswa: "masuk_mahasiswa",
+  };
+  const labelByTingkat: Record<TingkatMasuk, string> = {
+    admin: "Masuk sebagai Administrator",
+    dosen: "Masuk sebagai Dosen",
+    mahasiswa: "Masuk sebagai Mahasiswa",
+  };
+
+  const permissionIdByTingkat = new Map<TingkatMasuk, number>();
+  for (const tingkat of TINGKAT_MASUK) {
+    const permission = await prisma.permission.upsert({
+      where: { key: kunciIzinMasuk(clientId, tingkat) },
+      update: {},
+      create: {
+        key: kunciIzinMasuk(clientId, tingkat),
+        resource: clientId,
+        action: actionByTingkat[tingkat],
+        label: `${nameApp} · ${labelByTingkat[tingkat]}`,
+      },
+    });
+    permissionIdByTingkat.set(tingkat, permission.id);
+  }
+
+  const roles = await prisma.role.findMany({ select: { id: true, code: true } });
+
+  const data: { roleId: number; permissionId: number }[] = [];
+  for (const role of roles) {
+    for (const tingkat of tingkatMasukBawaan(role.code, clientId)) {
+      if (!tingkatDiminta.includes(tingkat)) continue;
+      const permissionId = permissionIdByTingkat.get(tingkat);
+      if (permissionId) data.push({ roleId: role.id, permissionId });
+    }
+  }
+
+  if (data.length > 0) {
+    await prisma.rolePermission.createMany({ data, skipDuplicates: true });
+  }
 }
 
 /**
@@ -763,7 +822,7 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
 // GET /api/auth/panel-access
 // Sumber tunggal keputusan navigasi pasca-login:
 //  - panel: 'admin' bila pengguna punya izin panel SSO, selain itu 'dashboard'
-//  - apps : katalog aplikasi cabang + isAllowed (dihitung dari targetRoles)
+//  - apps : katalog aplikasi cabang + isAllowed (dihitung dari izin masuk)
 // Dipakai route guard & halaman 403 di klien, sehingga pemisahan admin
 // per aplikasi (mis. ADMIN_LPPM tidak boleh masuk panel/aplikasi LPM) berlaku
 // konsisten di UI dan API.
@@ -784,15 +843,16 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
     const apps = await prisma.ssoApp.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
-      select: { id: true, clientId: true, nameApp: true, targetRoles: true }
+      select: { id: true, clientId: true, nameApp: true }
     });
 
     const appAccess = apps.map((app) => {
-      const decision = decideAppAccess(user.role, app);
+      const decision = decideAppAccess(permissionKeys, app.clientId);
       return {
         clientId: app.clientId,
         nameApp: app.nameApp,
         isAllowed: decision.allowed,
+        tingkat: decision.tingkat,
       };
     });
 
@@ -906,21 +966,21 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
 // 2. SSO TOKEN V2 ENGINE (SEPERTI SSO MEDAN)
 // ==========================================
 
-// GET /api/sso/apps (Ambil daftar aplikasi terintegrasi sesuai role user)
+// GET /api/sso/apps (Ambil daftar aplikasi terintegrasi sesuai izin user)
 app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    // Role dibaca ulang dari database supaya perubahan peran langsung berlaku
-    // walau token lama masih aktif.
+    // Status akun dan izin dibaca ulang dari database supaya perubahan izin
+    // langsung berlaku walau token lama masih aktif.
     const currentUser = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { role: true, isActive: true }
+      select: { id: true, role: true, isActive: true }
     });
 
     if (!currentUser || !currentUser.isActive) {
       return res.status(403).json({ status: false, message: "Akun tidak aktif atau tidak ditemukan." });
     }
 
-    const userRole = currentUser.role;
+    const permissionKeys = await getUserPermissionKeys(currentUser.id);
 
     const apps = await prisma.ssoApp.findMany({
       where: { isActive: true },
@@ -934,17 +994,24 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
         icon: true,
         badge: true,
         urlRedirect: true,
-        targetRoles: true,
         isActive: true,
         order: true
       }
     });
 
-    // Katalog dikirim lengkap; status izin dihitung per pengguna dari
-    // `SsoApp.targetRoles` (aplikasi cabang memvalidasi ulang saat login).
+    // Katalog dikirim lengkap; status izin dihitung per pengguna dari izin
+    // masuk (`<clientId>:masuk_admin|dosen|mahasiswa`) yang tersimpan di
+    // `role_permissions`. Aplikasi cabang memvalidasi ulang saat login.
     const appsWithAccess = apps.map((app) => {
-      const decision = decideAppAccess(userRole, app);
-      return { ...app, isAllowed: decision.allowed };
+      const decision = decideAppAccess(permissionKeys, app.clientId);
+      return {
+        ...app,
+        // `targetRoles` tidak lagi menjadi sumber otorisasi; dikirim kosong
+        // agar klien tidak lagi menampilkan daftar peran sebagai janji akses.
+        targetRoles: "",
+        tingkatMasuk: decision.tingkat,
+        isAllowed: decision.allowed
+      };
     });
 
     res.json({ status: true, data: appsWithAccess });
@@ -984,9 +1051,11 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       return res.status(404).json({ status: false, message: "Aplikasi cabang tidak ditemukan atau sedang tidak aktif." });
     }
 
-    // Otorisasi aplikasi tujuan: hanya `SsoApp.targetRoles`. Fail-closed pada
-    // konfigurasi tidak valid. Aplikasi cabang memvalidasi ulang saat login.
-    const decision = decideAppAccess(currentUser.role, ssoApp);
+    // Otorisasi aplikasi tujuan: izin masuk `<clientId>:masuk_*` yang dibaca
+    // dari `role_permissions`. Fail-closed bila pengguna tidak memilikinya.
+    // Aplikasi cabang memvalidasi ulang saat menukar tiket.
+    const permissionKeys = await getUserPermissionKeys(userId);
+    const decision = decideAppAccess(permissionKeys, ssoApp.clientId);
 
     if (!decision.allowed) {
       return res.status(403).json({
@@ -1139,8 +1208,10 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     }
 
     // 6. Penegakan Otorisasi Aplikasi Tujuan (Fail-Closed)
-    //    Sumber tunggal: `SsoApp.targetRoles` dibandingkan dengan peran pengguna.
-    const verifyDecision = decideAppAccess(user.role, ssoApp);
+    //    Sumber: izin masuk `<clientId>:masuk_*` milik pengguna di
+    //    `role_permissions`. Peran mentah tidak lagi dipakai.
+    const verifyPermissionKeys = await getUserPermissionKeys(user.id);
+    const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.clientId);
 
     if (!verifyDecision.allowed) {
       return res.status(403).json({
@@ -1151,6 +1222,16 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     }
 
     // 7. Return Payload Profil Terpercaya (Sesuai Format SSO Diskominfo Medan)
+    //
+    // `permissions` disertakan agar aplikasi cabang dapat menegakkan izin
+    // fitur tanpa tabel RBAC sendiri. Ini hanya salinan untuk sesi berjalan:
+    // aplikasi cabang tidak boleh menyimpannya sebagai sumber kebenaran, dan
+    // tiket SSO berumur pendek (5 menit, sekali pakai) sehingga daftar ini
+    // tidak menjadi hak akses permanen.
+    const permissionsForApp = verifyPermissionKeys.filter(
+      (k) => k.startsWith(`${ssoApp.clientId}:`) || !k.includes(":")
+    );
+
     res.json({
       status: true,
       message: "Autentikasi SSO v2 Berhasil",
@@ -1171,6 +1252,11 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
         app: {
           clientId: ssoApp.clientId,
           nameApp: ssoApp.nameApp
+        },
+        access: {
+          allowed: verifyDecision.allowed,
+          tingkat: verifyDecision.tingkat,
+          permissions: permissionsForApp
         }
       }
     });
@@ -1649,7 +1735,7 @@ app.post("/api/admin/apps/sync", authenticateToken, requirePermission("applicati
 app.post("/api/admin/apps", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const body = isPlainObject(req.body) ? req.body : {};
-    const { clientId, clientKey, nameApp, description, icon, badge, urlRedirect, targetRoles } = body;
+    const { clientId, clientKey, nameApp, description, icon, badge, urlRedirect, tingkatMasuk } = body;
 
     if (typeof clientId !== "string" || typeof clientKey !== "string" || typeof nameApp !== "string") {
       return res.status(400).json({ status: false, message: "client_id, client_key, nama aplikasi, dan URL redirect wajib diisi." });
@@ -1672,14 +1758,15 @@ app.post("/api/admin/apps", authenticateToken, requirePermission("application:ed
       return res.status(400).json({ status: false, message: "URL redirect harus berupa alamat http atau https yang valid." });
     }
 
-    const normalizedRoles = targetRoles === undefined
-      ? JSON.stringify(["DOSEN", "MAHASISWA", "SUPERADMIN"])
-      : normalizeTargetRoles(targetRoles);
+    // Tingkat masuk yang diminta; default tiga-tiganya. Izin inilah yang
+    // nanti dilekatkan pada peran, menggantikan `targetRoles`.
+    const tingkatDiminta: TingkatMasuk[] = Array.isArray(tingkatMasuk)
+      ? TINGKAT_MASUK.filter((tingkat) => tingkatMasuk.includes(tingkat))
+      : [...TINGKAT_MASUK];
 
-    if (!normalizedRoles) {
-      return res.status(400).json({ status: false, message: "Daftar peran target tidak valid." });
+    if (tingkatDiminta.length === 0) {
+      return res.status(400).json({ status: false, message: "Pilih minimal satu tingkat masuk (admin, dosen, atau mahasiswa)." });
     }
-
     const normalizedIcon = icon === undefined ? "LayoutGrid" : normalizeIconValue(icon);
     if (!normalizedIcon) {
       return res.status(400).json({ status: false, message: "Ikon aplikasi tidak valid." });
@@ -1699,12 +1786,21 @@ app.post("/api/admin/apps", authenticateToken, requirePermission("application:ed
         icon: normalizedIcon,
         badge: typeof badge === "string" && badge.trim() ? badge.trim().slice(0, 40) : "Internal",
         urlRedirect: normalizedUrl,
-        targetRoles: normalizedRoles,
+        // Keterangan saja; bukan sumber otorisasi. Akses ditentukan oleh izin
+        // masuk di bawah, yang dilekatkan pada peran lewat role_permissions.
+        targetRoles: JSON.stringify(["SUPERADMIN", "DOSEN", "MAHASISWA"]),
         isActive: true
       }
     });
 
-    res.json({ status: true, message: "Aplikasi SSO berhasil didaftarkan.", data: newApp });
+    // Buat tiga izin masuk dan lekatkan ke peran sesuai cetak biru bawaan.
+    await siapkanIzinMasukAplikasi(newApp.clientId, newApp.nameApp, tingkatDiminta);
+
+    res.json({
+      status: true,
+      message: "Aplikasi SSO berhasil didaftarkan. Atur peran penerima izin masuk di halaman Peran & Izin.",
+      data: newApp
+    });
   } catch (error: any) {
     logServerError("POST /api/admin/apps", error);
     res.status(500).json({ status: false, message: "Gagal mendaftarkan aplikasi." });
@@ -1720,7 +1816,7 @@ app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application
     }
 
     const body = isPlainObject(req.body) ? req.body : {};
-    const { nameApp, description, icon, badge, urlRedirect, targetRoles, isActive, clientKey } = body;
+    const { nameApp, description, icon, badge, urlRedirect, isActive, clientKey } = body;
 
     const data: {
       nameApp?: string;
@@ -1729,7 +1825,6 @@ app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application
       badge?: string;
       urlRedirect?: string;
       clientKey?: string;
-      targetRoles?: string;
       isActive?: boolean;
     } = {};
 
@@ -1767,13 +1862,6 @@ app.put("/api/admin/apps/:id", authenticateToken, requirePermission("application
         return res.status(400).json({ status: false, message: "Client Key minimal 16 karakter." });
       }
       data.clientKey = clientKey.trim();
-    }
-    if (targetRoles !== undefined) {
-      const normalizedRoles = normalizeTargetRoles(targetRoles);
-      if (!normalizedRoles) {
-        return res.status(400).json({ status: false, message: "Daftar peran target tidak valid." });
-      }
-      data.targetRoles = normalizedRoles;
     }
     if (isActive !== undefined) {
       if (typeof isActive !== "boolean") {
@@ -2523,22 +2611,31 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
         description: true,
         badge: true,
         icon: true,
-        targetRoles: true,
         urlRedirect: true,
       },
     });
 
-    const data = apps.map((app) => {
-      let roles: string[] = [];
-      try {
-        const parsed = JSON.parse(app.targetRoles);
-        if (Array.isArray(parsed)) {
-          roles = parsed.filter((role): role is string => typeof role === "string");
-        }
-      } catch {
-        roles = [];
-      }
+    // Tingkat masuk yang benar-benar dilekatkan pada suatu peran. Dipakai
+    // halaman publik untuk menyebut siapa yang dapat memakai aplikasi, tanpa
+    // membocorkan nama peran internal.
+    const izinMasuk = await prisma.rolePermission.findMany({
+      where: {
+        permission: { resource: { in: apps.map((app) => app.clientId) } },
+        role: { users: { some: {} } },
+      },
+      select: { permission: { select: { key: true } } },
+    });
 
+    const tingkatTersedia = new Map<string, Set<string>>();
+    for (const { permission } of izinMasuk) {
+      const cocok = /^(.+):masuk_(admin|dosen|mahasiswa)$/.exec(permission.key);
+      if (!cocok) continue;
+      const [, clientId, tingkat] = cocok;
+      if (!tingkatTersedia.has(clientId)) tingkatTersedia.set(clientId, new Set());
+      tingkatTersedia.get(clientId)!.add(tingkat);
+    }
+
+    const data = apps.map((app) => {
       // Hanya origin yang dibuka ke publik agar alamat callback tidak bocor.
       let origin = "";
       try {
@@ -2554,7 +2651,9 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
         description: app.description,
         badge: app.badge,
         icon: app.icon,
-        targetRoles: roles,
+        tingkatMasuk: TINGKAT_MASUK.filter((tingkat) =>
+          tingkatTersedia.get(app.clientId)?.has(tingkat)
+        ),
         origin,
       };
     });
