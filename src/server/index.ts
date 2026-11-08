@@ -1673,6 +1673,17 @@ app.post("/api/admin/apps/sync", authenticateToken, requirePermission("applicati
         targetRoles: JSON.stringify(["ADMIN_AKREDITASI", "DOSEN", "SUPERADMIN"]),
         order: 6,
       },
+      {
+        clientId: "prodi-unusu",
+        clientKey: process.env.SSO_CLIENT_KEY_PRODI_UNUSU || "",
+        nameApp: "Portal Prodi UNUSU",
+        description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
+        icon: "AcademicCap",
+        badge: "Akademik",
+        urlRedirect: `${baseUrl}/sso/callback`,
+        targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
+        order: 7,
+      },
     ];
 
     let createdCount = 0;
@@ -1694,6 +1705,9 @@ app.post("/api/admin/apps/sync", authenticateToken, requirePermission("applicati
             targetRoles: app.targetRoles,
             order: app.order,
             isActive: true,
+            // Kunci hanya ditimpa bila memang disediakan; registri lama yang
+            // kuncinya sudah diisi lewat panel tidak boleh dikosongkan.
+            ...(app.clientKey ? { clientKey: app.clientKey } : {}),
           },
         });
         updatedCount++;

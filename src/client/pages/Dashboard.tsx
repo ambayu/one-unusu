@@ -170,6 +170,9 @@ export const Dashboard: React.FC = () => {
     if (isImageSource(app.icon)) return app.icon as string;
 
     const id = app.clientId.toLowerCase();
+    // Cek `prodi` SEBELUM `lms` agar kartu Portal Prodi tidak meminjam gambar
+    // LMS hanya karena kebetulan urutannya lebih dulu (belum ada aset khusus).
+    if (id.includes('prodi')) return assetUrl('/assets/apps/app-siakad.png');
     if (id.includes('lms')) return assetUrl('/assets/apps/app-lms.png');
     if (id.includes('esurat') || id.includes('e-surat')) return assetUrl('/assets/apps/app-esurat.png');
     if (id.includes('siakad')) return assetUrl('/assets/apps/app-siakad.png');

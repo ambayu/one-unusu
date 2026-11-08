@@ -32,6 +32,10 @@ const SSO_CLIENT_KEYS = {
   sdmSarpras: requireEnv("SSO_CLIENT_KEY_SDM_SARPRAS"),
   unusuLms: requireEnv("SSO_CLIENT_KEY_UNUSU_LMS"),
   unusuAkreditasi: requireEnv("SSO_CLIENT_KEY_UNUSU_AKREDITASI"),
+  // Portal Prodi belum memakai kunci: `prodi-unusu/.env` masih mengosongkan
+  // SSO_CLIENT_KEY. Baris registry-nya tetap didaftarkan agar muncul di portal;
+  // login baru berhasil setelah kunci server-to-server diisi di kedua sisi.
+  prodiUnusu: process.env.SSO_CLIENT_KEY_PRODI_UNUSU || "",
 } as const;
 
 /**
@@ -233,6 +237,18 @@ async function main() {
       urlRedirect: `${PUBLIC_BASE_URL}/akreditasi/sso/callback`,
       targetRoles: JSON.stringify(["ADMIN_AKREDITASI", "DOSEN", "SUPERADMIN"]),
       order: 6,
+      isActive: true,
+    },
+    {
+      clientId: "prodi-unusu",
+      clientKey: SSO_CLIENT_KEYS.prodiUnusu,
+      nameApp: "Portal Prodi UNUSU",
+      description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
+      icon: "AcademicCap",
+      badge: "Akademik",
+      urlRedirect: `${PUBLIC_BASE_URL}/sso/callback`,
+      targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
+      order: 7,
       isActive: true,
     },
   ];
