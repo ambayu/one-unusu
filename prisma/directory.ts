@@ -33,15 +33,27 @@ const PRODI_SITES = [
   { kode: "studislam", nama: "Studi Islam" },
 ] as const;
 
-const PRODI_DIRECTORY_ENTRIES = PRODI_SITES.map((prodi, index) => ({
-  nama: `Website ${prodi.nama}`,
-  kategori: "Website Prodi",
-  deskripsi: `Profil, kurikulum, dosen, berita, dan informasi akademik Program Studi ${prodi.nama}.`,
-  urlTarget: `https://${prodi.kode}.unusu.ac.id`,
-  icon: "AcademicCapIcon",
-  isExternal: true,
-  urutan: 10 + index,
-}));
+const PRODI_DIRECTORY_ENTRIES = PRODI_SITES.map((prodi, index) => {
+  // Jika di lingkungan development lokal, URL diarahkan ke port prodi-unusu (5180) dengan query tenant
+  const isLocal =
+    process.env.SSO_ENV === "local" ||
+    process.env.NODE_ENV === "development" ||
+    (process.env.SEED_PUBLIC_BASE_URL || "").includes("localhost");
+
+  const urlTarget = isLocal
+    ? `http://localhost:5180/?tenant=${prodi.kode}`
+    : `https://${prodi.kode}.unusu.ac.id`;
+
+  return {
+    nama: `Website Prodi ${prodi.nama}`,
+    kategori: "Website Prodi",
+    deskripsi: `Profil, kurikulum, dosen, berita, dan informasi akademik Program Studi ${prodi.nama}.`,
+    urlTarget,
+    icon: "AcademicCapIcon",
+    isExternal: true,
+    urutan: 10 + index,
+  };
+});
 
 export const DIRECTORY_ENTRIES = [
   {
