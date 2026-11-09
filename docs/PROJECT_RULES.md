@@ -79,6 +79,20 @@ Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First via `<cli
    - Otorisasi fitur per sub-menu menegakkan izin fitur (contoh: `lppm:penelitian:create`, `sarpras:aset:delete`, dsb.) yang diteruskan oleh token SSO.
 5. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran (`roleId === null`) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
 
+### 4.2 Aturan URL Callback Aplikasi Cabang (Local Dev vs VPS / Produksi)
+
+URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkungan target:
+
+1. **Pemetaan Lingkungan**:
+   - **Mode Lokal (`local`)**: Setiap aplikasi satelit berjalan di port Vite mandiri (`http://localhost:5174` s.d. `5180`). Nilai `urlRedirect` di tabel `sso_apps` harus mengarah ke port lokal masing-masing (`http://localhost:517x/sso/callback`).
+   - **Mode VPS / Produksi (`vps`)**: Seluruh aplikasi satelit diakses via reverse-proxy Nginx sub-path di bawah domain utama (`{PUBLIC_BASE_URL}/{app}/sso/callback`), kecuali Portal Prodi yang memiliki multi-domain mandiri (`{PRODI_BASE_URL}/sso/callback`).
+2. **Skrip Penyelaras Database**:
+   - `npm run db:sso-dev-urls`: Memperbarui seluruh `urlRedirect` di database lokal menjadi port localhost.
+   - `npm run db:sso-vps-urls`: Memperbarui seluruh `urlRedirect` di database menjadi URL domain VPS.
+   - `npm run db:seed:local` / `npm run db:seed:vps`: Menjalankan seeder dengan target lingkungan eksplisit.
+3. **Penyelarasan Kode Sumber**:
+   - Fungsi `buildSsoAppDefinitions` di `src/server/lib/ssoApps.ts` mendeteksi mode secara otomatis (`isLocalMode`) bila parameter `mode === "local"`, env `SSO_ENV === "local"`, atau bila `publicBaseUrl` mengandung string `localhost`.
+
 ---
 
 ## 5. Aturan Keamanan, Database, & Kode

@@ -1,5 +1,11 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-11-09] - Bypass Akses Penuh untuk Super Administrator & Sinkronisasi URL Callback
+
+### Changed
+- **Akses Penuh Super Administrator**: Evaluasi akses peluncur aplikasi SSO (`decideAppAccess`) kini otomatis memberikan `isAllowed: true` untuk akun civitas yang memegang peran `SUPERADMIN` atau `ADMIN_SSO`, memastikan kartu aplikasi tidak lagi terkunci dengan label *"Aplikasi ini dikelola unit lain dan tidak tersedia untuk peran Anda"*.
+- **Penyelarasan URL Callback Dev Lokal**: Menyelaraskan seluruh callback aplikasi cabang di database lokal ke port Vite pengembang (`5174` - `5180`) via skrip `npm run db:sso-dev-urls`.
+
 ## [2026-10-31] - Modal Akses Ditolak Hijau & Pesan Tanpa Nama Peran
 
 ### Changed

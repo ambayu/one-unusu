@@ -30,6 +30,7 @@ export const PERMISSION_CATALOG = [
   { resource: "user", label: "Manajemen Pengguna", actions: ["menu", "view", "edit", "delete"] },
   { resource: "permission", label: "Izin", actions: ["menu", "view", "edit"] },
   { resource: "role", label: "Peran", actions: ["menu", "view", "edit", "delete"] },
+  { resource: "superadmin", label: "Otoritas Superadmin", actions: ["access"] },
 ] as const;
 
 const ACTION_LABEL: Record<string, string> = {
@@ -38,6 +39,7 @@ const ACTION_LABEL: Record<string, string> = {
   edit: "Ubah",
   delete: "Hapus",
   export: "Ekspor",
+  access: "Akses Penuh",
 };
 
 const ALL_PERMISSIONS = "ALL" as const;

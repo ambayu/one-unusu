@@ -38,3 +38,8 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 - **Badge Warna Dinamis**: Penanda badge peran pada tabel pengguna menggunakan helper `badgeForRole(code)` yang menghasilkan warna konsisten secara deterministik untuk peran kustom maupun sistem.
 - **Proteksi Penguncian Diri**: Super Administrator dicegah dari menurunkan perannya sendiri (`SUPERADMIN`) saat mengedit profil akun sendiri untuk mencegah kehilangan akses panel secara permanen.
 - **Peran Kustom oleh Superadmin**: Super Administrator dapat membuat peran kustom di `/admin/roles` dan mengatur izin fitur serta izin masuk aplikasi (`<clientId>:masuk_*`) di `/admin/permissions`, lalu menautkan peran tersebut ke pengguna di `/admin/users`. Peran admin per-aplikasi kaku telah dihapus dari sistem.
+- **Super Administrator & Admin SSO Access**: Akun ber-peran `SUPERADMIN` atau `ADMIN_SSO` secara otomatis melewati batasan izin masuk peluncuran aplikasi SSO dan memperoleh hak penuh untuk seluruh aplikasi satelit.
+- **Penyelarasan Callback per Lingkungan**: Pengaturan URL redirect aplikasi satelit terbagi dua:
+  - Mode **Local**: Menunjuk port frontend Vite lokal (`5174` s.d. `5180`).
+  - Mode **VPS**: Menunjuk sub-path reverse-proxy (`https://unusu.ac.id/{app}/sso/callback`).
+  - Dikelola melalui perintah `npm run db:sso-dev-urls` dan `npm run db:sso-vps-urls`.

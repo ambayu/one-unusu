@@ -18,6 +18,7 @@
 - Label input identifier pada formulir tambah akun berubah secara dinamis (NIM untuk Mahasiswa, NIDN untuk Dosen, Username untuk peran lainnya).
 - Otorisasi pintu masuk aplikasi cabang beralih sepenuhnya ke izin masuk standar `<clientId>:masuk_*` (`masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`) via fungsi `decideAppAccess()`.
 - Super Administrator dan Admin SSO otomatis memiliki seluruh izin masuk ke semua aplikasi cabang.
+- **Penyelarasan URL Callback Lingkungan**: Memisahkan seeder dan skrip sinkronisasi URL callback untuk mode lokal (`npm run db:sso-dev-urls` / `npm run db:seed:local`) dan mode VPS (`npm run db:sso-vps-urls` / `npm run db:seed:vps`).
 - `seed.ts` diperbarui: akun bawaan hanya `admin` (`SUPERADMIN`) dan `admin_sso` (`ADMIN_SSO`). Penautan pengguna dilakukan sesudah penyiapan peran (`roleId`).
 
 ### Removed
