@@ -18,14 +18,13 @@ export const AKSI_MASUK = TINGKAT_MASUK.map((t) => `masuk_${t}`);
  * masuknya karena disinkronkan dari tabel `sso_apps`, bukan dari daftar ini.
  */
 export const APP_PERMISSION_RESOURCES = [
-    { resource: "unusu-lms", label: "LMS UNUSU", actions: AKSI_MASUK },
-    { resource: "lppm-unusu", label: "LPPM UNUSU", actions: AKSI_MASUK },
-    { resource: "lpm-unusu", label: "LPM UNUSU", actions: AKSI_MASUK },
-    { resource: "esurat-unusu", label: "E-Surat UNUSU", actions: AKSI_MASUK },
-    { resource: "sdm-sarpras-unusu", label: "SDM & Sarpras UNUSU", actions: AKSI_MASUK },
-    { resource: "unusu-akreditasi", label: "Akreditasi UNUSU", actions: AKSI_MASUK },
-    { resource: "lms-unusu", label: "e-Learning UNUSU", actions: AKSI_MASUK },
-    { resource: "prodi-unusu", label: "Prodi UNUSU", actions: AKSI_MASUK },
+    { resource: "50e3ed28134b379d", label: "LMS UNUSU", actions: AKSI_MASUK },
+    { resource: "223ea0752e7619e2", label: "LPPM UNUSU", actions: AKSI_MASUK },
+    { resource: "014813db6bffb39f", label: "LPM UNUSU", actions: AKSI_MASUK },
+    { resource: "e538eac90fb83578", label: "E-Surat UNUSU", actions: AKSI_MASUK },
+    { resource: "38cf6306cea79458", label: "SDM & Sarpras UNUSU", actions: AKSI_MASUK },
+    { resource: "a5776434492cb44a", label: "Akreditasi UNUSU", actions: AKSI_MASUK },
+    { resource: "70c76ea9b5d5d3a8", label: "Prodi UNUSU", actions: AKSI_MASUK },
 ];
 /**
  * Sumber tunggal katalog izin & definisi peran sistem.
