@@ -177,6 +177,14 @@ async function cleanObsoletePermissions(prisma: PrismaClient): Promise<void> {
     }
   }
 
+  // Lindungi izin masuk aplikasi cabang agar tidak terhapus
+  const apps = await prisma.ssoApp.findMany({ select: { clientId: true } });
+  for (const app of apps) {
+    validKeys.add(`${app.clientId}:masuk_admin`);
+    validKeys.add(`${app.clientId}:masuk_dosen`);
+    validKeys.add(`${app.clientId}:masuk_mahasiswa`);
+  }
+
   const obsolete = await prisma.permission.findMany({
     where: {
       key: {
