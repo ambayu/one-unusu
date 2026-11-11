@@ -356,4 +356,24 @@ export interface AppCatalogItem {
 export const fetchAppCatalog = () =>
   api.get<{ status: boolean; data: AppCatalogItem[] }>('/applications/catalog');
 
+// ==========================================
+// HIERARKI AKADEMIK (Fakultas & Prodi dari prodi-unusu / fallback lokal)
+// ==========================================
+export interface AcademicProgramItem {
+  id: number | string;
+  code?: string;
+  name: string;
+  degree?: string;
+}
+
+export interface AcademicFacultyItem {
+  id: number | string;
+  code?: string;
+  name: string;
+  studyPrograms: AcademicProgramItem[];
+}
+
+export const fetchAcademicHierarchy = () =>
+  api.get<{ status: boolean; data: AcademicFacultyItem[] }>('/academic/hierarchy');
+
 export default api;
