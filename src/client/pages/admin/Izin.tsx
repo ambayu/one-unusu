@@ -41,6 +41,9 @@ const ACTION_LABEL: Record<string, string> = {
   view: 'Lihat',
   edit: 'Ubah',
   delete: 'Hapus',
+  masuk_admin: 'Masuk Admin',
+  masuk_dosen: 'Masuk Dosen',
+  masuk_mahasiswa: 'Masuk Mahasiswa',
 };
 
 const RESOURCE_LABEL: Record<string, string> = {
@@ -52,6 +55,7 @@ const RESOURCE_LABEL: Record<string, string> = {
   user: 'Manajemen Pengguna',
   permission: 'Izin',
   role: 'Peran',
+  akses: 'Akses Aplikasi SSO',
 };
 
 const ACTION_TONE: Record<string, string> = {
@@ -59,6 +63,9 @@ const ACTION_TONE: Record<string, string> = {
   view: 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]',
   edit: 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]',
   delete: 'bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]',
+  masuk_admin: 'bg-[#FAF5FF] text-[#7E22CE] border-[#E9D5FF]',
+  masuk_dosen: 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]',
+  masuk_mahasiswa: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
 };
 
 export const Izin: React.FC = () => {

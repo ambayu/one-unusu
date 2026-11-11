@@ -1,5 +1,4 @@
-/** Tiga tingkat izin masuk yang berlaku untuk setiap aplikasi cabang. */
-export const TINGKAT_MASUK = ["admin", "dosen", "mahasiswa"];
+export * from "../src/server/lib/accessControl.js";
 /**
  * Aksi izin masuk, diturunkan dari `TINGKAT_MASUK`.
  *

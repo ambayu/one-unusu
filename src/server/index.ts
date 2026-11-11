@@ -459,16 +459,40 @@ interface AppAccessDecision {
   tingkat: TingkatMasuk[];
 }
 
-/** Izin masuk yang dimiliki pengguna untuk satu aplikasi. */
-function tingkatMasukDimiliki(permissionKeys: string[], clientId: string): TingkatMasuk[] {
+function parseTargetRoles(targetRolesRaw: string | null | undefined): string[] {
+  if (!targetRolesRaw) return [];
+  try {
+    const parsed = JSON.parse(targetRolesRaw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function tingkatDiterimaAplikasi(targetRoles: string[]): TingkatMasuk[] {
+  const result: TingkatMasuk[] = [];
+  if (targetRoles.some((r) => r.startsWith("ADMIN_") || r === "SUPERADMIN" || r === "ADMIN_SSO")) {
+    result.push("admin");
+  }
+  if (targetRoles.includes("DOSEN")) {
+    result.push("dosen");
+  }
+  if (targetRoles.includes("MAHASISWA")) {
+    result.push("mahasiswa");
+  }
+  return result;
+}
+
+/** Izin masuk global yang dimiliki pengguna (masuk_admin, masuk_dosen, masuk_mahasiswa). */
+function tingkatMasukDimiliki(permissionKeys: string[]): TingkatMasuk[] {
   return TINGKAT_MASUK.filter((tingkat: TingkatMasuk) =>
-    permissionKeys.includes(kunciIzinMasuk(clientId, tingkat))
+    permissionKeys.includes(kunciIzinMasuk(tingkat))
   );
 }
 
 function decideAppAccess(
   permissionKeys: string[],
-  clientId: string,
+  targetRolesRaw: string | null | undefined,
   userRoleCodes: string[] = []
 ): AppAccessDecision {
   // SUPERADMIN dan ADMIN_SSO memiliki hak akses penuh ke seluruh peluncur aplikasi SSO
@@ -480,67 +504,37 @@ function decideAppAccess(
     };
   }
 
-  const tingkat = tingkatMasukDimiliki(permissionKeys, clientId);
+  const appRoles = parseTargetRoles(targetRolesRaw);
+  const tingkatApp = tingkatDiterimaAplikasi(appRoles);
+  const tingkatUser = tingkatMasukDimiliki(permissionKeys);
+
+  const tingkatCocok = tingkatUser.filter((t) => {
+    if (!tingkatApp.includes(t)) return false;
+    // Khusus admin aplikasi, pastikan peran pengguna cocok dengan targetRoles atau peran admin aplikasi
+    if (t === "admin") {
+      return userRoleCodes.some((rc) => appRoles.includes(rc) || rc.startsWith("ADMIN_"));
+    }
+    return true;
+  });
+
   return {
-    allowed: tingkat.length > 0,
-    reason: tingkat.length > 0 ? "permission-allowed" : "permission-denied",
-    tingkat,
+    allowed: tingkatCocok.length > 0,
+    reason: tingkatCocok.length > 0 ? "permission-allowed" : "permission-denied",
+    tingkat: tingkatCocok,
   };
 }
 
 /**
- * Menyiapkan tiga izin masuk `<clientId>:masuk_*` untuk sebuah aplikasi baru
- * lalu melekatkannya ke peran sesuai cetak biru bawaan.
- *
- * Dipanggil saat aplikasi cabang didaftarkan lewat panel, sehingga registri
- * baru langsung punya izin yang dapat diatur administrator di halaman
- * Peran & Izin — tanpa perlu menjalankan seeder.
+ * Menyiapkan izin masuk aplikasi baru.
+ * Izin masuk kini bersifat global (masuk_admin, masuk_dosen, masuk_mahasiswa)
+ * yang dicocokkan dengan targetRoles pada registry aplikasi SSO.
  */
 async function siapkanIzinMasukAplikasi(
-  clientId: string,
-  nameApp: string,
-  tingkatDiminta: TingkatMasuk[]
+  _clientId: string,
+  _nameApp: string,
+  _tingkatDiminta: TingkatMasuk[]
 ): Promise<void> {
-  const actionByTingkat: Record<TingkatMasuk, string> = {
-    admin: "masuk_admin",
-    dosen: "masuk_dosen",
-    mahasiswa: "masuk_mahasiswa",
-  };
-  const labelByTingkat: Record<TingkatMasuk, string> = {
-    admin: "Masuk sebagai Administrator",
-    dosen: "Masuk sebagai Dosen",
-    mahasiswa: "Masuk sebagai Mahasiswa",
-  };
-
-  const permissionIdByTingkat = new Map<TingkatMasuk, number>();
-  for (const tingkat of TINGKAT_MASUK) {
-    const permission = await prisma.permission.upsert({
-      where: { key: kunciIzinMasuk(clientId, tingkat) },
-      update: {},
-      create: {
-        key: kunciIzinMasuk(clientId, tingkat),
-        resource: clientId,
-        action: actionByTingkat[tingkat],
-        label: `${nameApp} · ${labelByTingkat[tingkat]}`,
-      },
-    });
-    permissionIdByTingkat.set(tingkat, permission.id);
-  }
-
-  const roles = await prisma.role.findMany({ select: { id: true, code: true } });
-
-  const data: { roleId: number; permissionId: number }[] = [];
-  for (const role of roles) {
-    for (const tingkat of tingkatMasukBawaan(role.code)) {
-      if (!tingkatDiminta.includes(tingkat)) continue;
-      const permissionId = permissionIdByTingkat.get(tingkat);
-      if (permissionId) data.push({ roleId: role.id, permissionId });
-    }
-  }
-
-  if (data.length > 0) {
-    await prisma.rolePermission.createMany({ data, skipDuplicates: true });
-  }
+  // Kompatibilitas endpoint pendaftaran aplikasi cabang baru
 }
 
 /**
@@ -917,11 +911,11 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
     const apps = await prisma.ssoApp.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
-      select: { id: true, clientId: true, nameApp: true }
+      select: { id: true, clientId: true, nameApp: true, targetRoles: true }
     });
 
     const appAccess = apps.map((app) => {
-      const decision = decideAppAccess(permissionKeys, app.clientId, roleCodes);
+      const decision = decideAppAccess(permissionKeys, app.targetRoles, roleCodes);
       return {
         clientId: app.clientId,
         nameApp: app.nameApp,
@@ -1078,22 +1072,20 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
         badge: true,
         urlRedirect: true,
         isActive: true,
-        order: true
+        order: true,
+        targetRoles: true,
       }
     });
 
     const userRoleCodes = await getUserRoleCodes(currentUser.id);
 
     // Katalog dikirim lengkap; status izin dihitung per pengguna dari izin
-    // masuk (`<clientId>:masuk_admin|dosen|mahasiswa`) yang tersimpan di
-    // `role_permissions`. Aplikasi cabang memvalidasi ulang saat login.
+    // masuk global yang dicocokkan dengan targetRoles aplikasi SSO.
     const appsWithAccess = apps.map((app) => {
-      const decision = decideAppAccess(permissionKeys, app.clientId, userRoleCodes);
+      const decision = decideAppAccess(permissionKeys, app.targetRoles, userRoleCodes);
       return {
         ...app,
-        // `targetRoles` tidak lagi menjadi sumber otorisasi; dikirim kosong
-        // agar klien tidak lagi menampilkan daftar peran sebagai janji akses.
-        targetRoles: "",
+        targetRoles: app.targetRoles || "",
         tingkatMasuk: decision.tingkat,
         isAllowed: decision.allowed
       };
@@ -1143,7 +1135,7 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       getUserPermissionKeys(userId),
       getUserRoleCodes(userId)
     ]);
-    const decision = decideAppAccess(permissionKeys, ssoApp.clientId, userRoleCodes);
+    const decision = decideAppAccess(permissionKeys, ssoApp.targetRoles, userRoleCodes);
 
     if (!decision.allowed) {
       return res.status(403).json({
@@ -1309,7 +1301,7 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     //    Sumber: izin masuk `<clientId>:masuk_*` milik pengguna di
     //    `role_permissions`. Peran mentah tidak lagi dipakai.
     const verifyPermissionKeys = await getUserPermissionKeys(user.id);
-    const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.clientId, roleCodes);
+    const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.targetRoles, roleCodes);
 
     if (!verifyDecision.allowed) {
       return res.status(403).json({
@@ -1327,7 +1319,7 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     // tiket SSO berumur pendek (5 menit, sekali pakai) sehingga daftar ini
     // tidak menjadi hak akses permanen.
     const permissionsForApp = verifyPermissionKeys.filter(
-      (k) => k.startsWith(`${ssoApp.clientId}:`) || !k.includes(":")
+      (k) => !k.includes(":") || k.startsWith("akses:")
     );
 
     res.json({
@@ -2341,15 +2333,20 @@ app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission
 
     const requestedKeys = Array.from(new Set(rawKeys as string[]));
 
-    // Mencegah eskalasi hak akses: pengguna hanya boleh membagikan izin yang
+    // Mencegah eskalasi hak akses: pengguna non-superadmin hanya boleh membagikan izin yang
     // memang sudah dimilikinya sendiri.
-    const ownKeys = await getUserPermissionKeys(req.user!.id);
-    const unauthorizedKeys = requestedKeys.filter((key) => !ownKeys.includes(key));
-    if (unauthorizedKeys.length > 0) {
-      return res.status(403).json({
-        status: false,
-        message: "Anda tidak dapat memberikan izin yang tidak Anda miliki sendiri."
-      });
+    const userRoleCodes = await getUserRoleCodes(req.user!.id);
+    const isSuperOrSsoAdmin = userRoleCodes.includes("SUPERADMIN") || userRoleCodes.includes("ADMIN_SSO");
+
+    if (!isSuperOrSsoAdmin) {
+      const ownKeys = await getUserPermissionKeys(req.user!.id);
+      const unauthorizedKeys = requestedKeys.filter((key) => !ownKeys.includes(key));
+      if (unauthorizedKeys.length > 0) {
+        return res.status(403).json({
+          status: false,
+          message: "Anda tidak dapat memberikan izin yang tidak Anda miliki sendiri."
+        });
+      }
     }
 
     const permissions = await prisma.permission.findMany({
@@ -2357,13 +2354,38 @@ app.put("/api/admin/roles/:id/permissions", authenticateToken, requirePermission
       select: { id: true }
     });
 
-    await prisma.$transaction([
-      prisma.rolePermission.deleteMany({ where: { roleId: id } }),
-      prisma.rolePermission.createMany({
-        data: permissions.map((permission) => ({ roleId: id, permissionId: permission.id })),
-        skipDuplicates: true
-      })
-    ]);
+    const existing = await prisma.rolePermission.findMany({
+      where: { roleId: id },
+      select: { permissionId: true },
+    });
+    const existingIds = new Set(existing.map((r) => r.permissionId));
+    const wantedIds = new Set(permissions.map((p) => p.id));
+
+    const toAdd = permissions
+      .filter((p) => !existingIds.has(p.id))
+      .map((p) => ({ roleId: id, permissionId: p.id }));
+    const toRemove = [...existingIds].filter((pid) => !wantedIds.has(pid));
+
+    const ops: any[] = [];
+    if (toRemove.length > 0) {
+      ops.push(
+        prisma.rolePermission.deleteMany({
+          where: { roleId: id, permissionId: { in: toRemove } },
+        })
+      );
+    }
+    if (toAdd.length > 0) {
+      ops.push(
+        prisma.rolePermission.createMany({
+          data: toAdd,
+          skipDuplicates: true,
+        })
+      );
+    }
+
+    if (ops.length > 0) {
+      await prisma.$transaction(ops);
+    }
 
     res.json({
       status: true,
