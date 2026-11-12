@@ -4,15 +4,13 @@ import {
   DirectoryItem,
 } from '../services/api';
 import { isImageSource } from '../lib/appIcon';
+import { assetUrl } from '../lib/assets';
 import {
   GlobeAltIcon,
   ArrowTopRightOnSquareIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
   ExclamationCircleIcon,
-  AcademicCapIcon,
-  BuildingOffice2Icon,
-  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 
 export const AplikasiNonSsoPage: React.FC = () => {
@@ -42,28 +40,38 @@ export const AplikasiNonSsoPage: React.FC = () => {
     void loadData();
   }, []);
 
-  const renderDirectoryIcon = (iconName: string | null) => {
-    if (isImageSource(iconName)) {
-      return (
-        <img
-          src={iconName as string}
-          alt="Ikon Portal"
-          className="w-full h-full object-contain rounded-[6px]"
-        />
-      );
+  /**
+   * Menentukan gambar sampul untuk kartu portal non-SSO.
+   *
+   * Kolom `icon` menyimpan dua bentuk nilai: sumber gambar hasil unggahan admin
+   * atau nama ikon lama (mis. "AcademicCapIcon"). Nilai gambar dipakai apa
+   * adanya; nama ikon diterjemahkan ke aset bawaan agar seluruh kartu tetap
+   * memiliki sampul visual seperti pada katalog aplikasi SSO.
+   */
+  const getDirectoryPreviewImage = (dir: DirectoryItem): string => {
+    if (isImageSource(dir.icon)) {
+      return dir.icon as string;
     }
 
-    switch (iconName) {
-      case 'AcademicCapIcon':
-        return <AcademicCapIcon className="w-5 h-5" />;
-      case 'BuildingOffice2Icon':
-        return <BuildingOffice2Icon className="w-5 h-5" />;
-      case 'Squares2X2Icon':
-        return <Squares2X2Icon className="w-5 h-5" />;
-      case 'GlobeAltIcon':
-      default:
-        return <GlobeAltIcon className="w-5 h-5" />;
+    const teks = `${dir.nama} ${dir.kategori ?? ''} ${dir.urlTarget}`.toLowerCase();
+
+    if (teks.includes('lppm')) return assetUrl('/assets/apps/app-lppm.png');
+    if (teks.includes('lpm')) return assetUrl('/assets/apps/app-lpm.png');
+    if (teks.includes('esurat') || teks.includes('e-surat') || teks.includes('surat')) {
+      return assetUrl('/assets/apps/app-esurat.png');
     }
+    if (teks.includes('sarpras') || teks.includes('fasilitas')) {
+      return assetUrl('/assets/apps/app-sarpras.png');
+    }
+    if (teks.includes('lms') || teks.includes('e-learning') || teks.includes('kuliah')) {
+      return assetUrl('/assets/apps/app-lms.png');
+    }
+    if (teks.includes('pmb') || teks.includes('admisi') || teks.includes('pendaftaran')) {
+      return assetUrl('/assets/campus-banner.png');
+    }
+
+    // Portal prodi dan SIAKAD berbagi sampul akademik yang sama.
+    return assetUrl('/assets/apps/app-siakad.png');
   };
 
   const categories = useMemo(() => {
@@ -157,12 +165,17 @@ export const AplikasiNonSsoPage: React.FC = () => {
 
       {/* Grid Kartu Non-SSO */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="p-4.5 rounded-[16px] bg-stone-50 border border-stone-200 animate-pulse space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-stone-200" />
-              <div className="h-4 w-2/3 rounded bg-stone-200" />
-              <div className="h-3 w-full rounded bg-stone-200" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="overflow-hidden rounded-[18px] border border-stone-200 bg-white animate-pulse"
+            >
+              <div className="aspect-[16/10] bg-[#E6EFE8]" />
+              <div className="p-5 space-y-2.5">
+                <div className="h-4 w-2/3 rounded bg-[#E6EFE8]" />
+                <div className="h-3 w-full rounded bg-[#EEF4EF]" />
+              </div>
             </div>
           ))}
         </div>
@@ -171,41 +184,56 @@ export const AplikasiNonSsoPage: React.FC = () => {
           Tidak ada portal mandiri yang cocok dengan filter atau kata kunci pencarian.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDirectories.map((dir) => (
             <div
               key={dir.id}
-              className="p-4.5 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs"
+              className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] bg-white shadow-xs transition-all duration-200 hover:border-[#166534] hover:shadow-md"
             >
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534] transition-colors group-hover:bg-[#166534] group-hover:text-white">
-                    {renderDirectoryIcon(dir.icon)}
+              <div>
+                <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
+                  <img
+                    src={getDirectoryPreviewImage(dir)}
+                    alt={`Gambar portal ${dir.nama}`}
+                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
+
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                    <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white border border-white/10">
+                      {dir.kategori || 'Portal Mandiri'}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200/60">
-                    {dir.kategori || 'Portal'}
-                  </span>
+
+                  <div className="absolute top-3 right-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                      <GlobeAltIcon className="w-3 h-3" />
+                      <span>Non-SSO</span>
+                    </span>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
+                <div className="p-5 space-y-2">
+                  <h3 className="font-bold text-base text-[#1E293B] group-hover:text-[#166534] transition line-clamp-1">
                     {dir.nama}
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-1 leading-relaxed line-clamp-2">
+                  </h3>
+                  <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
                     {dir.deskripsi || 'Layanan portal publik terpadu UNUSU.'}
                   </p>
                 </div>
               </div>
 
-              <a
-                href={dir.urlTarget}
-                target={dir.isExternal ? '_blank' : '_self'}
-                rel={dir.isExternal ? 'noopener noreferrer' : undefined}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-[10px] bg-[#F1F5F2] hover:bg-[#166534] text-[#1E293B] hover:text-white text-xs font-semibold transition group-hover:border-[#166534] border border-[#D8E5DC]"
-              >
-                <span>Kunjungi Portal</span>
-                <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
-              </a>
+              <div className="p-5 pt-0">
+                <a
+                  href={dir.urlTarget}
+                  target={dir.isExternal ? '_blank' : '_self'}
+                  rel={dir.isExternal ? 'noopener noreferrer' : undefined}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all"
+                >
+                  <span>Kunjungi Portal</span>
+                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
           ))}
         </div>
