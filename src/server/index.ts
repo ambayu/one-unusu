@@ -2931,6 +2931,102 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/academic/hierarchy (Hierarki Fakultas & Prodi untuk registrasi/tambah akun)
+app.get("/api/academic/hierarchy", async (req: Request, res: Response) => {
+  try {
+    const prodiBase = process.env.PRODI_BASE_URL || "http://localhost:5010";
+    let prodiApiUrl = prodiBase;
+    // Jika PRODI_BASE_URL mengarah ke port Vite 5180, coba ke port API 5010 atau langsung ke prodiBase
+    if (prodiApiUrl.includes(":5180")) {
+      prodiApiUrl = prodiApiUrl.replace(":5180", ":5010");
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const upstreamRes = await fetch(`${prodiApiUrl}/api/v1/public/academic-hierarchy`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (upstreamRes.ok) {
+        const json = await upstreamRes.json() as { success?: boolean; faculties?: any[] };
+        if (json.success && Array.isArray(json.faculties) && json.faculties.length > 0) {
+          return res.json({ status: true, data: json.faculties });
+        }
+      }
+    } catch {
+      // Upstream prodi-unusu sedang tidak aktif/timeout, gunakan data statis standar
+    }
+
+    // Fallback data statis akademik UNUSU
+    const staticHierarchy = [
+      {
+        id: 1,
+        code: "FIK",
+        name: "Fakultas Ilmu Komputer",
+        studyPrograms: [
+          { id: 1, code: "TIF", name: "Teknik Informatika", degree: "S1" },
+          { id: 2, code: "SIN", name: "Sistem Informasi", degree: "S1" },
+          { id: 3, code: "IKO", name: "Ilmu Komputer", degree: "S1" },
+        ],
+      },
+      {
+        id: 2,
+        code: "FIP",
+        name: "Fakultas Ilmu Pendidikan",
+        studyPrograms: [
+          { id: 4, code: "PGSD", name: "Pendidikan Guru Sekolah Dasar", degree: "S1" },
+          { id: 5, code: "PGPAUD", name: "Pendidikan Guru PAUD", degree: "S1" },
+          { id: 6, code: "PBI", name: "Pendidikan Bahasa Inggris", degree: "S1" },
+        ],
+      },
+      {
+        id: 3,
+        code: "FE",
+        name: "Fakultas Ekonomi",
+        studyPrograms: [
+          { id: 7, code: "MNJ", name: "Manajemen", degree: "S1" },
+          { id: 8, code: "AKT", name: "Akuntansi", degree: "S1" },
+          { id: 9, code: "EKO", name: "Ekonomi Pembangunan", degree: "S1" },
+        ],
+      },
+      {
+        id: 4,
+        code: "FP",
+        name: "Fakultas Pertanian",
+        studyPrograms: [
+          { id: 10, code: "AGT", name: "Agroteknologi", degree: "S1" },
+          { id: 11, code: "AGB", name: "Agribisnis", degree: "S1" },
+        ],
+      },
+      {
+        id: 5,
+        code: "FIKES",
+        name: "Fakultas Ilmu Kesehatan",
+        studyPrograms: [
+          { id: 12, code: "KMS", name: "Kesehatan Masyarakat", degree: "S1" },
+          { id: 13, code: "GZI", name: "Gizi", degree: "S1" },
+        ],
+      },
+      {
+        id: 6,
+        code: "FAI",
+        name: "Fakultas Agama Islam",
+        studyPrograms: [
+          { id: 14, code: "PAI", name: "Pendidikan Agama Islam", degree: "S1" },
+          { id: 15, code: "HES", name: "Hukum Ekonomi Syariah", degree: "S1" },
+        ],
+      },
+    ];
+
+    res.json({ status: true, data: staticHierarchy });
+  } catch (error: any) {
+    logServerError("GET /api/academic/hierarchy", error);
+    res.status(500).json({ status: false, message: "Gagal memuat hierarki akademik." });
+  }
+});
+
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });

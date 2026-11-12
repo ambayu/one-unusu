@@ -21,6 +21,8 @@ import {
   updateAdminUser,
   deleteAdminUser,
   fetchAdminRoles,
+  fetchAcademicHierarchy,
+  AcademicFacultyItem,
   RoleItem,
   UserProfile,
   UserRole,
@@ -72,6 +74,8 @@ export const ManajemenPengguna: React.FC = () => {
   // jadi daftar tetap di kode akan selalu tertinggal.
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
+  const [academicHierarchy, setAcademicHierarchy] = useState<AcademicFacultyItem[]>([]);
+  const [academicLoading, setAcademicLoading] = useState(true);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -85,6 +89,17 @@ export const ManajemenPengguna: React.FC = () => {
       })
       .finally(() => {
         if (!cancelled) setRolesLoading(false);
+      });
+
+    fetchAcademicHierarchy()
+      .then((res) => {
+        if (!cancelled && res.data?.data) setAcademicHierarchy(res.data.data);
+      })
+      .catch(() => {
+        // Fallback ditangani di backend, jika network gagal biarkan kosong/input manual
+      })
+      .finally(() => {
+        if (!cancelled) setAcademicLoading(false);
       });
 
     return () => {
@@ -252,6 +267,22 @@ export const ManajemenPengguna: React.FC = () => {
       prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
     );
   };
+
+  const availableNewProdis = useMemo(() => {
+    if (!newFakultas) {
+      return academicHierarchy.flatMap((f) => f.studyPrograms);
+    }
+    const found = academicHierarchy.find((f) => f.name === newFakultas);
+    return found ? found.studyPrograms : [];
+  }, [newFakultas, academicHierarchy]);
+
+  const availableEditProdis = useMemo(() => {
+    if (!editFakultas) {
+      return academicHierarchy.flatMap((f) => f.studyPrograms);
+    }
+    const found = academicHierarchy.find((f) => f.name === editFakultas);
+    return found ? found.studyPrograms : [];
+  }, [editFakultas, academicHierarchy]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -923,23 +954,74 @@ export const ManajemenPengguna: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">Program Studi</label>
-                  <input
-                    type="text"
-                    value={newProdi}
-                    onChange={(event) => setNewProdi(event.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                  />
+                  <label className="block font-semibold text-[#475569] mb-1">Fakultas</label>
+                  {academicHierarchy.length > 0 ? (
+                    <select
+                      value={newFakultas}
+                      onChange={(event) => {
+                        const nextFakultas = event.target.value;
+                        setNewFakultas(nextFakultas);
+                        // Reset prodi jika tidak sesuai fakultas terpilih
+                        if (nextFakultas) {
+                          const targetFaculty = academicHierarchy.find((f) => f.name === nextFakultas);
+                          const isProdiValid = targetFaculty?.studyPrograms.some((p) => p.name === newProdi);
+                          if (!isProdiValid) setNewProdi('');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    >
+                      <option value="">-- Pilih Fakultas (Opsional) --</option>
+                      {academicHierarchy.map((fac) => (
+                        <option key={fac.id} value={fac.name}>
+                          {fac.name} {fac.code ? `(${fac.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Contoh: Fakultas Ilmu Komputer"
+                      value={newFakultas}
+                      onChange={(event) => setNewFakultas(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">Fakultas</label>
-                  <input
-                    type="text"
-                    value={newFakultas}
-                    onChange={(event) => setNewFakultas(event.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                  />
+                  <label className="block font-semibold text-[#475569] mb-1">Program Studi</label>
+                  {academicHierarchy.length > 0 ? (
+                    <select
+                      value={newProdi}
+                      onChange={(event) => {
+                        const selectedProdiName = event.target.value;
+                        setNewProdi(selectedProdiName);
+                        // Auto-select fakultas jika belum dipilih
+                        if (selectedProdiName && !newFakultas) {
+                          const parentFac = academicHierarchy.find((f) =>
+                            f.studyPrograms.some((p) => p.name === selectedProdiName)
+                          );
+                          if (parentFac) setNewFakultas(parentFac.name);
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    >
+                      <option value="">-- Pilih Program Studi (Opsional) --</option>
+                      {availableNewProdis.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.degree ? `${p.degree} ` : ''}{p.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Contoh: Teknik Informatika"
+                      value={newProdi}
+                      onChange={(event) => setNewProdi(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -1071,23 +1153,72 @@ export const ManajemenPengguna: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">Program Studi</label>
-                  <input
-                    type="text"
-                    value={editProdi}
-                    onChange={(event) => setEditProdi(event.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                  />
+                  <label className="block font-semibold text-[#475569] mb-1">Fakultas</label>
+                  {academicHierarchy.length > 0 ? (
+                    <select
+                      value={editFakultas}
+                      onChange={(event) => {
+                        const nextFakultas = event.target.value;
+                        setEditFakultas(nextFakultas);
+                        if (nextFakultas) {
+                          const targetFaculty = academicHierarchy.find((f) => f.name === nextFakultas);
+                          const isProdiValid = targetFaculty?.studyPrograms.some((p) => p.name === editProdi);
+                          if (!isProdiValid) setEditProdi('');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    >
+                      <option value="">-- Pilih Fakultas (Opsional) --</option>
+                      {academicHierarchy.map((fac) => (
+                        <option key={fac.id} value={fac.name}>
+                          {fac.name} {fac.code ? `(${fac.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Contoh: Fakultas Ilmu Komputer"
+                      value={editFakultas}
+                      onChange={(event) => setEditFakultas(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">Fakultas</label>
-                  <input
-                    type="text"
-                    value={editFakultas}
-                    onChange={(event) => setEditFakultas(event.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
-                  />
+                  <label className="block font-semibold text-[#475569] mb-1">Program Studi</label>
+                  {academicHierarchy.length > 0 ? (
+                    <select
+                      value={editProdi}
+                      onChange={(event) => {
+                        const selectedProdiName = event.target.value;
+                        setEditProdi(selectedProdiName);
+                        if (selectedProdiName && !editFakultas) {
+                          const parentFac = academicHierarchy.find((f) =>
+                            f.studyPrograms.some((p) => p.name === selectedProdiName)
+                          );
+                          if (parentFac) setEditFakultas(parentFac.name);
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    >
+                      <option value="">-- Pilih Program Studi (Opsional) --</option>
+                      {availableEditProdis.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.degree ? `${p.degree} ` : ''}{p.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Contoh: Teknik Informatika"
+                      value={editProdi}
+                      onChange={(event) => setEditProdi(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  )}
                 </div>
               </div>
 
