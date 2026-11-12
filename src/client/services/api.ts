@@ -136,10 +136,23 @@ export interface SsoAppItem {
   targetRoles: string;
   /** Tingkat masuk yang dimiliki pengguna untuk aplikasi ini. */
   tingkatMasuk?: string[];
-  /** Dihitung server dari izin masuk `<clientId>:masuk_*` milik pengguna. */
+  /** Dihitung server dari izin masuk global milik pengguna. */
   isAllowed?: boolean;
   isActive: boolean;
   order: number;
+}
+
+export interface SsoHistoryItem {
+  id: number;
+  clientId: string;
+  nameApp: string;
+  icon: string | null;
+  badge: string;
+  createdAt: string;
+  expiresAt: string;
+  isUsed: boolean;
+  usedAt: string | null;
+  requestIp: string | null;
 }
 
 export interface DirectoryItem {
@@ -216,6 +229,9 @@ export const updateProfile = (data: { email?: string; noHp?: string; avatar?: st
 // ==========================================
 export const fetchSsoApps = () =>
   api.get<{ status: boolean; data: SsoAppItem[] }>('/sso/apps');
+
+export const fetchSsoHistory = () =>
+  api.get<{ status: boolean; data: SsoHistoryItem[] }>('/sso/history');
 
 export const getSsoRedirectV2 = (clientId: string) =>
   api.get<{ status: boolean; message: string; token: string; redirectUrl: string }>(`/sso/app-client/${clientId}/v2/redirect`);

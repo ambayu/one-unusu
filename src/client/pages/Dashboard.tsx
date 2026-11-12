@@ -186,6 +186,20 @@ export const Dashboard: React.FC = () => {
 
   const statusLabel = user ? (user.isActive ? 'Aktif' : 'Nonaktif') : 'Belum tersedia';
 
+  // Filter izin masuk: akun dengan izin masuk_mahasiswa murni hanya melihat aplikasi yang diizinkan untuk mahasiswa
+  const displayedApps = React.useMemo(() => {
+    const userPerms = user?.permissions || [];
+    const hasMasukMahasiswa = userPerms.includes('masuk_mahasiswa');
+    const hasMasukDosen = userPerms.includes('masuk_dosen');
+    const hasMasukAdmin = userPerms.includes('masuk_admin');
+    const isMahasiswaOnly = hasMasukMahasiswa && !hasMasukDosen && !hasMasukAdmin;
+
+    if (isMahasiswaOnly) {
+      return apps.filter((app) => app.isAllowed !== false);
+    }
+    return apps;
+  }, [apps, user]);
+
   const identitySectionTitle =
     user?.role === 'DOSEN'
       ? 'Data Ketenagaan Dosen'
@@ -377,7 +391,7 @@ export const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
-        ) : apps.length === 0 ? (
+        ) : displayedApps.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-[#C8DDD0] bg-[#F7FBF8] px-6 py-10 text-center">
             <p className="text-sm font-semibold text-[#3A5544]">Belum ada aplikasi SSO aktif</p>
             <p className="text-xs text-[#7FAD8E] mt-1">
@@ -386,7 +400,7 @@ export const Dashboard: React.FC = () => {
           </div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {apps.map((app) => {
+          {displayedApps.map((app) => {
             const isLocked = app.isAllowed === false;
             return (
             <div

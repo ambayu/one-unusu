@@ -15,10 +15,13 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   Squares2X2Icon,
+  RectangleGroupIcon,
   UsersIcon,
   KeyIcon,
   ShieldCheckIcon,
   PhotoIcon,
+  LinkIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
 import { isBiodataComplete } from '../lib/biodata';
@@ -104,6 +107,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
    */
   const allNavPaths = [
     '/dashboard',
+    '/aplikasi-sso',
+    '/aplikasi-non-sso',
+    '/riwayat-sso',
+    '/daftar-aplikasi',
     '/profil',
     '/admin',
     '/admin/slider',
@@ -136,6 +143,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
   const primaryNavItems = [
     { path: '/dashboard', label: 'Dashboard SSO', icon: HomeIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
+    { path: '/aplikasi-sso', label: 'Aplikasi SSO', icon: LinkIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
+    { path: '/aplikasi-non-sso', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
+    { path: '/riwayat-sso', label: 'Riwayat Masuk SSO', icon: ClockIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
     { path: '/profil', label: 'Biodata', icon: UserCircleIcon as React.ElementType, permission: PERMISSIONS.profileMenu },
   ].filter((item) => hasPermission(user, item.permission));
 
@@ -153,6 +163,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
   const breadcrumbLabels: Record<string, string> = {
     '/dashboard': 'Dashboard Layanan SSO',
+    '/aplikasi-sso': 'Daftar Aplikasi SSO',
+    '/aplikasi-non-sso': 'Daftar Aplikasi Non-SSO',
+    '/riwayat-sso': 'Riwayat Masuk SSO',
+    '/riwayat-login': 'Riwayat Masuk SSO',
+    '/daftar-aplikasi': 'Katalog Daftar Aplikasi',
     '/profil': 'Biodata Pengguna',
     '/admin': 'Registrasi SSO',
     '/admin/slider': 'Slider Hero',

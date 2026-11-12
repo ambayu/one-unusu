@@ -1079,8 +1079,15 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
 
     const userRoleCodes = await getUserRoleCodes(currentUser.id);
 
-    // Katalog dikirim lengkap; status izin dihitung per pengguna dari izin
-    // masuk global yang dicocokkan dengan targetRoles aplikasi SSO.
+    // Filter berbasis izin (Permission-based):
+    // Jika akun hanya memiliki izin masuk_mahasiswa (tanpa izin masuk_dosen atau masuk_admin),
+    // aplikasi yang ditampilkan hanya yang menerima tingkat mahasiswa dan berstatus diizinkan.
+    const hasMasukMahasiswa = permissionKeys.includes("masuk_mahasiswa");
+    const hasMasukDosen = permissionKeys.includes("masuk_dosen");
+    const hasMasukAdmin = permissionKeys.includes("masuk_admin");
+    const isMahasiswaOnly = hasMasukMahasiswa && !hasMasukDosen && !hasMasukAdmin;
+
+    // Status izin dihitung per pengguna dari izin masuk global yang dicocokkan dengan targetRoles
     const appsWithAccess = apps.map((app) => {
       const decision = decideAppAccess(permissionKeys, app.targetRoles, userRoleCodes);
       return {
@@ -1091,9 +1098,64 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
       };
     });
 
-    res.json({ status: true, data: appsWithAccess });
+    const visibleApps = isMahasiswaOnly
+      ? appsWithAccess.filter((app) => {
+          const roles = parseTargetRoles(app.targetRoles);
+          const tingkat = tingkatDiterimaAplikasi(roles);
+          return tingkat.includes("mahasiswa") && app.isAllowed;
+        })
+      : appsWithAccess;
+
+    res.json({ status: true, data: visibleApps });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal memuat katalog aplikasi SSO." });
+  }
+});
+
+// GET /api/sso/history (Riwayat aktivitas masuk / penukaran tiket SSO pengguna)
+app.get("/api/sso/history", authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const history = await prisma.ssoAuthToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        clientId: true,
+        createdAt: true,
+        expiresAt: true,
+        isUsed: true,
+        usedAt: true,
+        requestIp: true,
+        app: {
+          select: {
+            nameApp: true,
+            icon: true,
+            badge: true,
+          }
+        }
+      }
+    });
+
+    res.json({
+      status: true,
+      data: history.map((item) => ({
+        id: item.id,
+        clientId: item.clientId,
+        nameApp: item.app?.nameApp || item.clientId,
+        icon: item.app?.icon || null,
+        badge: item.app?.badge || "SSO",
+        createdAt: item.createdAt,
+        expiresAt: item.expiresAt,
+        isUsed: item.isUsed,
+        usedAt: item.usedAt,
+        requestIp: item.requestIp,
+      }))
+    });
+  } catch (error: any) {
+    logServerError("GET /api/sso/history", error);
+    res.status(500).json({ status: false, message: "Gagal memuat riwayat login SSO." });
   }
 });
 

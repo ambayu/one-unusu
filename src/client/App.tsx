@@ -11,6 +11,10 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { SsoAuthorize } from './pages/SsoAuthorize';
 import { Dashboard } from './pages/Dashboard';
+import { DaftarAplikasi } from './pages/DaftarAplikasi';
+import { AplikasiSsoPage } from './pages/AplikasiSsoPage';
+import { AplikasiNonSsoPage } from './pages/AplikasiNonSsoPage';
+import { RiwayatSsoPage } from './pages/RiwayatSsoPage';
 import { Profile } from './pages/Profile';
 import { RegistrasiSso } from './pages/admin/RegistrasiSso';
 import { ManajemenPengguna } from './pages/admin/ManajemenPengguna';
@@ -219,6 +223,54 @@ export function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aplikasi-sso"
+            element={
+              <ProtectedRoute>
+                <AplikasiSsoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aplikasi-non-sso"
+            element={
+              <ProtectedRoute>
+                <AplikasiNonSsoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/riwayat-sso"
+            element={
+              <ProtectedRoute>
+                <RiwayatSsoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/riwayat-login"
+            element={
+              <ProtectedRoute>
+                <RiwayatSsoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daftar-aplikasi"
+            element={
+              <ProtectedRoute>
+                <DaftarAplikasi />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/aplikasi"
+            element={
+              <ProtectedRoute>
+                <DaftarAplikasi />
               </ProtectedRoute>
             }
           />
