@@ -79,9 +79,9 @@ Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan du
    - Lencana peran bawaan diperoleh dari `tingkatMasukBawaan(kodePeran)`: `SUPERADMIN` dan `ADMIN_SSO` memegang ketiga tingkat; peran kustom berawalan `ADMIN_` hanya memegang `masuk_admin`; `DOSEN` memegang `masuk_dosen`; `MAHASISWA` memegang `masuk_mahasiswa`; peran lain tidak memegang apa pun.
 3. **Pemetaan Tingkat Masuk dari `targetRoles`**:
    - `targetRoles` pada `sso_apps` (JSON array string) dipetakan ke tingkat masuk oleh `tingkatDiterimaAplikasi()`:
-     - Memuat peran berawalan `ADMIN_`, atau `SUPERADMIN`, atau `ADMIN_SSO` → menerima tingkat `admin`.
-     - Memuat `DOSEN` → menerima tingkat `dosen`.
-     - Memuat `MAHASISWA` → menerima tingkat `mahasiswa`.
+     - Memuat peran berawalan `ADMIN_`, atau `SUPERADMIN`, atau `ADMIN_SSO` -> menerima tingkat `admin`.
+     - Memuat `DOSEN` -> menerima tingkat `dosen`.
+     - Memuat `MAHASISWA` -> menerima tingkat `mahasiswa`.
    - Konsekuensi: aplikasi tanpa `targetRoles` yang sah **menolak semua pengguna** (fail-closed).
 4. **Fungsi Keputusan: `decideAppAccess(permissionKeys, targetRolesRaw, userRoleCodes)`**:
    - Ditandatangani tiga argumen dan berada di `src/server/index.ts`.
@@ -123,6 +123,11 @@ URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkunga
 2. **Secret Safety**: Jangan membocorkan `.env`, API key, hash kata sandi, token JWT, atau kredensial database ke output client atau logging.
 3. **Database Safety**: Operasi destruktif (`DROP`, `TRUNCATE`, bulk delete) dilarang keras tanpa persetujuan eksplisit.
 4. **Type Safety**: Kode TypeScript harus bersih, hindari penggunaan `any` atau `@ts-ignore` tanpa alasan defensif yang valid.
+5. **Typecheck Wajib Mencakup Server**: `tsconfig.json` (client) hanya meng-include `src/client/**`, sedangkan `tsconfig.server.json` meng-include `src/server/**/*` dan sudah dipakai `build:server`.
+   - **Pemeriksaan lengkap: `npm run typecheck`** (client + server). Terpisah: `npm run typecheck:client` dan `npm run typecheck:server`.
+   - `typecheck:server` **wajib** memakai `--noEmit`. `tsconfig.server.json` punya `outDir: "./dist/server"`, sehingga perintah tanpa `--noEmit` akan MENULIS file kompilasi, bukan sekadar memeriksa.
+   - **Dilarang** menyatakan pekerjaan server selesai hanya karena `npx tsc --noEmit` bersih - perintah itu memakai `tsconfig.json` dan tidak melihat satu baris pun kode server.
+   - Alasan aturan ini: opsi Prisma yang tidak ada untuk provider MySQL (mis. `mode: "insensitive"` pada `StringNullableFilter`) hanya tertangkap bila `tsconfig.server.json` benar-benar dijalankan.
 
 ### 5.1 Lapisan Hardening Server (Wajib Dipertahankan)
 1. **Security Header**: `helmet` wajib aktif. CSP membatasi `script-src 'self'`; `img-src` mengizinkan `data:` karena ikon disimpan sebagai data URL base64.
@@ -141,7 +146,7 @@ URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkunga
 ### 5.2 Konvensi Skrip Database (Mandatory)
 
 1. **Penamaan Skrip**: Seluruh skrip database memakai awalan `db:` (`db:seed`, `db:seed:local`, `db:seed:vps`, `db:sso-dev-urls`, `db:sso-vps-urls`, `db:preflight`, `db:parity`, `db:backup`, `db:verify:post`, `db:cleanup:tokens`, `db:purge:audit`). Alias lama `prisma:seed*` dan `prisma:sso-*` dipertahankan hanya sebagai penerus tipis ke `db:*`. Penyemaian izin tidak punya script tersendiri: dilakukan oleh `seedAccessControl()` di dalam `db:seed`, atau lewat endpoint `POST /api/admin/permissions/sync`.
-2. **Urutan Bootstrapping Database Baru**: `prisma generate` → `prisma migrate deploy` → `npm run db:seed`. Penyemaian katalog izin, peran sistem, dan relasinya sudah tercakup di langkah `db:seed`. Untuk database yang sudah berisi skema tanpa riwayat migrasi, lakukan baseline dengan `prisma migrate resolve --applied` per folder migrasi, bukan dengan menghapus tabel.
+2. **Urutan Bootstrapping Database Baru**: `prisma generate` -> `prisma migrate deploy` -> `npm run db:seed`. Penyemaian katalog izin, peran sistem, dan relasinya sudah tercakup di langkah `db:seed`. Untuk database yang sudah berisi skema tanpa riwayat migrasi, lakukan baseline dengan `prisma migrate resolve --applied` per folder migrasi, bukan dengan menghapus tabel.
 3. **Paritas Skema**: Setiap perubahan `prisma/schema.prisma` wajib disertai folder migrasi baru. `prisma migrate diff --from-url <DB> --to-schema-datamodel prisma/schema.prisma --script` harus menghasilkan "empty migration" sebelum pekerjaan dianggap selesai.
 4. **Migrasi dengan Hint DDL**: Sintaks `ALGORITHM`/`LOCK` hanya sah pada `ALTER TABLE`, tidak pada `CREATE INDEX` mandiri. Gunakan `ALTER TABLE ... ADD INDEX ... ALGORITHM=INPLACE, LOCK=NONE` bila hint memang diperlukan.
 

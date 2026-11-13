@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../ui/Container';
 import { SectionHeading } from '../ui/SectionHeading';
-import { Icon } from '../ui/Icon';
 import { fetchDirectories, DirectoryItem } from '../../services/api';
 import { isImageSource } from '../../lib/appIcon';
 import { assetUrl } from '../../lib/assets';
@@ -80,15 +79,6 @@ export const NonSsoServicesSection: React.FC = () => {
           title="Aplikasi & Layanan Kampus Non-SSO"
           description="Akses langsung menuju portal informasi, pendaftaran mahasiswa, jurnal ilmiah, dan sistem informasi mandiri di lingkungan UNUSU."
           align="center"
-          action={
-            <Link
-              to="/layanan"
-              className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 hover:bg-brand-50 transition-colors shadow-xs"
-            >
-              <span>{hasMore ? 'Lihat Semua' : 'Buka Layanan Terpadu'}</span>
-              <Icon name="arrow-right" className="size-4" />
-            </Link>
-          }
         />
 
         {loading ? (

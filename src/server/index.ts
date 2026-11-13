@@ -1128,7 +1128,35 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       } else if (typeof email !== "string" || email.length > 120 || !EMAIL_PATTERN.test(email.trim())) {
         return res.status(400).json({ status: false, message: "Format email tidak valid." });
       } else {
-        updateData.email = email.trim();
+        const trimmedEmail = email.trim();
+
+        // Kolom `users.email` ber-UNIQUE. Tanpa pemeriksaan ini, mengetik email
+        // milik akun lain lolos validasi format lalu gagal di `prisma.user.update`
+        // dengan kode P2002, sehingga tertangkap `catch` dan dilaporkan sebagai
+        // "Gagal memperbarui profil." dengan HTTP 500 - padahal tidak ada yang
+        // rusak di server, hanya emailnya sudah dipakai.
+        //
+        // Perbandingan sengaja tidak memakai `mode: "insensitive"`: opsi itu
+        // tidak tersedia untuk provider MySQL (tidak ada di tipe
+        // `StringNullableFilter`), sehingga hanya akan gagal saat dijalankan.
+        // Yang dipakai adalah pemeriksaan huruf kecil di memori, yang berlaku
+        // sama untuk semua provider dan tidak bergantung pada collation
+        // database.
+        const pemakaiEmail = await prisma.user.findMany({
+          where: { NOT: { id: userId }, email: { not: null } },
+          select: { email: true }
+        });
+        const emailDipakai = pemakaiEmail.some(
+          (baris) => (baris.email ?? "").toLowerCase() === trimmedEmail.toLowerCase()
+        );
+        if (emailDipakai) {
+          return res.status(409).json({
+            status: false,
+            message: "Email sudah digunakan oleh akun lain. Gunakan alamat email yang berbeda."
+          });
+        }
+
+        updateData.email = trimmedEmail;
       }
     }
 
@@ -1197,6 +1225,26 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       }
     });
   } catch (error: any) {
+    // Jaring pengaman balapan: dua permintaan bisa lolos pemeriksaan duplikat
+    // di atas pada saat yang hampir sama, lalu salah satunya ditolak UNIQUE
+    // constraint (P2002). Itu bukan kegagalan server, jadi jangan dilaporkan
+    // sebagai 500 - pesannya harus tetap menyebut sebab yang sebenarnya.
+    if (error?.code === "P2002") {
+      const target = Array.isArray(error?.meta?.target)
+        ? error.meta.target.join(", ")
+        : String(error?.meta?.target ?? "");
+      if (target.includes("email")) {
+        return res.status(409).json({
+          status: false,
+          message: "Email sudah digunakan oleh akun lain. Gunakan alamat email yang berbeda."
+        });
+      }
+      return res.status(409).json({
+        status: false,
+        message: "Data tersebut sudah dipakai akun lain."
+      });
+    }
+
     logServerError("PUT /api/auth/profile", error);
     res.status(500).json({ status: false, message: "Gagal memperbarui profil." });
   }

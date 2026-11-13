@@ -1,5 +1,18 @@
 # Changelog - Profile & Biodata
 
+## [2026-11-14] - Email Terpakai Dijawab Jelas, Bukan "Kesalahan Sistem"
+
+### Fixed
+- **Email milik akun lain dilaporkan sebagai galat server**: `users.email` ber-UNIQUE, sehingga `prisma.user.update` melempar `P2002` yang tertangkap `catch` umum dan dijawab **HTTP 500** dengan pesan `"Gagal memperbarui profil."`. Pengguna melihat judul **"Kesalahan Sistem"** padahal server sehat dan masalahnya hanya email sudah dipakai. Kini diperiksa lebih dulu dan dijawab **HTTP 409** dengan pesan `"Email sudah digunakan oleh akun lain. Gunakan alamat email yang berbeda."`
+- **Perbandingan email tanpa membedakan huruf besar/kecil**: `Budi@unusu.ac.id` dan `budi@unusu.ac.id` diperlakukan sama. Akun sendiri **tidak** dianggap bentrok, sehingga menyimpan ulang email sendiri tetap berhasil.
+- **Jaring pengaman balapan**: bila dua permintaan lolos pemeriksaan bersamaan, `P2002` tetap dijawab **409** (bukan 500).
+- **Judul notifikasi disesuaikan status**: galat `4xx` memakai judul **"Periksa Kembali Data Anda"**; hanya `5xx`/jaringan yang memakai **"Kesalahan Sistem"**.
+- **`catch (err: any)` pada formulir profil**: diganti `catch (err)` dengan penyempitan eksplisit ke `GalatPermintaan`, sesuai PROJECT_RULES 5.4.
+
+### Documentation
+- `docs/routes/profile/RULES.md` menambah bagian 5 "Aturan Email Unik & Pesan Galat" dan bagian 6 "Dependensi".
+- `docs/PROJECT_RULES.md` menambah aturan 5 poin 5 "Typecheck Wajib Mencakup Server".
+
 ## [2026-11-14] - Perbaikan Pemotongan Pasfoto 3x4
 
 ### Fixed

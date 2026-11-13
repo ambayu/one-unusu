@@ -4,6 +4,7 @@ import { fetchMe, updateProfile, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isBiodataComplete } from '../lib/biodata';
+import { GalatPermintaan } from '../lib/pesanGalat';
 import {
   ShieldCheckIcon,
   ExclamationCircleIcon,
@@ -70,9 +71,11 @@ export const Profile: React.FC = () => {
           setNoHp(res.data.data.noHp || '');
           setAvatar(res.data.data.avatar || null);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to load profile:', err);
-        if (err.response?.status === 401 || err.response?.status === 403) {
+        const galat = err !== null && typeof err === 'object' ? (err as GalatPermintaan) : {};
+        const status = galat.response?.status;
+        if (status === 401 || status === 403) {
           navigate('/login');
         }
       } finally {
@@ -273,13 +276,31 @@ export const Profile: React.FC = () => {
           message: res.data.message || 'Gagal memperbarui biodata akun Anda.',
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Update profile error:', err);
+
+      // `catch` memberi `unknown`, bukan `any`. Bentuknya diperiksa lebih dulu
+      // agar pesan dari server hanya dibaca bila memang ada.
+      const galat = err !== null && typeof err === 'object' ? (err as GalatPermintaan) : {};
+      const status = galat.response?.status;
+      const pesanServer = galat.response?.data?.message;
+
+      // Judul dan pesan harus menyebut sebabnya. Sebelumnya judul selalu
+      // "Kesalahan Sistem", sehingga email yang sudah dipakai akun lain terbaca
+      // seperti server rusak - padahal server sehat dan pengguna hanya perlu
+      // memakai alamat lain. Galat 4xx berasal dari aturan validasi, bukan dari
+      // sistem yang gagal.
+      const galatPengguna = typeof status === 'number' && status >= 400 && status < 500;
+
       setNotify({
         isOpen: true,
         type: 'error',
-        title: 'Kesalahan Sistem',
-        message: err.response?.data?.message || 'Terjadi kesalahan pada server saat memperbarui data biodata.',
+        title: galatPengguna ? 'Periksa Kembali Data Anda' : 'Kesalahan Sistem',
+        message:
+          (typeof pesanServer === 'string' && pesanServer) ||
+          (galatPengguna
+            ? 'Data yang dikirim tidak dapat diterima server. Periksa kembali isian formulir Anda.'
+            : 'Terjadi kesalahan pada server saat memperbarui data biodata.'),
       });
     } finally {
       setSubmitting(false);
