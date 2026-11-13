@@ -188,14 +188,14 @@ dan hanya terjadi bila dipicu manual.
   `permissionKeys`.
 - **Tidak** diberikan ke `DOSEN` / `MAHASISWA` â€” jejak audit memuat aktivitas administrator.
 - Penyebaran baris `permissions` + `role_permissions` dilakukan oleh seeder
-  (`npm run prisma:seed:access`), **bukan** oleh migrasi DDL, dan bersifat idempotent
+  (`seedAccessControl()` yang dipanggil dari `npm run db:seed`), **bukan** oleh migrasi DDL, dan bersifat idempotent
   (`upsert` + `createMany skipDuplicates`). Seeder belum dijalankan pada sesi ini.
 
 ## 8. Pemisahan Tanggung Jawab
 
 - **DATABASE (dokumen ini):** `prisma/schema.prisma`, `prisma/migrations/**`, `prisma/access-control.ts`, `scripts/db/**`.
 - **BACKEND:** penerapan poin Â§3 di `src/server/index.ts` (pemilik endpoint), termasuk penulisan baris `audit_logs`.
-- **QA:** eksekusi preflight, backup, `migrate deploy`, `prisma:seed:access`, smoke test, dan pelaporan hasil.
+- **QA:** eksekusi preflight, backup, `migrate deploy`, `db:seed`, smoke test, dan pelaporan hasil.
 - **Eksekusi DDL adalah wewenang QA/DevOps setelah approval** â€” bukan otomatis oleh agen.
 
 ---
@@ -221,7 +221,7 @@ Prasyarat : (1) `npm run db:parity` = SELARAS [OK, sudah diverifikasi],
 Dampak    : Tidak ada kehilangan data. Downtime ~0 detik (INPLACE + LOCK=NONE);
             satu operasi COPY singkat pada `banner_sliders` (tabel < 50 baris).
             Estimasi total < 5 detik.
-Tidak termasuk: seeder `prisma:seed:access` (menambah izin `audit:*`) dijalankan terpisah.
+Tidak termasuk: seeder izin `audit:*` dijalankan terpisah saat itu (script `prisma:seed:access` kini sudah tidak ada; penyemaian izin dilakukan `seedAccessControl()` lewat `npm run db:seed`).
 Status    : BELUM dieksekusi â€” tidak ada perubahan apa pun pada database.
 ```
 
@@ -303,7 +303,8 @@ yang rawan bentrok dengan `sso_apps.targetRoles`.
 | Verifikasi | `prisma migrate diff --from-url ... --to-schema-datamodel ...` → **empty migration** |
 
 Alasan dan aturan penggantinya dicatat pada `docs/PROJECT_RULES.md` bagian 4.1. Ringkasnya:
-portal memakai `sso_apps.targetRoles`, aplikasi cabang memakai `ALLOWED_SSO_ROLES`.
+portal memakai izin masuk global (`masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`) yang diiriskan
+dengan `sso_apps.targetRoles`, sedangkan aplikasi cabang memakai `ALLOWED_SSO_ROLES`.
 
 Rollback (bila benar-benar diperlukan) dilakukan dengan membuat migrasi baru yang menyalin ulang
 DDL dari `20261101140000_user_app_access/migration.sql`; jangan mengedit riwayat migrasi.

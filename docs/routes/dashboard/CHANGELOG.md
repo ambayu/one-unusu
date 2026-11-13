@@ -1,5 +1,12 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-11-13] - Standardisasi Pop-Up Modal Umpan Balik Input (Z-Index Terdepan)
+
+### Changed
+- **Pembersihan Alert Statis & Banner Inline**: Seluruh penanganan hasil input form pada modul profil (`/profil`), manajemen pengguna (`/admin/pengguna`), peran (`/admin/peran`), dan izin (`/admin/izin`) dialihkan ke `NotificationModal`.
+- **Z-Index Prioritas Tertinggi (`z-[999]`)**: `NotificationModal` dinaikkan ke level layer `z-[999]` dengan overlay backdrop `bg-[#1E293B]/60 backdrop-blur-[2px]`, menjamin dialog konfirmasi dan hasil aksi (berhasil simpan, gagal validasi, konfirmasi hapus/sinkronisasi) selalu tampil tepat di depan seluruh komponen antarmuka.
+- **Penghapusan Browser Dialog Primitif**: Mengganti pemakaian `window.confirm` dan `alert()` bawaan browser dengan modal dialog standar Modern Green (`confirm`, `success`, `error`, `warning`).
+
 ## [2026-11-09] - Bypass Akses Penuh untuk Super Administrator & Sinkronisasi URL Callback
 
 ### Changed
@@ -26,7 +33,7 @@
 ## [2026-10-30] - Semua Aplikasi Tampil, Akses Tetap Dibatasi Peran
 
 ### Changed
-- **`GET /api/sso/apps` tidak lagi menyaring aplikasi per peran.** Seluruh aplikasi aktif dikirim ke dashboard, masing-masing membawa penanda `isAllowed` hasil perbandingan `targetRoles` dengan peran pengguna yang sedang login. Penegakan akses tetap di endpoint penerbitan token (`fail-closed`).
+- **`GET /api/sso/apps` tidak lagi menyaring aplikasi per peran.** Seluruh aplikasi aktif dikirim ke dashboard, masing-masing membawa penanda `isAllowed` hasil keputusan `decideAppAccess()` (irisan izin masuk global milik pengguna dengan `targetRoles` aplikasi). Penegakan akses tetap di endpoint penerbitan token (`fail-closed`).
 - **Kartu aplikasi di Dashboard** menampilkan seluruh aplikasi: yang sesuai peran memakai badge hijau **Terkoneksi** dan tombol "Buka Aplikasi"; yang tidak sesuai memakai badge amber **Akses Terbatas**, gambar di-`grayscale`, dan tombol "Buka Beranda".
 
 ### Added
@@ -39,7 +46,7 @@
 
 ### Added
 - `prisma/access-control.ts`: sumber tunggal `PERMISSION_CATALOG`, `ROLE_DEFINITIONS`, dan `seedAccessControl(prisma)` yang menyinkronkan izin, peran sistem, serta pemetaan `User.roleId` berdasarkan kolom enum `User.role`. Bersifat idempotent dan tidak menghapus izin yang sudah diberikan lewat panel admin.
-- `prisma/seed-access.ts` + skrip `npm run prisma:seed:access` untuk menyiapkan akses tanpa menjalankan seed penuh (yang membutuhkan `SSO_CLIENT_KEY_*`, `SEED_PUBLIC_BASE_URL`, dan `SEED_ADMIN_PASSWORD`).
+- `prisma/seed-access.ts` + skrip `npm run prisma:seed:access` untuk menyiapkan akses tanpa menjalankan seed penuh (yang membutuhkan `SSO_CLIENT_KEY_*`, `SEED_PUBLIC_BASE_URL`, dan `SEED_ADMIN_PASSWORD`). **Catatan:** script ini sudah tidak ada di `package.json`; penyemaian izin kini tercakup `npm run db:seed` (`seedAccessControl()`) atau endpoint `POST /api/admin/permissions/sync`.
 
 ### Changed
 - `prisma/seed.ts` tidak lagi menduplikasi katalog izin/peran; bagian ke-3 kini memanggil `seedAccessControl(prisma)`. Perilaku `deleteMany` pada `RolePermission` dihapus agar seeding tidak mencabut izin hasil konfigurasi admin.

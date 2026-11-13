@@ -1,5 +1,12 @@
 # Changelog - Autentikasi SSO
 
+## [2026-11-13] - Integrasi JIT Provisioning & Multi-Stage Loading UX SIAKAD
+
+### Added
+- **On-Demand JIT Provisioning:** Otentikasi fallback ke endpoint resmi SIAKAD UNUSU (`https://siakad.unusu.ac.id/auth/index.php`). Akun mahasiswa/dosen yang valid di SIAKAD namun belum terdaftar di database lokal `one-unusu` otomatis dibuatkan entri profil lokal lengkap dengan hash sandi dan penautan peran dinamis (`MAHASISWA`/`DOSEN`).
+- **Penyedotan Biodata Profil Mahasiswa:** Integrasi scraper profil mahasiswa dari portal SIAKAD UNUSU (`/mahasiswa/index.php?module=home`) untuk mengambil NIK, tempat/tanggal lahir, jenis kelamin, alamat, asal sekolah, nama ibu kandung, serta pemetaan fakultas/prodi saat login pertama kali.
+- **Dynamic Multi-Stage UX Status:** Tombol masuk pada `Login.tsx` menampilkan animasi progresif bertahap saat autentikasi & sinkronisasi berlangsung: *"Memverifikasi kredensial..."* → *"Memeriksa pangkalan data SIAKAD..."* → *"Menyinkronkan biodata & program studi..."*.
+
 ## [2026-10-30] - Login Tidak Lagi Dipaksa ke Biodata
 
 ### Changed

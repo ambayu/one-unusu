@@ -159,7 +159,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-[#1E293B]/60 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[999] bg-[#1E293B]/60 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6"
       onClick={() => {
         if (!loading) onClose();
       }}

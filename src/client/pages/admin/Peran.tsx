@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
+import { NotificationModal, NotificationType } from '../../components/NotificationModal';
 import {
   RoleItem,
   createAdminRole,
@@ -39,13 +40,23 @@ export const Peran: React.FC = () => {
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState<FeedbackMessage | null>(null);
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: '',
+  });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
   const [form, setForm] = useState<RoleFormState>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<RoleItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const canEdit = hasPermission(currentUser, PERMISSIONS.roleEdit);
   const canDelete = hasPermission(currentUser, PERMISSIONS.roleDelete);
@@ -58,7 +69,12 @@ export const Peran: React.FC = () => {
         setRoles(res.data.data);
       }
     } catch {
-      setMessage({ type: 'error', text: 'Gagal memuat daftar peran.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Memuat Peran',
+        message: 'Gagal memuat daftar peran pengguna dari server.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -91,17 +107,28 @@ export const Peran: React.FC = () => {
           name: form.name,
           description: form.description || undefined,
         });
-        setMessage({ type: 'success', text: res.data.message || 'Peran berhasil diperbarui.' });
+        setIsFormOpen(false);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Peran Diperbarui',
+          message: res.data.message || 'Peran berhasil diperbarui.',
+        });
       } else {
         const res = await createAdminRole({
           code: form.code,
           name: form.name,
           description: form.description || undefined,
         });
-        setMessage({ type: 'success', text: res.data.message || 'Peran berhasil dibuat.' });
+        setIsFormOpen(false);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Peran Dibuat',
+          message: res.data.message || 'Peran berhasil dibuat.',
+        });
       }
 
-      setIsFormOpen(false);
       await loadRoles();
       await reload();
     } catch (error: unknown) {
@@ -109,7 +136,12 @@ export const Peran: React.FC = () => {
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal menyimpan peran.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Menyimpan Peran',
+        message: text || 'Gagal menyimpan data peran.',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,9 +153,16 @@ export const Peran: React.FC = () => {
     }
 
     try {
+      setIsDeleting(true);
       const res = await deleteAdminRole(roleToDelete.id);
-      setMessage({ type: 'success', text: res.data.message || 'Peran berhasil dihapus.' });
+      const deletedRoleName = roleToDelete.name;
       setRoleToDelete(null);
+      setNotify({
+        isOpen: true,
+        type: 'success',
+        title: 'Peran Dihapus',
+        message: res.data.message || `Peran "${deletedRoleName}" berhasil dihapus.`,
+      });
       await loadRoles();
       await reload();
     } catch (error: unknown) {
@@ -131,8 +170,15 @@ export const Peran: React.FC = () => {
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal menghapus peran.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Menghapus Peran',
+        message: text || 'Gagal menghapus peran dari sistem.',
+      });
       setRoleToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -144,28 +190,6 @@ export const Peran: React.FC = () => {
       onRefresh={loadRoles}
       refreshing={isLoading || loading}
     >
-      {message && (
-        <div
-          className={`p-3.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
-            message.type === 'success'
-              ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
-              : 'bg-[#FEE2E2] border-[#FECACA] text-[#B91C1C]'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span>{message.text}</span>
-          </div>
-          <button onClick={() => setMessage(null)} className="text-[#94A3B8] hover:text-[#475569]">
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-[11px] text-[#64748B]">
           Peran sistem tidak dapat dihapus. Penyesuaian izin dilakukan pada menu Izin.
@@ -337,39 +361,27 @@ export const Peran: React.FC = () => {
         </div>
       )}
 
-      {roleToDelete && (
-        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC]">
-            <div className="flex items-start gap-3">
-              <span className="w-9 h-9 rounded-full bg-[#FEE2E2] text-[#B91C1C] flex items-center justify-center flex-shrink-0">
-                <TrashIcon className="w-4 h-4" />
-              </span>
-              <div>
-                <h3 className="font-bold text-[#1E293B] text-sm">Hapus peran ini?</h3>
-                <p className="text-[11px] text-[#64748B] mt-1">
-                  Peran <span className="font-semibold">{roleToDelete.name}</span> akan dihapus permanen.
-                  Pengguna yang masih memakai peran ini harus dipindahkan terlebih dahulu.
-                </p>
-              </div>
-            </div>
+      {/* Modal Dialog Konfirmasi Hapus Peran */}
+      <NotificationModal
+        isOpen={Boolean(roleToDelete)}
+        type="confirm"
+        title="Hapus Peran Ini?"
+        message={`Peran "${roleToDelete?.name}" (${roleToDelete?.code}) akan dihapus permanen. Pengguna yang masih memakai peran ini harus dipindahkan terlebih dahulu.`}
+        confirmLabel="Hapus Peran"
+        cancelLabel="Batal"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+        onClose={() => setRoleToDelete(null)}
+      />
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setRoleToDelete(null)}
-                className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 rounded-[8px] text-white bg-[#B91C1C] hover:bg-[#991B1B] font-semibold text-xs shadow-xs transition"
-              >
-                Hapus Peran
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Notifikasi Hasil Aksi */}
+      <NotificationModal
+        isOpen={notify.isOpen}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
+      />
     </AdminPanelTemplate>
   );
 };

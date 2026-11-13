@@ -19,7 +19,8 @@ Aturan teknis dan desain untuk rute `/login`.
 2. Respons 401 atau 403 menampilkan pesan gagal login, bukan detail internal server.
 3. Timeout dan kegagalan jaringan harus menampilkan pesan yang dapat ditindaklanjuti.
 4. Rute `/dashboard` dilindungi `ProtectedRoute` di `App.tsx`, sehingga halaman ini tidak perlu mengecek token sendiri.
-5. **Login selalu berakhir di panel.** Setelah login sukses, pengguna diarahkan ke `resolveLandingPath(role)`: `SUPERADMIN` → `/admin`, peran lain → `/dashboard`. Kelengkapan biodata **tidak** diperiksa di sini; gerbang biodata berada di `handleLaunchApp` pada Dashboard. Bila ada parameter `?next=` yang valid (path internal), tujuan itu yang dipakai.
+5. **JIT Auto-Provisioning & UX Progresif:** Jika akun belum tercatat di database lokal, sistem menguji kredensial ke API SIAKAD (`/auth/index.php`). Tombol login wajib menampilkan teks status progresif (`loadingStatusText`) agar pengguna terinformasi bahwa sistem sedang menyinkronkan data dari SIAKAD tanpa melempar galat penolakan palsu.
+6. **Login selalu berakhir di panel.** Setelah login sukses, pengguna diarahkan ke `resolveLandingPath(role)`: `SUPERADMIN` → `/admin`, peran lain → `/dashboard`. Kelengkapan biodata **tidak** diperiksa di sini; gerbang biodata berada di `handleLaunchApp` pada Dashboard. Bila ada parameter `?next=` yang valid (path internal), tujuan itu yang dipakai.
 
 ---
 

@@ -10,6 +10,7 @@ import {
   DirectoryItem,
 } from '../services/api';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
+import { Carousel } from '../components/Carousel';
 import { isImageSource } from '../lib/appIcon';
 import { isBiodataComplete } from '../lib/biodata';
 import { openTabTujuan, arahkanTab, tutupTab } from '../lib/ssoLaunch';
@@ -35,6 +36,11 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [redirectingAppId, setRedirectingAppId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Galat katalog dipisah dari `error` umum. Tanpa pemisahan ini, kegagalan
+  // memuat daftar SSO/direktori berakhir sebagai daftar kosong yang tampil
+  // seolah-olah "belum ada data" - padahal server sedang bermasalah.
+  const [galatApps, setGalatApps] = useState<string | null>(null);
+  const [galatDirektori, setGalatDirektori] = useState<string | null>(null);
   const [notify, setNotify] = useState<{
     isOpen: boolean;
     type: NotificationType;
@@ -52,6 +58,8 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setGalatApps(null);
+      setGalatDirektori(null);
 
       const [userRes, appsRes, dirRes] = await Promise.allSettled([
         fetchMe(),
@@ -76,11 +84,32 @@ export const Dashboard: React.FC = () => {
         setUser(userRes.value.data.data);
         localStorage.setItem('one_unusu_user', JSON.stringify(userRes.value.data.data));
       }
+
+      // Daftar aplikasi dan direktori diperiksa satu per satu. Kegagalan tidak
+      // boleh jatuh menjadi daftar kosong, karena cabang "belum ada data" di
+      // bawah akan berbohong: pengguna mengira admin belum mengaktifkan apa pun,
+      // padahal server gagal menjawab. Pesan galatnya sengaja tidak menyebut
+      // "belum ada", melainkan menyatakan bahwa pemuatan gagal.
       if (appsRes.status === 'fulfilled' && appsRes.value.data.status) {
         setApps(appsRes.value.data.data);
+        setGalatApps(null);
+      } else {
+        setApps([]);
+        setGalatApps(
+          appsRes.status === 'rejected' && appsRes.reason?.response?.status === 401
+            ? 'Sesi Anda berakhir. Silakan masuk ulang untuk memuat daftar aplikasi.'
+            : 'Gagal memuat daftar aplikasi SSO dari server. Silakan muat ulang halaman ini.'
+        );
       }
+
       if (dirRes.status === 'fulfilled' && dirRes.value.data.status) {
         setDirectories(dirRes.value.data.data);
+        setGalatDirektori(null);
+      } else {
+        setDirectories([]);
+        setGalatDirektori(
+          'Gagal memuat direktori publik dari server. Silakan muat ulang halaman ini.'
+        );
       }
     } catch (err: any) {
       console.error('Error loading SSO apps:', err);
@@ -106,8 +135,26 @@ export const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [navigate]);
 
-  const handleLaunchApp = async (app: SsoAppItem) => {
-    // Gerbang biodata: tiket SSO hanya diterbitkan bila email dan nomor
+  /**
+   * Mencatat satu kunjungan direktori agar server dapat mengurutkan daftar
+   * dari yang paling sering dibuka.
+   *
+   * Kegagalan sengaja diabaikan sepenuhnya: ini hanya statistik, sedangkan
+   * pengguna sudah diarahkan ke tautan tujuan. Menahan navigasi demi angka
+   * kunjungan adalah pertukaran yang buruk. `keepalive` dipakai supaya
+   * permintaan tetap terkirim meskipun halaman segera ditinggalkan.
+   */
+  const catatKunjunganDirektori = (id: number) => {
+    const basis = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${basis}/directories/${id}/hit`, {
+      method: 'POST',
+      keepalive: true,
+    }).catch(() => {
+      // Diamkan dengan sengaja - lihat komentar di atas.
+    });
+  };
+
+  const handleLaunchApp = async (app: SsoAppItem) => {    // Gerbang biodata: tiket SSO hanya diterbitkan bila email dan nomor
     // WhatsApp sudah terisi. Pengguna diarahkan ke profil dengan notifikasi.
     if (!isBiodataComplete(user)) {
       navigate('/profil', { state: { requiredBio: true } });
@@ -182,6 +229,29 @@ export const Dashboard: React.FC = () => {
     if (id.includes('sarpras')) return assetUrl('/assets/apps/app-sarpras.png');
     if (id.includes('akreditasi')) return assetUrl('/assets/apps/app-sarpras.png');
     return assetUrl('/assets/apps/app-lms.png');
+  };
+
+  /**
+   * Gambar sampul untuk kartu direktori.
+   *
+   * Bila admin mengunggah gambar lewat panel (disimpan sebagai data URL), itu
+   * yang dipakai. Bila belum, dipilih dari aset yang memang ada. Pemetaan ini
+   * sengaja memakai `kategori`, bukan mencocokkan nama - nama prodi terlalu
+   * banyak dan akan salah tebak.
+   */
+  const getDirectoryPreviewImage = (dir: Pick<DirectoryItem, 'kategori' | 'icon'>) => {
+    if (isImageSource(dir.icon)) return dir.icon as string;
+
+    switch (dir.kategori) {
+      case 'Akademik':
+        return assetUrl('/assets/apps/app-siakad.png');
+      case 'Admisi':
+        return assetUrl('/assets/hero/hero-students-2.png');
+      case 'Website Prodi':
+        return assetUrl('/assets/hero/hero-library-4.png');
+      default:
+        return assetUrl('/assets/hero/hero-campus-1.png');
+    }
   };
 
   const statusLabel = user ? (user.isActive ? 'Aktif' : 'Nonaktif') : 'Belum tersedia';
@@ -365,7 +435,7 @@ export const Dashboard: React.FC = () => {
             onClick={loadDashboardData}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D8E5DC] text-[11px] font-bold text-[#166534] hover:bg-[#F0FDF4] transition self-start sm:self-auto"
           >
-            <span>Muat Ulang Layanan</span>
+            <span>Daftar Aplikasi</span>
             <ArrowRightIcon className="w-3 h-3" />
           </button>
         </div>
@@ -377,7 +447,7 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Grid Aplikasi SSO dengan Gambar Screenshot seperti di Landing Page */}
+        {/* Slider Aplikasi SSO - diurutkan server dari yang paling sering dibuka */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[0, 1, 2].map((i) => (
@@ -391,6 +461,11 @@ export const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
+        ) : galatApps ? (
+          <div className="flex items-start gap-2.5 rounded-[14px] border border-[#FECACA] bg-[#FEF2F2] px-4 py-3.5 text-xs font-medium text-[#B91C1C]">
+            <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
+            <span>{galatApps}</span>
+          </div>
         ) : displayedApps.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-[#C8DDD0] bg-[#F7FBF8] px-6 py-10 text-center">
             <p className="text-sm font-semibold text-[#3A5544]">Belum ada aplikasi SSO aktif</p>
@@ -399,13 +474,13 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <Carousel jumlahItem={displayedApps.length} label="Aplikasi SSO">
           {displayedApps.map((app) => {
             const isLocked = app.isAllowed === false;
             return (
             <div
               key={app.id}
-              className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
+              className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 w-[290px] sm:w-[320px] flex-shrink-0 ${
                 isLocked
                   ? 'border-[#E2E8F0] opacity-90'
                   : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
@@ -418,7 +493,7 @@ export const Dashboard: React.FC = () => {
                     src={getAppPreviewImage(app)}
                     alt={`Gambar aplikasi ${app.nameApp}`}
                     className={`w-full h-full object-cover object-center transition-transform duration-300 ${
-                      isLocked ? 'grayscale' : 'group-hover:scale-103'
+                      isLocked ? 'grayscale' : 'group-hover:scale-105'
                     }`}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
@@ -493,7 +568,7 @@ export const Dashboard: React.FC = () => {
             </div>
               );
             })}
-          </div>
+        </Carousel>
           )}
         </div>
 
@@ -501,56 +576,110 @@ export const Dashboard: React.FC = () => {
             4. WRAP KARTU TERPADU: PORTAL INFORMASI & DIREKTORI KAMPUS
            ========================================================================= */}
         <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
-          <div>
-            <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
-              <Squares2X2Icon className="w-4 h-4 text-[#166534]" />
-              <span>Portal Informasi & Direktori Publik Kampus</span>
-            </h2>
-            <p className="text-xs text-[#64748B] mt-0.5">
-              Portal informasi, pendaftaran mahasiswa baru, dan direktori akademik fakultas.
-            </p>
+          {/* Kepala halaman disamakan dengan blok SSO di atas: judul di kiri,
+              tombol di kanan. Tombol ini sengaja membaca ulang seluruh data
+              dashboard, bukan hanya direktori, supaya perilakunya sama dengan
+              tombol "Daftar Aplikasi". */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+                <Squares2X2Icon className="w-4 h-4 text-[#166534]" />
+                <span>Portal Informasi & Direktori Publik Kampus</span>
+              </h2>
+              <p className="text-xs text-[#64748B] mt-0.5">
+                Portal informasi, pendaftaran mahasiswa baru, dan direktori akademik fakultas.
+              </p>
+            </div>
+            <button
+              onClick={loadDashboardData}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#D8E5DC] text-[11px] font-bold text-[#166534] hover:bg-[#F0FDF4] transition self-start sm:self-auto"
+            >
+              <span>Daftar Direktori</span>
+              <ArrowRightIcon className="w-3 h-3" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {directories.length === 0 ? (
-              <div className="col-span-full py-8 text-center text-xs text-[#94A3B8]">
-                Belum ada direktori publik yang dikonfigurasi.
-              </div>
-            ) : (
-              directories.map((dir) => (
+          {loading ? (
+            <div className="flex gap-5">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-[290px] sm:w-[320px] flex-shrink-0 rounded-[18px] border border-[#D8E5DC] bg-white overflow-hidden animate-pulse"
+                >
+                  <div className="aspect-[16/10] bg-[#E6EFE8]" />
+                  <div className="p-5 space-y-2.5">
+                    <div className="h-3.5 w-2/3 rounded bg-[#E6EFE8]" />
+                    <div className="h-2.5 w-full rounded bg-[#EEF4EF]" />
+                    <div className="h-2.5 w-4/5 rounded bg-[#EEF4EF]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : galatDirektori ? (
+            <div className="flex items-start gap-2.5 rounded-[14px] border border-[#FECACA] bg-[#FEF2F2] px-4 py-3.5 text-xs font-medium text-[#B91C1C]">
+              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-px" />
+              <span>{galatDirektori}</span>
+            </div>
+          ) : directories.length === 0 ? (
+            <div className="py-8 text-center text-xs text-[#94A3B8]">
+              Belum ada direktori publik yang dikonfigurasi.
+            </div>
+          ) : (
+            <Carousel jumlahItem={directories.length} label="Direktori publik kampus">
+              {directories.map((dir) => (
                 <div
                   key={dir.id}
-                  className="p-4 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs"
+                  className="w-[290px] sm:w-[320px] flex-shrink-0 overflow-hidden rounded-[18px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition-all duration-200 flex flex-col justify-between group shadow-xs hover:shadow-md"
                 >
-                  <div className="space-y-2.5">
-                    <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
-                      {renderDirectoryIcon(dir.icon)}
+                  <div>
+                    {/* Gambar sampul direktori - disamakan dengan kartu SSO */}
+                    <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
+                      <img
+                        src={getDirectoryPreviewImage(dir)}
+                        alt={`Gambar ${dir.nama}`}
+                        className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
+
+                      <div className="absolute top-3 left-3">
+                        <span className="rounded-[8px] bg-[#1E293B]/85 px-2.5 py-1 text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider">
+                          {dir.kategori}
+                        </span>
+                      </div>
+
+                      <div className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-[8px] bg-white/95 border border-white/40 text-[#166534] shadow-2xs">
+                        {renderDirectoryIcon(dir.icon)}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
-                        {dir.kategori}
-                      </span>
-                      <h4 className="font-bold text-sm text-[#1E293B] group-hover:text-[#166534] transition">
+
+                    {/* Info direktori */}
+                    <div className="p-4 sm:p-5 space-y-2">
+                      <h3 className="font-bold text-base text-[#1E293B] group-hover:text-[#166534] transition">
                         {dir.nama}
-                      </h4>
-                      <p className="text-xs text-[#64748B] mt-1 leading-relaxed line-clamp-2">
+                      </h3>
+                      <p className="text-xs text-[#64748B] leading-relaxed line-clamp-2">
                         {dir.deskripsi || 'Layanan portal publik terpadu UNUSU.'}
                       </p>
                     </div>
                   </div>
-                  <a
-                    href={dir.urlTarget}
-                    target={dir.isExternal ? '_blank' : '_self'}
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#166534] hover:text-[#14532D] transition pt-2"
-                  >
-                    <span>Kunjungi Tautan</span>
-                    <ArrowRightIcon className="w-3.5 h-3.5" />
-                  </a>
+
+                  {/* Tombol aksi kunjungi */}
+                  <div className="p-4 sm:p-5 pt-0">
+                    <a
+                      href={dir.urlTarget}
+                      target={dir.isExternal ? '_blank' : '_self'}
+                      rel="noreferrer"
+                      onClick={() => catatKunjunganDirektori(dir.id)}
+                      className="w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm transition"
+                    >
+                      <span>Kunjungi Tautan</span>
+                      <ArrowRightIcon className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </Carousel>
+          )}
         </div>
 
         {/* =========================================================================

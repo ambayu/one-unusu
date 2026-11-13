@@ -8,28 +8,37 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 // 1. MASTER PENGGUNA SSO
 model User {
-  id          Int            @id @default(autoincrement())
-  username    String         @unique // NIM Mahasiswa / NIDN Dosen / Username Admin
-  password    String         // Hashed bcrypt
-  nama        String
-  email       String?        @unique
-  noHp        String?
-  roles       UserRole[]
-  nim         String?        // Khusus Mahasiswa
-  nidn        String?        // Khusus Dosen
-  fakultas    String?
-  prodi       String?
-  avatar      String?
-  isActive    Boolean        @default(true)
-  lastLoginAt DateTime?      // Diisi saat login sukses (audit & kebijakan akun dorman)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id             Int        @id @default(autoincrement())
+  username       String     @unique // NIM Mahasiswa / NIDN Dosen / Username Admin
+  password       String // Hashed bcrypt
+  nama           String
+  email          String?    @unique
+  noHp           String?
+  roles          UserRole[]
+  nim            String? // Khusus Mahasiswa
+  nidn           String? // Khusus Dosen
+  fakultas       String?
+  prodi          String?
+  avatar         String?
+  jenisKelamin   String?    @map("jenis_kelamin") @db.VarChar(20) // Laki-Laki / Perempuan
+  tempatLahir    String?    @map("tempat_lahir") @db.VarChar(100)
+  tanggalLahir   String?    @map("tanggal_lahir") @db.VarChar(30)
+  nik            String?    @unique @db.VarChar(30)
+  angkatan       String?    @db.VarChar(10)
+  statusAkademik String?    @default("Aktif") @map("status_akademik") @db.VarChar(50)
+  alamat         String?    @db.Text
+  asalSekolah    String?    @map("asal_sekolah") @db.VarChar(150)
+  namaIbuKandung String?    @map("nama_ibu_kandung") @db.VarChar(120)
+  syncedAt       DateTime?  @map("synced_at")
+  isActive       Boolean    @default(true)
+  lastLoginAt    DateTime? // Diisi saat login sukses (audit & kebijakan akun dorman)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
-  authTokens  SsoAuthToken[]
-  auditLogs   AuditLog[]
+  authTokens SsoAuthToken[]
+  auditLogs  AuditLog[]
 
   // Login mencari OR(username, nim, nidn) -> nim & nidn butuh index sendiri.
   @@index([nim])
@@ -43,24 +52,31 @@ model User {
 
 // 2. REGISTRY APLIKASI CABANG TERINTEGRASI SSO (Mirip developer_opd_app di SSO Medan)
 model SsoApp {
-  id            Int            @id @default(autoincrement())
-  clientId      String         @unique // Identifier unik aplikasi (cth: "lms-unusu")
-  clientKey     String         // Secret key untuk validasi Server-to-Server
-  nameApp       String         // Nama aplikasi (cth: "LMS UNUSU - Ruang Belajar Online")
-  description   String?        @db.Text
-  icon          String?        @db.LongText // Data URL gambar base64 atau nama ikon lama
-  badge         String?        @default("Akademik")
-  urlRedirect   String         // URL Callback di cabang (cth: "http://localhost:5174/sso/callback")
-  targetRoles   String         // Role yang diizinkan (JSON: '["DOSEN","MAHASISWA"]')
-  isActive      Boolean        @default(true)
-  order         Int            @default(0)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          Int      @id @default(autoincrement())
+  clientId    String   @unique // Identifier unik aplikasi (cth: "lms-unusu")
+  clientKey   String // Secret key untuk validasi Server-to-Server
+  nameApp     String // Nama aplikasi (cth: "LMS UNUSU - Ruang Belajar Online")
+  description String?  @db.Text
+  icon        String?  @db.LongText // Data URL gambar base64 atau nama ikon lama
+  badge       String?  @default("Akademik")
+  urlRedirect String // URL Callback di cabang (cth: "http://localhost:5174/sso/callback")
+  targetRoles String // Role yang diizinkan (JSON: '["DOSEN","MAHASISWA"]')
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  // Penghitung kunjungan nyata: dinaikkan setiap kali tiket SSO diterbitkan
+  // (lihat GET /api/sso/app-client/:clientId/v2/redirect). Dipakai dashboard
+  // untuk menaruh aplikasi yang paling sering dibuka di urutan depan.
+  hitCount    Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  authTokens    SsoAuthToken[]
+  authTokens SsoAuthToken[]
 
   // Query portal: WHERE isActive = true ORDER BY `order` ASC
   @@index([isActive, order])
+  // Query "paling sering dikunjungi": WHERE isActive = true ORDER BY hitCount DESC
+  @@index([isActive, hitCount])
   @@map("sso_apps")
 }
 
@@ -100,8 +116,8 @@ model UserRole {
   roleId    Int      @map("role_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
   @@index([roleId])
@@ -122,18 +138,18 @@ model RolePermission {
 
 // 3. TOKEN OTENTIKASI SINGLE-USE (V2 Single-Use Token 64 Char)
 model SsoAuthToken {
-  id          Int            @id @default(autoincrement())
-  token       String         @unique @db.VarChar(64) // 64 char random string
-  userId      Int
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String
-  appId       Int
-  app         SsoApp         @relation(fields: [appId], references: [id], onDelete: Cascade)
-  expiresAt   DateTime       // Waktu kedaluwarsa (5 menit)
-  isUsed      Boolean        @default(false) // 0 = aktif, 1 = sudah dibakar/hangus
-  usedAt      DateTime?      // Jejak waktu token dibakar (forensik replay attack)
-  requestIp   String?        @db.VarChar(45) // IPv4/IPv6 penerbit token
-  createdAt   DateTime       @default(now())
+  id        Int       @id @default(autoincrement())
+  token     String    @unique @db.VarChar(64) // 64 char random string
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  appId     Int
+  app       SsoApp    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  expiresAt DateTime // Waktu kedaluwarsa (5 menit)
+  isUsed    Boolean   @default(false) // 0 = aktif, 1 = sudah dibakar/hangus
+  usedAt    DateTime? // Jejak waktu token dibakar (forensik replay attack)
+  requestIp String?   @db.VarChar(45) // IPv4/IPv6 penerbit token
+  createdAt DateTime  @default(now())
 
   // Validasi token cabang: WHERE clientId = ? AND isUsed = false AND expiresAt > NOW()
   @@index([clientId, isUsed, expiresAt])
@@ -152,7 +168,7 @@ model SsoAuthToken {
 //    dan pembuktian aktivitas administrator (SSO, role, user, konten).
 model AuditLog {
   id         Int      @id @default(autoincrement())
-  actorId    Int?     // NULL jika aksi sistem / anonim
+  actorId    Int? // NULL jika aksi sistem / anonim
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   actorLabel String?  @db.VarChar(191) // Snapshot username agar tetap terbaca jika user dihapus
   action     String   @db.VarChar(60) // cth: "LOGIN_SUCCESS", "ROLE_UPDATE", "APP_DELETE"
@@ -161,7 +177,7 @@ model AuditLog {
   status     String   @default("SUCCESS") @db.VarChar(20) // SUCCESS | DENIED | FAILED
   ipAddress  String?  @db.VarChar(45)
   userAgent  String?  @db.VarChar(255)
-  metadata   Json?    // Detail tambahan (field yang berubah, alasan, dsb.)
+  metadata   Json? // Detail tambahan (field yang berubah, alasan, dsb.)
   createdAt  DateTime @default(now())
 
   // Feed audit terbaru: ORDER BY createdAt DESC LIMIT n
@@ -177,71 +193,77 @@ model AuditLog {
 
 // Data Pendukung Landing / Master Publik Lama (Dipertahankan agar kompatibel jika ada modul butuh)
 model Fakultas {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  nama        String
-  kode        String?
-  dekan       String?
-  deskripsi   String?  @db.Text
-  visi        String?  @db.Text
-  misi        String?  @db.Text
-  icon        String?  @default("GraduationCap")
-  prodiList   Prodi[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  nama      String
+  kode      String?
+  dekan     String?
+  deskripsi String?  @db.Text
+  visi      String?  @db.Text
+  misi      String?  @db.Text
+  icon      String?  @default("GraduationCap")
+  prodiList Prodi[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("fakultas")
 }
 
 model Prodi {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  nama        String
-  jenjang     String    @default("S1")
-  akreditasi  String?   @default("Baik")
-  kaprodi     String?
-  deskripsi   String?   @db.Text
-  fakultasId  Int
-  fakultas    Fakultas  @relation(fields: [fakultasId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  nama       String
+  jenjang    String   @default("S1")
+  akreditasi String?  @default("Baik")
+  kaprodi    String?
+  deskripsi  String?  @db.Text
+  fakultasId Int
+  fakultas   Fakultas @relation(fields: [fakultasId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("prodi")
 }
 
 model LayananKampus {
-  id          Int      @id @default(autoincrement())
-  nama        String
-  kategori    String
-  deskripsi   String?
-  urlTarget   String
-  icon        String?  @db.LongText
-  isExternal  Boolean  @default(false)
-  urutan      Int      @default(0)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  nama       String
+  kategori   String
+  deskripsi  String?
+  urlTarget  String
+  icon       String?  @db.LongText
+  isExternal Boolean  @default(false)
+  urutan     Int      @default(0)
+  active     Boolean  @default(true)
+  // Penghitung kunjungan nyata: dinaikkan saat pengguna menekan "Kunjungi
+  // Tautan" di dashboard. Dipakai untuk menaruh direktori terpopuler di depan.
+  hitCount   Int      @default(0)
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Portal publik: WHERE active = true ORDER BY urutan ASC
   @@index([active, urutan])
+  // Query "paling sering dikunjungi": WHERE active = true ORDER BY hitCount DESC
+  @@index([active, hitCount])
   // Tab/filter kategori layanan.
   @@index([kategori, active])
   @@map("layanan_kampus")
 }
 
 model Berita {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
   judul       String
-  ringkasan   String?   @db.Text
-  konten      String    @db.LongText
-  kategori    String    @default("Pengumuman")
-  penulis     String?   @default("Humas UNUSU")
+  ringkasan   String?  @db.Text
+  konten      String   @db.LongText
+  kategori    String   @default("Pengumuman")
+  penulis     String?  @default("Humas UNUSU")
   gambar      String?
-  views       Int       @default(0)
-  publishedAt DateTime  @default(now())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  views       Int      @default(0)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Arsip berita: ORDER BY publishedAt DESC LIMIT n
   @@index([publishedAt])

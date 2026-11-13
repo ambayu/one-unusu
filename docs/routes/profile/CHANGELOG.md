@@ -1,5 +1,21 @@
 # Changelog — Profile & Biodata
 
+## [2026-11-13] - Integrasi Field Biodata SIAKAD & Standardisasi Pop-up Modal
+
+### Added
+- **Visualisasi Biodata Kependudukan & Riwayat SIAKAD**: Menambahkan seksi kartu terpadu untuk atribut civitas akademika yang disinkronkan dari SIAKAD:
+  - Nomor Induk Kependudukan (NIK)
+  - Tempat & Tanggal Lahir
+  - Jenis Kelamin (L/P)
+  - Nama Ibu Kandung
+  - Asal Sekolah / Madrasah
+  - Alamat Domisili Terdata
+  - Tanggal terakhir sinkronisasi (`syncedAt`)
+- **Status & Angkatan**: Kartu akademik mahasiswa kini menampilkan status akademik (misal: AKTIF) beserta tahun angkatan secara terpadu.
+
+### Changed
+- **Pembersihan Notifikasi Inline & Alert Primitif**: Seluruh notifikasi sukses simpan biodata, galat validasi kata sandi, dan validasi format pasfoto kini menggunakan pop-up terpusat `NotificationModal` (`z-[999]`).
+
 ## [2026-10-30] - Notifikasi Modal Saat Dialihkan dari Dashboard
 
 ### Added

@@ -1,5 +1,13 @@
 # Changelog — Admin Panel
 
+## [2026-11-13] - Sinkronisasi Massal Dosen SIAKAD & Cascading Hirarki Akademik
+
+### Added
+- **Sinkronisasi Massal Dosen SIAKAD:** Endpoint `POST /api/admin/siakad/sync-dosen` yang mengautentikasi akun admin SIAKAD UNUSU ke portal web `/sia/index.php`, mengekstrak 180+ direktori dosen resmi beserta NIDN dan prodi, lalu menyimpannya/memperbaruinya ke pangkalan data ONE UNUSU secara idempotent.
+- **Tombol Aksi Sinkronisasi SIAKAD:** Tombol `Tarik Dosen SIAKAD` pada antarmuka `ManajemenPengguna.tsx` yang dilengkapi dengan dialog konfirmasi, status loading interaktif, dan notifikasi hasil rekapitulasi jumlah akun yang dibuat dan diperbarui.
+- **Penyimpanan Biodata Lengkap Civitas:** Model pengguna (`users`) diperluas dengan field `jenis_kelamin`, `tempat_lahir`, `tanggal_lahir`, `nik`, `angkatan`, `status_akademik`, `alamat`, `asal_sekolah`, `nama_ibu_kandung`, dan `synced_at` via migrasi `20261113090000_add_civitas_biodata_from_siakad`.
+- **Hirarki Akademik Cascading:** Dropdown Fakultas dan Program Studi terintegrasi dinamis dengan API hirarki akademik portal prodi, lengkap dengan penyaringan otomatis prodi turunan saat fakultas dipilih.
+
 ## [2026-11-09] - Otorisasi Berbasis Izin Masuk Dinamis & Migrasi RoleId
 
 ### Added
@@ -16,8 +24,8 @@
 ### Changed
 - Refaktor `ManajemenPengguna.tsx`: pemuatan daftar peran kini dinamis via API `GET /api/admin/roles` (`fetchAdminRoles()`); pembuatan dan pengeditan pengguna mengirimkan `roleId`.
 - Label input identifier pada formulir tambah akun berubah secara dinamis (NIM untuk Mahasiswa, NIDN untuk Dosen, Username untuk peran lainnya).
-- Otorisasi pintu masuk aplikasi cabang beralih sepenuhnya ke izin masuk standar `<clientId>:masuk_*` (`masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`) via fungsi `decideAppAccess()`.
-- Super Administrator dan Admin SSO otomatis memiliki seluruh izin masuk ke semua aplikasi cabang.
+- Otorisasi pintu masuk aplikasi cabang memakai **izin masuk global** `masuk_admin`, `masuk_dosen`, dan `masuk_mahasiswa` (tanpa prefiks `clientId`), diiriskan dengan `sso_apps.targetRoles` aplikasi tujuan lewat fungsi `decideAppAccess()`.
+- Super Administrator dan Admin SSO otomatis memiliki seluruh izin masuk, sehingga dapat membuka aplikasi cabang mana pun.
 - **Penyelarasan URL Callback Lingkungan**: Memisahkan seeder dan skrip sinkronisasi URL callback untuk mode lokal (`npm run db:sso-dev-urls` / `npm run db:seed:local`) dan mode VPS (`npm run db:sso-vps-urls` / `npm run db:seed:vps`).
 - `seed.ts` diperbarui: akun bawaan hanya `admin` (`SUPERADMIN`) dan `admin_sso` (`ADMIN_SSO`). Penautan pengguna dilakukan sesudah penyiapan peran (`roleId`).
 

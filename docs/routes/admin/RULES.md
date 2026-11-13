@@ -33,11 +33,15 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 
 ## 5. Aturan Manajemen Pengguna & Peran Dinamis (Baru)
 - **Otorisasi via `roleId`**: Form penambahan dan pengeditan pengguna mengirimkan `roleId` (ID peran di database), bukan string enum peran.
-- **Pemuatan Peran Dinamis**: Dropdown pilihan peran di `/admin/users` dimuat langsung dari `GET /api/admin/roles` (`fetchAdminRoles()`), tidak pernah di-hardcode di kode frontend.
+- **Pemuatan Peran Dinamis**: Dropdown pilihan peran di `/admin/pengguna` dimuat langsung dari `GET /api/admin/roles` (`fetchAdminRoles()`), tidak pernah di-hardcode di kode frontend.
 - **Identifikasi Masukan Otomatis**: Label input identitas menyesuaikan peran yang dipilih: `Nomor Induk Mahasiswa (NIM)` untuk kode peran `MAHASISWA`, `NIDN / NUP` untuk kode `DOSEN`, dan `Username` untuk peran lainnya.
 - **Badge Warna Dinamis**: Penanda badge peran pada tabel pengguna menggunakan helper `badgeForRole(code)` yang menghasilkan warna konsisten secara deterministik untuk peran kustom maupun sistem.
+- **Integrasi & Sinkronisasi SIAKAD**:
+  - **JIT Provisioning Otomatis**: Mahasiswa/dosen yang datanya belum ada di lokal otomatis ditarik saat pertama kali login tanpa intervensi admin.
+  - **Sinkronisasi Massal**: Tombol aksi *Tarik Dosen SIAKAD* memicu penarikan seluruh direktori dosen via kredensial admin SIAKAD UNUSU ke database lokal ONE UNUSU secara berkala dan idempotent.
+  - **Hirarki Akademik Cascading**: Form pembuatan/pengeditan pengguna wajib menyajikan dropdown Fakultas dan Prodi yang saling terikat (cascading) menggunakan data resmi dari endpoint hirarki akademik.
 - **Proteksi Penguncian Diri**: Super Administrator dicegah dari menurunkan perannya sendiri (`SUPERADMIN`) saat mengedit profil akun sendiri untuk mencegah kehilangan akses panel secara permanen.
-- **Peran Kustom oleh Superadmin**: Super Administrator dapat membuat peran kustom di `/admin/roles` dan mengatur izin fitur serta izin masuk aplikasi (`<clientId>:masuk_*`) di `/admin/permissions`, lalu menautkan peran tersebut ke pengguna di `/admin/users`. Peran admin per-aplikasi kaku telah dihapus dari sistem.
+- **Peran Kustom oleh Superadmin**: Super Administrator dapat membuat peran kustom di `/admin/peran` dan mengatur izin fitur serta izin masuk aplikasi di `/admin/izin`, lalu menautkan peran tersebut ke pengguna di `/admin/pengguna`. Izin masuk aplikasi bersifat **global** (tiga kunci `masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`, tanpa prefiks `clientId`); pembeda antar-aplikasi adalah `targetRoles` pada registry aplikasi SSO. Peran admin per-aplikasi kaku telah dihapus dari sistem.
 - **Super Administrator & Admin SSO Access**: Akun ber-peran `SUPERADMIN` atau `ADMIN_SSO` secara otomatis melewati batasan izin masuk peluncuran aplikasi SSO dan memperoleh hak penuh untuk seluruh aplikasi satelit.
 - **Penyelarasan Callback per Lingkungan**: Pengaturan URL redirect aplikasi satelit terbagi dua:
   - Mode **Local**: Menunjuk port frontend Vite lokal (`5174` s.d. `5180`).

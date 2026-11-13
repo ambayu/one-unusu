@@ -56,28 +56,49 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - `SUPERADMIN`: Menampilkan Username, Unit Kerja PUSTIK, hak akses Root SSO, dan tab Registry SSO Apps & Civitas User Management.
 4. **SSO Ticket Protocol**: Otorisasi ke aplikasi turunan (LMS, SIAKAD, dsb) wajib menggunakan `GET /api/sso/app-client/:clientId/v2/redirect`. Endpoint ini menerbitkan token acak 64 karakter, single-use, berlaku 5 menit, dan disimpan di tabel `sso_auth_tokens`. Verifikasi dilakukan server-ke-server melalui `POST /api/v2/website/verify-token` dengan `client_id`, `client_key`, dan `token`.
 
+5. **Sinkronisasi SIAKAD (Hybrid Sync & JIT Provisioning)**:
+   - **JIT Provisioning On-Demand**: Jika pengguna mencoba login dengan kredensial SIAKAD namun belum terdaftar di `one-unusu`, sistem backend wajib memvalidasi ke API SIAKAD (`POST /auth/index.php`), menyedot data profil mahasiswa/dosen dari portal SIAKAD, menyimpannya ke database lokal secara otomatis, dan langsung meloloskan sesi pengguna.
+   - **Multi-Stage UX Progresif**: Tombol login pada antarmuka pengguna (`Login.tsx`) wajib menyajikan teks status dinamis bertahap saat autentikasi berlangsung, mencegah pengguna mengira sistem membeku atau melempar penolakan palsu.
+   - **Batch Sync Terpusat**: Modul Manajemen Pengguna (`/admin/pengguna`) menyediakan tombol sinkronisasi massal direktori dosen dari portal akademik SIAKAD dengan sifat idempotent (membuat akun baru / memperbarui akun lama tanpa menimpa data kredensial aktif).
+
 ### 4.1 Aturan Otorisasi Aplikasi Cabang & Model Peran (Permission-First, Mandatory)
 
-Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First via `<clientId>:masuk_*`**.
+Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan dua sumbu**: izin masuk global milik pengguna **dan** daftar peran target milik aplikasi. Keduanya harus bersinggungan.
 
 1. **Model Peran Pengguna Dinamis (`users.roleId`)**:
    - Kolom enum `users.role` **sudah dihapus** (migrasi `20261109100200_backfill_user_roleid`).
    - Penautan peran civitas dilakukan melalui relasi foreign key `users.roleId` ke tabel `roles`.
-   - Peran admin cabang kaku (`ADMIN_LPM`, `ADMIN_LPPM`, `ADMIN_ESURAT`, `ADMIN_SARPRAS`, `ADMIN_AKREDITASI`, `ADMIN_LMS`, `ADMIN_PRODI`) **sudah dihapus** (migrasi `20261109100300_drop_application_admin_roles`).
+   - Peran admin cabang kaku (`ADMIN_LPM`, `ADMIN_LPPM`, `ADMIN_ESURAT`, `ADMIN_SARPRAS`, `ADMIN_AKREDITASI`, `ADMIN_LMS`, `ADMIN_PRODI`) **sudah dihapus** (migrasi `20261109100300_drop_app_admin_roles`).
    - Platform hanya menyemai 4 peran bawaan sistem: `SUPERADMIN`, `ADMIN_SSO`, `DOSEN`, dan `MAHASISWA`.
-   - Peran kustom untuk unit/fakultas/staf dibuat secara dinamis oleh Super Administrator melalui panel **Peran & Izin** (`/admin/roles`), kemudian ditautkan ke civitas pada panel **Manajemen Pengguna** (`/admin/users`).
-2. **Kunci Izin Masuk Standar (`<clientId>:masuk_*`)**:
-   - Setiap aplikasi cabang di `sso_apps` memiliki 3 kunci izin masuk: `<clientId>:masuk_admin`, `<clientId>:masuk_dosen`, dan `<clientId>:masuk_mahasiswa`.
-   - Keputusan izin masuk dihitung oleh fungsi `decideAppAccess(permissionKeys, clientId)`.
-   - `SUPERADMIN` dan `ADMIN_SSO` secara bawaan memegang seluruh izin masuk ke semua aplikasi cabang, sehingga dapat masuk ke aplikasi mana pun.
-3. **Pemberian Hak Akses di Portal**:
+   - Peran kustom untuk unit/fakultas/staf dibuat secara dinamis oleh Super Administrator melalui panel **Peran & Izin** (`/admin/peran`), kemudian ditautkan ke civitas pada panel **Manajemen Pengguna** (`/admin/pengguna`).
+2. **Izin Masuk Global (3 kunci, berlaku lintas aplikasi)**:
+   - Terdapat tepat **tiga** kunci izin masuk: `masuk_admin`, `masuk_dosen`, dan `masuk_mahasiswa`.
+   - Kunci ini **tidak** memakai prefiks `clientId`. Satu izin yang sama berlaku untuk seluruh aplikasi cabang; pembeda antar-aplikasi adalah `sso_apps.targetRoles`, bukan nama kunci.
+   - Ketiganya didefinisikan di `PERMISSION_CATALOG` (`src/server/lib/accessControl.ts`) dengan `resource: "akses"`, sehingga kunci izinnya adalah `action` itu sendiri tanpa prefiks `resource:`. Aturan pembentukan kunci ini berlaku seragam di `syncPermissions()` dan `cleanObsoletePermissions()`.
+   - Lencana peran bawaan diperoleh dari `tingkatMasukBawaan(kodePeran)`: `SUPERADMIN` dan `ADMIN_SSO` memegang ketiga tingkat; peran kustom berawalan `ADMIN_` hanya memegang `masuk_admin`; `DOSEN` memegang `masuk_dosen`; `MAHASISWA` memegang `masuk_mahasiswa`; peran lain tidak memegang apa pun.
+3. **Pemetaan Tingkat Masuk dari `targetRoles`**:
+   - `targetRoles` pada `sso_apps` (JSON array string) dipetakan ke tingkat masuk oleh `tingkatDiterimaAplikasi()`:
+     - Memuat peran berawalan `ADMIN_`, atau `SUPERADMIN`, atau `ADMIN_SSO` → menerima tingkat `admin`.
+     - Memuat `DOSEN` → menerima tingkat `dosen`.
+     - Memuat `MAHASISWA` → menerima tingkat `mahasiswa`.
+   - Konsekuensi: aplikasi tanpa `targetRoles` yang sah **menolak semua pengguna** (fail-closed).
+4. **Fungsi Keputusan: `decideAppAccess(permissionKeys, targetRolesRaw, userRoleCodes)`**:
+   - Ditandatangani tiga argumen dan berada di `src/server/index.ts`.
+   - `SUPERADMIN` dan `ADMIN_SSO` **selalu** diizinkan dengan `tingkat: ["admin"]`, tanpa memeriksa izin.
+   - Selain itu, keputusan lolos bila ada irisan antara tingkat yang dimiliki pengguna (`masuk_*`) dan tingkat yang diterima aplikasi. Khusus tingkat `admin`, pengguna juga wajib memiliki peran yang tercantum di `targetRoles` atau peran berawalan `ADMIN_` - sehingga pemegang `masuk_admin` tidak otomatis merangsek ke aplikasi unit lain.
+   - Fungsi ini dipakai pada empat titik: `GET /api/sso/apps` (penanda `isAllowed`), `GET /api/auth/panel-access`, `GET /api/sso/app-client/:clientId/v2/redirect` (penegakan `403`), dan `POST /api/v2/website/verify-token`.
+5. **Pemberian Hak Akses di Portal**:
    - Super Administrator mengatur hak masuk aplikasi maupun hak fitur per sub-menu dengan menghubungkan permission ke role pada tabel `role_permissions`.
    - Tiket SSO (`POST /api/v2/website/verify-token`) mengirimkan data `access: { allowed, tingkat, permissions }` serta `user.role` (berasal dari `roleRef.code`).
-4. **Validasi Berbasis Permission di Aplikasi Cabang**:
+6. **Validasi Berbasis Permission di Aplikasi Cabang**:
    - Aplikasi cabang **DILARANG mengecek nama peran mentah (`role === 'ADMIN_...'`)** untuk otorisasi.
    - Pintu masuk cabang memeriksa `data.access.allowed` dan `data.access.tingkat` (apakah memuat `admin`, `dosen`, atau `mahasiswa`).
    - Otorisasi fitur per sub-menu menegakkan izin fitur (contoh: `lppm:penelitian:create`, `sarpras:aset:delete`, dsb.) yang diteruskan oleh token SSO.
-5. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran (`roleId === null`) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
+7. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran (`roleId === null`) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
+8. **Penyesuaian Katalog Izin**:
+   - Katalog resmi hidup di `PERMISSION_CATALOG` (`src/server/lib/accessControl.ts`) dan disemai oleh `seedAccessControl()`.
+   - Endpoint `POST /api/admin/permissions/sync` menyinkronkan katalog ke database **dan** membersihkan izin usang sekaligus.
+   - Endpoint `POST /api/admin/permissions/cleanup` hanya melaporkan/menghapus izin yatim. Ia **wajib** memakai aturan pembentukan kunci yang sama dengan `accessControl.ts`; membentuk kunci dengan cara berbeda akan membuat izin usang lolos dari pembersihan.
 
 ### 4.2 Aturan URL Callback Aplikasi Cabang (Local Dev vs VPS / Produksi)
 
@@ -118,8 +139,8 @@ URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkunga
 
 ### 5.2 Konvensi Skrip Database (Mandatory)
 
-1. **Penamaan Skrip**: Seluruh skrip database memakai awalan `db:` (`db:seed`, `db:seed:access`, `db:seed:directory`, `db:seed:sliders`, `db:sso-dev-urls`, `db:backup`, `db:parity`, `db:preflight`, `db:verify:post`, `db:cleanup:tokens`, `db:purge:audit`). Alias lama `prisma:seed*` dipertahankan hanya sebagai penerus tipis ke `db:*`.
-2. **Urutan Bootstrapping Database Baru**: `prisma generate` → `prisma migrate deploy` → `npm run db:seed` → `npm run db:seed:access`. Untuk database yang sudah berisi skema tanpa riwayat migrasi, lakukan baseline dengan `prisma migrate resolve --applied` per folder migrasi, bukan dengan menghapus tabel.
+1. **Penamaan Skrip**: Seluruh skrip database memakai awalan `db:` (`db:seed`, `db:seed:local`, `db:seed:vps`, `db:sso-dev-urls`, `db:sso-vps-urls`, `db:preflight`, `db:parity`, `db:backup`, `db:verify:post`, `db:cleanup:tokens`, `db:purge:audit`). Alias lama `prisma:seed*` dan `prisma:sso-*` dipertahankan hanya sebagai penerus tipis ke `db:*`. Penyemaian izin tidak punya script tersendiri: dilakukan oleh `seedAccessControl()` di dalam `db:seed`, atau lewat endpoint `POST /api/admin/permissions/sync`.
+2. **Urutan Bootstrapping Database Baru**: `prisma generate` → `prisma migrate deploy` → `npm run db:seed`. Penyemaian katalog izin, peran sistem, dan relasinya sudah tercakup di langkah `db:seed`. Untuk database yang sudah berisi skema tanpa riwayat migrasi, lakukan baseline dengan `prisma migrate resolve --applied` per folder migrasi, bukan dengan menghapus tabel.
 3. **Paritas Skema**: Setiap perubahan `prisma/schema.prisma` wajib disertai folder migrasi baru. `prisma migrate diff --from-url <DB> --to-schema-datamodel prisma/schema.prisma --script` harus menghasilkan "empty migration" sebelum pekerjaan dianggap selesai.
 4. **Migrasi dengan Hint DDL**: Sintaks `ALGORITHM`/`LOCK` hanya sah pada `ALTER TABLE`, tidak pada `CREATE INDEX` mandiri. Gunakan `ALTER TABLE ... ADD INDEX ... ALGORITHM=INPLACE, LOCK=NONE` bila hint memang diperlukan.
 

@@ -2,7 +2,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchMe, updateProfile, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
-import { NotificationModal } from '../components/NotificationModal';
+import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isBiodataComplete } from '../lib/biodata';
 import {
   ShieldCheckIcon,
@@ -18,13 +18,27 @@ import {
   BriefcaseIcon,
   XMarkIcon,
   ArrowPathIcon,
+  UserCircleIcon,
+  MapPinIcon,
+  CalendarDaysIcon,
+  HomeModernIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 
 export const Profile: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: '',
+  });
 
   // Form states
   const [email, setEmail] = useState('');
@@ -83,7 +97,12 @@ export const Profile: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('File harus berupa gambar (JPG, PNG, atau WebP).');
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Format Berkas Salah',
+        message: 'Berkas pasfoto harus berupa format gambar resmi (JPG, PNG, atau WebP).',
+      });
       return;
     }
 
@@ -150,10 +169,14 @@ export const Profile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     if (newPassword && newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Konfirmasi password baru tidak cocok.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Validasi Kata Sandi Gagal',
+        message: 'Konfirmasi kata sandi baru tidak cocok dengan kata sandi baru yang Anda masukkan.',
+      });
       return;
     }
 
@@ -168,7 +191,12 @@ export const Profile: React.FC = () => {
       });
 
       if (res.data.status) {
-        setMessage({ type: 'success', text: 'Biodata Anda berhasil disimpan dan diperbarui.' });
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Pembaruan Berhasil',
+          message: 'Biodata akun dan pengaturan profil Anda berhasil disimpan dan diperbarui.',
+        });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
@@ -176,11 +204,21 @@ export const Profile: React.FC = () => {
           setUser(res.data.data);
         }
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal memperbarui biodata.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Memperbarui',
+          message: res.data.message || 'Gagal memperbarui biodata akun Anda.',
+        });
       }
     } catch (err: any) {
       console.error('Update profile error:', err);
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Terjadi kesalahan server.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: err.response?.data?.message || 'Terjadi kesalahan pada server saat memperbarui data biodata.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -283,7 +321,7 @@ export const Profile: React.FC = () => {
                 <p className="text-xs font-bold text-[#475569] uppercase tracking-wider">
                   Data Akademik Mahasiswa
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
                     <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Nomor Induk Mahasiswa</span>
                     <p className="font-mono font-bold text-[#1E293B] mt-0.5">{user.nim || user.username}</p>
@@ -295,6 +333,12 @@ export const Profile: React.FC = () => {
                   <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
                     <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Fakultas</span>
                     <p className="font-bold text-[#1E293B] mt-0.5">{user.fakultas || 'Sains & Teknologi'}</p>
+                  </div>
+                  <div className="p-3 bg-[#F0FDF4] rounded-[8px] border border-[#D8E5DC]">
+                    <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Status & Angkatan</span>
+                    <p className="font-bold text-[#166534] mt-0.5">
+                      {user.statusAkademik || 'AKTIF'} {user.angkatan ? `· ${user.angkatan}` : ''}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -345,30 +389,73 @@ export const Profile: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Notification alert */}
-          {message && (
-            <div
-              className={`p-3.5 rounded-[10px] flex items-center justify-between text-xs font-medium ${
-                message.type === 'success'
-                  ? 'bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534]'
-                  : 'bg-[#FEE2E2] border border-[#FECACA] text-[#B91C1C]'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {message.type === 'success' ? (
-                  <CheckCircleIcon className="w-4 h-4 text-[#166534] flex-shrink-0" />
-                ) : (
-                  <ExclamationCircleIcon className="w-4 h-4 text-[#B91C1C] flex-shrink-0" />
-                )}
-                <span>{message.text}</span>
+            {/* CARD 4: BIODATA KEPENDUDUKAN & AKADEMIK SINKRONISASI SIAKAD */}
+            {(user?.nik || user?.tempatLahir || user?.jenisKelamin || user?.alamat || user?.asalSekolah || user?.namaIbuKandung || user?.syncedAt) && (
+              <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#475569] uppercase tracking-wider flex items-center gap-1.5">
+                    <IdentificationIcon className="w-4 h-4 text-[#166534]" />
+                    <span>Biodata Kependudukan & Riwayat SIAKAD</span>
+                  </p>
+                  {user.syncedAt && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-[#64748B] bg-[#F1F5F2] px-2.5 py-0.5 rounded-full border border-[#D8E5DC]">
+                      <ClockIcon className="w-3.5 h-3.5 text-[#166534]" />
+                      Sinkron: {new Date(user.syncedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                  {user.nik && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Nomor Induk Kependudukan (NIK)</span>
+                      <p className="font-mono font-bold text-[#1E293B] mt-0.5 tracking-wider">{user.nik}</p>
+                    </div>
+                  )}
+
+                  {(user.tempatLahir || user.tanggalLahir) && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Tempat, Tanggal Lahir</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">
+                        {[user.tempatLahir, user.tanggalLahir].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.jenisKelamin && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Jenis Kelamin</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">
+                        {user.jenisKelamin === 'L' ? 'Laki-laki (L)' : user.jenisKelamin === 'P' ? 'Perempuan (P)' : user.jenisKelamin}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.namaIbuKandung && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Nama Ibu Kandung</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.namaIbuKandung}</p>
+                    </div>
+                  )}
+
+                  {user.asalSekolah && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC]">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Asal Sekolah / Madrasah</span>
+                      <p className="font-bold text-[#1E293B] mt-0.5">{user.asalSekolah}</p>
+                    </div>
+                  )}
+
+                  {user.alamat && (
+                    <div className="p-3 bg-[#F8FAF9] rounded-[8px] border border-[#D8E5DC] sm:col-span-2 lg:col-span-3">
+                      <span className="text-[10px] text-[#94A3B8] font-semibold uppercase">Alamat Domisili Terdata</span>
+                      <p className="text-[#1E293B] mt-0.5 font-medium leading-relaxed">{user.alamat}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button onClick={() => setMessage(null)} className="text-[#94A3B8] hover:text-[#475569]">
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Form Input Kontak & Keamanan Akun */}
           <form onSubmit={handleSubmit} className="bg-white rounded-[16px] p-6 sm:p-7 border border-[#D8E5DC] shadow-xs space-y-6">
@@ -593,6 +680,15 @@ export const Profile: React.FC = () => {
         title="Lengkapi Biodata Dulu"
         message="Email dan nomor WhatsApp Anda belum lengkap. Lengkapi biodata terlebih dahulu agar aplikasi SSO dapat dibuka."
         onClose={() => setBioNoticeDismissed(true)}
+      />
+
+      {/* Modal Notifikasi Hasil Submit / Validasi Profil */}
+      <NotificationModal
+        isOpen={notify.isOpen}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
       />
 
     </div>

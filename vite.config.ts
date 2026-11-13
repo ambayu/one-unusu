@@ -11,7 +11,15 @@ export default defineConfig(({ command }) => ({
   base: command === 'build' ? PROD_BASE : '/',
   plugins: [react()],
   server: {
-    port: 5173,
+    // Port tetap 5178, bukan 5173: 5173 sudah dipakai proyek lain (SIKAPI) dan
+    // 5174/5177 terpakai aplikasi tetangga. Lihat D:\Project\LIST_PORT.md.
+    // Port ini WAJIB sama dengan salah satu origin di CORS_ORIGIN server.
+    port: 5178,
+    // Wajib: alamat API hanya mengizinkan origin CORS_ORIGIN yang terdaftar di
+    // server. Bila port bergeser diam-diam, browser akan memblokir respons dan
+    // login tampak "gagal terhubung" padahal server sehat. Lebih baik Vite
+    // berhenti dengan pesan jelas daripada bergeser tanpa disadari.
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

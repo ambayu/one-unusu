@@ -14,6 +14,7 @@ import {
   PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
+import { DataTable } from '../../components/DataTable';
 import { useAdminData } from '../../hooks/useAdminData';
 import {
   DirectoryItem,
@@ -314,113 +315,129 @@ export const DirektoriPublik: React.FC = () => {
       </div>
 
       {/* Tabel Data Direktori */}
-      <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left text-xs">
-            <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
-              <tr>
-                <th className="py-3 px-4 w-12 text-center">Urutan</th>
-                <th className="py-3 px-4">Nama Direktori</th>
-                <th className="py-3 px-4">Kategori</th>
-                <th className="py-3 px-4">URL Tujuan</th>
-                <th className="py-3 px-4">Tipe Link</th>
-                <th className="py-3 px-4">Status</th>
-                {(canEdit || canDelete) && <th className="py-3 px-4 text-center">Aksi</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#D8E5DC]/50">
-              {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={canEdit || canDelete ? 7 : 6} className="py-8 text-center text-[#94A3B8]">
-                    Belum ada direktori publik yang terdaftar.
-                  </td>
-                </tr>
+      <DataTable<DirectoryItem>
+        data={filteredItems}
+        kunciBaris={(item) => item.id}
+        lebarMinimal="700px"
+        perHalamanAwal={10}
+        labelRingkasan={(dari, sampai, total) =>
+          `Menampilkan ${dari}-${sampai} dari ${total} direktori`
+        }
+        kosong={
+          <span className="text-[#94A3B8]">Belum ada direktori publik yang terdaftar.</span>
+        }
+        kolom={[
+          {
+            key: 'urutan',
+            judul: 'Urutan',
+            rataTengah: true,
+            kelas: 'w-12 font-bold text-[#64748B]',
+            sel: (item) => `#${item.urutan}`,
+          },
+          {
+            key: 'nama',
+            judul: 'Nama Direktori',
+            sel: (item) => (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-[#DCFCE7] text-[#166534] flex items-center justify-center flex-shrink-0">
+                  {renderIconComponent(item.icon)}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-[#1E293B]">{item.nama}</p>
+                  <p className="text-[11px] text-[#64748B] line-clamp-1">{item.deskripsi || '-'}</p>
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'kategori',
+            judul: 'Kategori',
+            sel: (item) => (
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#F1F5F2] text-[#475569] border border-[#D8E5DC]">
+                {item.kategori}
+              </span>
+            ),
+          },
+          {
+            key: 'url',
+            judul: 'URL Tujuan',
+            kelas: 'font-mono text-[11px] text-[#475569]',
+            sel: (item) => (
+              <a
+                href={item.urlTarget}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-[#166534] hover:underline inline-flex items-center gap-1"
+              >
+                <span className="truncate max-w-[200px]">{item.urlTarget}</span>
+                <ArrowTopRightOnSquareIcon className="w-3 h-3 flex-shrink-0" />
+              </a>
+            ),
+          },
+          {
+            key: 'tipe',
+            judul: 'Tipe Link',
+            sel: (item) =>
+              item.isExternal ? (
+                <span className="text-[10.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                  Tab Baru (Eksternal)
+                </span>
               ) : (
-                filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#F0FDF4] transition-colors">
-                    <td className="py-3 px-4 text-center font-bold text-[#64748B]">#{item.urutan}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-[10px] bg-[#DCFCE7] text-[#166534] flex items-center justify-center flex-shrink-0">
-                          {renderIconComponent(item.icon)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-[#1E293B]">{item.nama}</p>
-                          <p className="text-[11px] text-[#64748B] line-clamp-1">{item.deskripsi || '-'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#F1F5F2] text-[#475569] border border-[#D8E5DC]">
-                        {item.kategori}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-[#475569]">
-                      <a
-                        href={item.urlTarget}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-[#166534] hover:underline inline-flex items-center gap-1"
-                      >
-                        <span className="truncate max-w-[200px]">{item.urlTarget}</span>
-                        <ArrowTopRightOnSquareIcon className="w-3 h-3 flex-shrink-0" />
-                      </a>
-                    </td>
-                    <td className="py-3 px-4">
-                      {item.isExternal ? (
-                        <span className="text-[10.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                          Tab Baru (Eksternal)
-                        </span>
-                      ) : (
-                        <span className="text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                          Internal UNUSU
-                        </span>
+                <span className="text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  Internal UNUSU
+                </span>
+              ),
+          },
+          {
+            key: 'status',
+            judul: 'Status',
+            sel: (item) => (
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                  item.active
+                    ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
+                    : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
+                }`}
+              >
+                {item.active ? 'Aktif' : 'Nonaktif'}
+              </span>
+            ),
+          },
+          ...((canEdit || canDelete)
+            ? [
+                {
+                  key: 'aksi',
+                  judul: 'Aksi',
+                  rataTengah: true,
+                  sel: (item: DirectoryItem) => (
+                    <div className="flex items-center justify-center gap-1.5">
+                      {canEdit && (
+                        <button
+                          onClick={() => openEditModal(item)}
+                          title="Ubah Direktori"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
+                        >
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                          <span>Ubah</span>
+                        </button>
                       )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                          item.active
-                            ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
-                            : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
-                        }`}
-                      >
-                        {item.active ? 'Aktif' : 'Nonaktif'}
-                      </span>
-                    </td>
-                    {(canEdit || canDelete) && (
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {canEdit && (
-                            <button
-                              onClick={() => openEditModal(item)}
-                              title="Ubah Direktori"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
-                            >
-                              <PencilSquareIcon className="w-3.5 h-3.5" />
-                              <span>Ubah</span>
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={() => setItemToDelete(item)}
-                              title="Hapus Direktori"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
-                            >
-                              <TrashIcon className="w-3.5 h-3.5" />
-                              <span>Hapus</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      {canDelete && (
+                        <button
+                          onClick={() => setItemToDelete(item)}
+                          title="Hapus Direktori"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          <span>Hapus</span>
+                        </button>
+                      )}
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Modal Form Tambah / Ubah */}
       {showModal && (

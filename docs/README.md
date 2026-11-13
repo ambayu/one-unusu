@@ -60,12 +60,11 @@ node dist/server/index.js
 ```bash
 # Seeder lengkap (SSO Users, Apps, Access Control, Direktori, Slider)
 npm run db:seed
-
-# Seeder cepat modul akses dan pembersihan permission usang
-npm run db:seed:access
 ```
 
-> Otorisasi aplikasi cabang memakai `sso_apps.targetRoles` (portal) + `ALLOWED_SSO_ROLES` (server aplikasi cabang). Tabel `user_app_accesses` dan menu "Kunci Aplikasi" sudah dihapus — lihat `docs/PROJECT_RULES.md` bagian 4.1.
+> **Sinkronisasi izin.** Tidak ada script khusus untuk menyemai izin. Katalog izin resmi berada di `PERMISSION_CATALOG` (`src/server/lib/accessControl.ts`) dan disemai oleh `seedAccessControl()` yang dipanggil dari `npm run db:seed`. Untuk menyelaraskan katalog ke database yang sedang berjalan tanpa seed ulang, gunakan endpoint `POST /api/admin/permissions/sync` (butuh izin `permission:edit`); endpoint ini sekaligus membersihkan izin usang.
+
+> **Otorisasi aplikasi cabang.** Portal memakai izin masuk **global** (`masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`) diiriskan dengan `sso_apps.targetRoles`; server aplikasi cabang memakai `ALLOWED_SSO_ROLES`. Tabel `user_app_accesses` dan menu "Kunci Aplikasi" sudah dihapus - lihat `docs/PROJECT_RULES.md` bagian 4.1.
 
 ---
 

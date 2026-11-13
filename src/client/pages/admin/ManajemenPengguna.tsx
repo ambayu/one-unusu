@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AcademicCapIcon,
+  ArrowPathIcon,
   BriefcaseIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -15,11 +16,14 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
+import { DataTable } from '../../components/DataTable';
 import { useAdminData } from '../../hooks/useAdminData';
+import { NotificationModal, NotificationType } from '../../components/NotificationModal';
 import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  syncDosenFromSiakad,
   fetchAdminRoles,
   fetchAcademicHierarchy,
   AcademicFacultyItem,
@@ -85,7 +89,14 @@ export const ManajemenPengguna: React.FC = () => {
         if (!cancelled && res.data?.data) setRoles(res.data.data);
       })
       .catch(() => {
-        if (!cancelled) setMessage({ type: 'error', text: 'Gagal memuat daftar peran.' });
+        if (!cancelled) {
+          setNotify({
+            isOpen: true,
+            type: 'error',
+            title: 'Gagal Memuat Peran',
+            message: 'Gagal memuat daftar peran pengguna dari server.',
+          });
+        }
       })
       .finally(() => {
         if (!cancelled) setRolesLoading(false);
@@ -125,7 +136,16 @@ export const ManajemenPengguna: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRoleState] = useState<'ALL' | UserRole>(validRoleFilter);
-  const [message, setMessage] = useState<FeedbackMessage | null>(null);
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: '',
+  });
 
   type StatusFilter = 'ALL' | 'AKTIF' | 'NONAKTIF';
   const statusParam = searchParams.get('status');
@@ -220,6 +240,8 @@ export const ManajemenPengguna: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSyncingSiakad, setIsSyncingSiakad] = useState(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -288,7 +310,12 @@ export const ManajemenPengguna: React.FC = () => {
     event.preventDefault();
 
     if (newRoleIds.length === 0) {
-      setMessage({ type: 'error', text: 'Silakan pilih minimal satu peran pengguna.' });
+      setNotify({
+        isOpen: true,
+        type: 'warning',
+        title: 'Peran Belum Dipilih',
+        message: 'Silakan pilih minimal satu peran untuk akun pengguna yang akan dibuat.',
+      });
       return;
     }
 
@@ -306,18 +333,33 @@ export const ManajemenPengguna: React.FC = () => {
       });
 
       if (res.data.status) {
-        setMessage({ type: 'success', text: `Akun ${newNama} berhasil dibuat.` });
         setShowModal(false);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Akun Berhasil Dibuat',
+          message: `Akun pengguna atas nama ${newNama} (${newUsername}) berhasil ditambahkan ke sistem.`,
+        });
         await reload();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal membuat akun.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Menambahkan Akun',
+          message: res.data.message || 'Gagal membuat akun pengguna baru.',
+        });
       }
     } catch (error: unknown) {
       const text =
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal membuat akun pengguna.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: text || 'Terjadi kesalahan pada server saat menambahkan akun pengguna.',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -354,7 +396,12 @@ export const ManajemenPengguna: React.FC = () => {
     if (!editingUser) return;
 
     if (editRoleIds.length === 0) {
-      setMessage({ type: 'error', text: 'Pengguna harus memiliki minimal satu peran.' });
+      setNotify({
+        isOpen: true,
+        type: 'warning',
+        title: 'Peran Wajib Dipilih',
+        message: 'Pengguna harus memiliki minimal satu peran aktif.',
+      });
       return;
     }
 
@@ -376,19 +423,35 @@ export const ManajemenPengguna: React.FC = () => {
 
       const res = await updateAdminUser(editingUser.id, payload);
       if (res.data.status) {
-        setMessage({ type: 'success', text: `Data akun ${editingUser.username} berhasil diperbarui.` });
         setShowEditModal(false);
+        const usernameUpdated = editingUser.username;
         setEditingUser(null);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Akun Berhasil Diperbarui',
+          message: `Data akun ${usernameUpdated} berhasil disimpan dan diperbarui di sistem.`,
+        });
         await reload();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal memperbarui akun.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Memperbarui Akun',
+          message: res.data.message || 'Gagal memperbarui akun pengguna.',
+        });
       }
     } catch (error: unknown) {
       const text =
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal memperbarui data pengguna.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: text || 'Gagal memperbarui data pengguna.',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -399,6 +462,39 @@ export const ManajemenPengguna: React.FC = () => {
     setShowDeleteModal(true);
   };
 
+  const handleSyncSiakadDosen = async () => {
+    setShowSyncConfirm(false);
+    try {
+      setIsSyncingSiakad(true);
+      const res = await syncDosenFromSiakad();
+      if (res.data.status) {
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Sinkronisasi SIAKAD Selesai',
+          message: res.data.message || 'Sinkronisasi data dosen dari SIAKAD berhasil diselesaikan.',
+        });
+        await reload();
+      } else {
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Sinkronisasi',
+          message: res.data.message || 'Gagal menyinkronkan data dosen dari SIAKAD.',
+        });
+      }
+    } catch (err: any) {
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem SIAKAD',
+        message: err.response?.data?.message || 'Terjadi kesalahan saat menyinkronkan data dari SIAKAD.',
+      });
+    } finally {
+      setIsSyncingSiakad(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingUser) return;
 
@@ -406,19 +502,35 @@ export const ManajemenPengguna: React.FC = () => {
       setIsDeleting(true);
       const res = await deleteAdminUser(deletingUser.id);
       if (res.data.status) {
-        setMessage({ type: 'success', text: `Akun ${deletingUser.username} berhasil dihapus.` });
         setShowDeleteModal(false);
+        const deletedUsername = deletingUser.username;
         setDeletingUser(null);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Akun Dihapus',
+          message: `Akun pengguna ${deletedUsername} berhasil dihapus permanen dari sistem.`,
+        });
         await reload();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal menghapus akun.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Menghapus Akun',
+          message: res.data.message || 'Gagal menghapus akun pengguna.',
+        });
       }
     } catch (error: unknown) {
       const text =
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal menghapus akun pengguna.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: text || 'Gagal menghapus akun pengguna.',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -626,28 +738,6 @@ export const ManajemenPengguna: React.FC = () => {
         )}
       </div>
 
-      {message && (
-        <div
-          className={`p-3.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
-            message.type === 'success'
-              ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
-              : 'bg-[#FEE2E2] border-[#FECACA] text-[#B91C1C]'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span>{message.text}</span>
-          </div>
-          <button onClick={() => setMessage(null)} className="text-[#94A3B8] hover:text-[#475569]">
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-md w-full">
           <div className="relative flex-1">
@@ -689,7 +779,17 @@ export const ManajemenPengguna: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={() => setShowSyncConfirm(true)}
+            disabled={isSyncingSiakad}
+            title="Tarik seluruh data Dosen dari SIAKAD UNUSU"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-xs transition disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingSiakad ? 'animate-spin' : ''}`} />
+            <span>{isSyncingSiakad ? 'Menyinkronkan...' : 'Tarik Dosen SIAKAD'}</span>
+          </button>
+
           <button
             onClick={openModal}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
@@ -701,14 +801,16 @@ export const ManajemenPengguna: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+        {/* Bar hanya dirender bila ada filter aktif. Tanpa penjagaan ini,
+            bar menghilang isinya tetapi tetap tampil sebagai pita abu kosong
+            setinggi ~44px di atas tabel. */}
+        {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[#E8EFEA] bg-[#F9FDFB]">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-[#1E293B]">
-              Daftar Pengguna
-              <span className="ml-1.5 text-[#64748B] font-normal">
-                ({filteredUsers.length} dari {users.length} akun)
-              </span>
-            </span>
+            {/* Judul "Daftar Pengguna" tidak dipakai: konteks halaman sudah
+                jelas dari judul panel, dan DataTable sudah memiliki label
+                ringkasan sendiri. Yang dipertahankan hanya chip filter aktif,
+                karena itu informasi yang tidak muncul di tempat lain. */}
             {filterRole !== 'ALL' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
                 Filter: {ROLE_LABEL[filterRole as UserRole] ?? filterRole}
@@ -736,123 +838,143 @@ export const ManajemenPengguna: React.FC = () => {
               </span>
             )}
           </div>
-          {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="self-start sm:self-auto inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
-            >
-              <XMarkIcon className="w-3.5 h-3.5" />
-              Tampilkan Semua
-            </button>
-          )}
+          {/* Bar hanya muncul saat ada filter aktif, jadi tombol ini selalu
+              relevan tanpa perlu penjagaan tambahan. */}
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="self-start sm:self-auto inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
+          >
+            <XMarkIcon className="w-3.5 h-3.5" />
+            Tampilkan Semua
+          </button>
         </div>
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
-              <tr>
-                <th className="py-3 px-4">Pengguna (NIM / NIDN)</th>
-                <th className="py-3 px-4">Nama Lengkap</th>
-                <th className="py-3 px-4">Peran</th>
-                <th className="py-3 px-4">Program Studi</th>
-                <th className="py-3 px-4">Kontak</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#D8E5DC]/50">
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center">
-                    <p className="text-xs font-semibold text-[#475569]">
-                      Tidak ada akun yang sesuai dengan filter
-                      {filterRole !== 'ALL' ? ` "${ROLE_LABEL[filterRole as UserRole] ?? filterRole}"` : ''}
-                      {filterStatus !== 'ALL'
-                        ? ` dengan status ${filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}`
-                        : ''}
-                      {search.trim() ? ` dan kata kunci "${search.trim()}"` : ''}.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
-                    >
-                      <XMarkIcon className="w-3.5 h-3.5" />
-                      Reset Filter
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-[#F0FDF4] transition-colors">
-                    <td className="py-3 px-4 font-mono font-semibold text-[#1E293B]">
-                      {user.nim || user.nidn || user.username}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-[#1E293B]">{user.nama}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1 max-w-[220px]">
-                        {user.roles && user.roles.length > 0 ? (
-                          user.roles.map((r) => (
-                            <span
-                              key={r.id}
-                              className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(r.code)}`}
-                            >
-                              {r.name || r.code}
-                            </span>
-                          ))
-                        ) : (
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(user.role)}`}
-                          >
-                            {ROLE_LABEL[user.role] ?? user.role}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-[#475569]">{user.prodi || '-'}</td>
-                    <td className="py-3 px-4 text-[#475569]">
-                      <p className="text-[11px] font-mono">{user.email || '-'}</p>
-                      <p className="text-[10px] text-[#94A3B8] font-mono">{user.noHp || '-'}</p>
-                    </td>
-                    <td className="py-3 px-4">
+        )}
+        <DataTable<UserProfile>
+          data={filteredUsers}
+          kunciBaris={(user) => user.id}
+          lebarMinimal="720px"
+          labelRingkasan={(dari, sampai, total) =>
+            `Menampilkan ${dari}-${sampai} dari ${total} akun`
+          }
+          kosong={
+            <>
+              <p className="text-xs font-semibold text-[#475569]">
+                Tidak ada akun yang sesuai dengan filter
+                {filterRole !== 'ALL' ? ` "${ROLE_LABEL[filterRole as UserRole] ?? filterRole}"` : ''}
+                {filterStatus !== 'ALL'
+                  ? ` dengan status ${filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}`
+                  : ''}
+                {search.trim() ? ` dan kata kunci "${search.trim()}"` : ''}.
+              </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
+              >
+                <XMarkIcon className="w-3.5 h-3.5" />
+                Reset Filter
+              </button>
+            </>
+          }
+          kolom={[
+            {
+              key: 'akun',
+              judul: 'Pengguna (NIM / NIDN)',
+              kelas: 'font-mono font-semibold text-[#1E293B]',
+              sel: (user) => user.nim || user.nidn || user.username,
+            },
+            {
+              key: 'nama',
+              judul: 'Nama Lengkap',
+              kelas: 'font-semibold text-[#1E293B]',
+              sel: (user) => user.nama,
+            },
+            {
+              key: 'peran',
+              judul: 'Peran',
+              sel: (user) => (
+                <div className="flex flex-wrap gap-1 max-w-[220px]">
+                  {user.roles && user.roles.length > 0 ? (
+                    user.roles.map((r) => (
                       <span
-                        className={`inline-flex items-center gap-1 font-semibold text-[11px] ${
-                          user.isActive ? 'text-[#166534]' : 'text-[#B91C1C]'
-                        }`}
+                        key={r.id}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(r.code)}`}
                       >
-                        <ShieldCheckIcon className="w-3.5 h-3.5" />
-                        <span>{user.isActive ? 'Aktif' : 'Nonaktif'}</span>
+                        {r.name || r.code}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(user)}
-                          title="Ubah Pengguna"
-                          aria-label={`Ubah Pengguna ${user.nama}`}
-                          className="p-1.5 rounded-lg text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] transition"
-                        >
-                          <PencilSquareIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDelete(user)}
-                          title="Hapus Pengguna"
-                          aria-label={`Hapus Pengguna ${user.nama}`}
-                          disabled={user.username.toLowerCase() === 'admin' || user.id === currentUser?.id}
-                          className="p-1.5 rounded-lg text-[#B91C1C] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] disabled:opacity-40 disabled:cursor-not-allowed transition"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    ))
+                  ) : (
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeForRole(user.role)}`}
+                    >
+                      {ROLE_LABEL[user.role] ?? user.role}
+                    </span>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'prodi',
+              judul: 'Program Studi',
+              kelas: 'text-[#475569]',
+              sel: (user) => user.prodi || '-',
+            },
+            {
+              key: 'kontak',
+              judul: 'Kontak',
+              kelas: 'text-[#475569]',
+              sel: (user) => (
+                <>
+                  <p className="text-[11px] font-mono">{user.email || '-'}</p>
+                  <p className="text-[10px] text-[#94A3B8] font-mono">{user.noHp || '-'}</p>
+                </>
+              ),
+            },
+            {
+              key: 'status',
+              judul: 'Status',
+              sel: (user) => (
+                <span
+                  className={`inline-flex items-center gap-1 font-semibold text-[11px] ${
+                    user.isActive ? 'text-[#166534]' : 'text-[#B91C1C]'
+                  }`}
+                >
+                  <ShieldCheckIcon className="w-3.5 h-3.5" />
+                  <span>{user.isActive ? 'Aktif' : 'Nonaktif'}</span>
+                </span>
+              ),
+            },
+            {
+              key: 'aksi',
+              judul: 'Aksi',
+              rataTengah: true,
+              sel: (user) => (
+                <div className="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(user)}
+                    title="Ubah Pengguna"
+                    aria-label={`Ubah Pengguna ${user.nama}`}
+                    className="p-1.5 rounded-lg text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] transition"
+                  >
+                    <PencilSquareIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDelete(user)}
+                    title="Hapus Pengguna"
+                    aria-label={`Hapus Pengguna ${user.nama}`}
+                    disabled={user.username.toLowerCase() === 'admin' || user.id === currentUser?.id}
+                    className="p-1.5 rounded-lg text-[#B91C1C] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
       {showModal && (
@@ -1287,47 +1409,42 @@ export const ManajemenPengguna: React.FC = () => {
       )}
 
       {/* Modal Dialog Konfirmasi Hapus */}
-      {showDeleteModal && deletingUser && (
-        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-[#FECACA]">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-[#FEF2F2] text-[#B91C1C]">
-                <ExclamationTriangleIcon className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-[#1E293B] text-sm">Hapus Akun Pengguna</h3>
-                <p className="text-xs text-[#64748B]">
-                  Apakah Anda yakin ingin menghapus akun{' '}
-                  <strong className="text-[#1E293B]">{deletingUser.nama}</strong> ({deletingUser.username})? Tindakan ini
-                  akan mencabut seluruh tiket sesi SSO dan tidak dapat dibatalkan.
-                </p>
-              </div>
-            </div>
+      <NotificationModal
+        isOpen={showDeleteModal && Boolean(deletingUser)}
+        type="confirm"
+        title="Hapus Akun Pengguna?"
+        message={`Apakah Anda yakin ingin menghapus akun "${deletingUser?.nama}" (${deletingUser?.username})? Tindakan ini akan mencabut seluruh tiket sesi SSO dan tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus Akun"
+        cancelLabel="Batal"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingUser(null);
+        }}
+      />
 
-            <div className="pt-2 flex justify-end gap-2 border-t border-[#E8EFEA]">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingUser(null);
-                }}
-                disabled={isDeleting}
-                className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold text-xs"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-[8px] text-white bg-[#B91C1C] hover:bg-[#991B1B] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
-              >
-                {isDeleting ? 'Menghapus...' : 'Ya, Hapus Akun'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Dialog Konfirmasi Sinkronisasi Massal Dosen SIAKAD */}
+      <NotificationModal
+        isOpen={showSyncConfirm}
+        type="confirm"
+        title="Tarik Data Dosen SIAKAD?"
+        message="Sistem akan menghubungkan kredensial ke portal akademik SIAKAD UNUSU dan menyinkronkan seluruh direktori dosen resmi beserta NIDN dan program studinya ke database ONE UNUSU."
+        confirmLabel="Tarik Data Sekarang"
+        cancelLabel="Batal"
+        loading={isSyncingSiakad}
+        onConfirm={handleSyncSiakadDosen}
+        onClose={() => setShowSyncConfirm(false)}
+      />
+
+      {/* Modal Notifikasi Hasil Aksi (Berhasil / Gagal) */}
+      <NotificationModal
+        isOpen={notify.isOpen}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
+      />
     </AdminPanelTemplate>
   );
 };

@@ -92,6 +92,16 @@ export interface UserProfile {
   fakultas?: string | null;
   prodi?: string | null;
   avatar?: string | null;
+  jenisKelamin?: string | null;
+  tempatLahir?: string | null;
+  tanggalLahir?: string | null;
+  nik?: string | null;
+  angkatan?: string | null;
+  statusAkademik?: string | null;
+  alamat?: string | null;
+  asalSekolah?: string | null;
+  namaIbuKandung?: string | null;
+  syncedAt?: string | null;
   isActive: boolean;
   permissions?: string[];
   createdAt?: string;
@@ -253,6 +263,17 @@ export const updateAdminUser = (id: number, data: Omit<Partial<UserProfile>, 'ro
 
 export const deleteAdminUser = (id: number) =>
   api.delete<{ status: boolean; message: string }>(`/admin/users/${id}`);
+
+export const syncDosenFromSiakad = () =>
+  api.post<{
+    status: boolean;
+    message: string;
+    data: {
+      totalSia: number;
+      created: number;
+      updated: number;
+    };
+  }>('/admin/siakad/sync-dosen');
 
 // ==========================================
 // ADMIN API — REGISTRY APLIKASI

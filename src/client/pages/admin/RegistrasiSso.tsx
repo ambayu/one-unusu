@@ -17,6 +17,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
+import { DataTable } from '../../components/DataTable';
 import { useAdminData } from '../../hooks/useAdminData';
 import { createAdminApp, updateAdminApp, deleteAdminApp, syncAdminApps, SsoAppItem } from '../../services/api';
 import { APP_ROLES, AppRole, ROLE_LABEL, parseTargetRoles } from '../../lib/appRoles';
@@ -512,10 +513,6 @@ export const RegistrasiSso: React.FC = () => {
               </select>
             </label>
 
-            <span className="text-[11px] text-[#94A3B8]" role="status" aria-live="polite">
-              Menampilkan {filteredApps.length} dari {apps.length} aplikasi
-            </span>
-
             {isFilterActive && (
               <button
                 type="button"
@@ -529,146 +526,160 @@ export const RegistrasiSso: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
-              <tr>
-                <th className="py-3 px-4">Nama Aplikasi</th>
-                <th className="py-3 px-4">Client ID</th>
-                <th className="py-3 px-4">Client Key</th>
-                <th className="py-3 px-4">Callback URL</th>
-                <th className="py-3 px-4">Akses Peran</th>
-                <th className="py-3 px-4">Status</th>
-                {(canEdit || canDelete) && <th className="py-3 px-4 text-center">Aksi</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#D8E5DC]/50">
-              {filteredApps.length === 0 ? (
-                <tr>
-                  <td colSpan={canEdit || canDelete ? 7 : 6} className="py-10 text-center">
-                    <Squares2X2Icon className="w-7 h-7 mx-auto text-[#94A3B8]" />
-                    <p className="mt-2 text-xs font-bold text-[#475569]">
-                      {apps.length === 0
-                        ? 'Belum ada aplikasi terdaftar'
-                        : 'Tidak ada aplikasi yang cocok dengan filter'}
-                    </p>
-                    <p className="mt-1 text-[11px] text-[#94A3B8]">
-                      {apps.length === 0
-                        ? 'Tekan “Sinkronisasi Aplikasi” untuk mengisi registry bawaan atau daftarkan aplikasi baru.'
-                        : `Filter aktif: status ${statusFilter === 'ALL' ? 'semua' : statusFilter.toLowerCase()}${
-                            search.trim() ? `, pencarian “${search.trim()}”` : ''
-                          }.`}
-                    </p>
-                    {apps.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={resetAppFilters}
-                        className="mt-2.5 inline-flex items-center px-3 py-1.5 rounded-[8px] border border-[#D8E5DC] bg-white text-[11px] font-semibold text-[#166534] hover:bg-[#F0FDF4] transition"
+      <DataTable<SsoAppItem>
+        data={filteredApps}
+        kunciBaris={(app) => app.id}
+        lebarMinimal="720px"
+        labelRingkasan={(dari, sampai, total) =>
+          `Menampilkan ${dari}-${sampai} dari ${total} aplikasi`
+        }
+        kosong={
+          <>
+            <Squares2X2Icon className="w-7 h-7 mx-auto text-[#94A3B8]" />
+            <p className="mt-2 text-xs font-bold text-[#475569]">
+              {apps.length === 0
+                ? 'Belum ada aplikasi terdaftar'
+                : 'Tidak ada aplikasi yang cocok dengan filter'}
+            </p>
+            <p className="mt-1 text-[11px] text-[#94A3B8]">
+              {apps.length === 0
+                ? 'Tekan “Sinkronisasi Aplikasi” untuk mengisi registry bawaan atau daftarkan aplikasi baru.'
+                : `Filter aktif: status ${statusFilter === 'ALL' ? 'semua' : statusFilter.toLowerCase()}${
+                    search.trim() ? `, pencarian “${search.trim()}”` : ''
+                  }.`}
+            </p>
+            {apps.length > 0 && (
+              <button
+                type="button"
+                onClick={resetAppFilters}
+                className="mt-2.5 inline-flex items-center px-3 py-1.5 rounded-[8px] border border-[#D8E5DC] bg-white text-[11px] font-semibold text-[#166534] hover:bg-[#F0FDF4] transition"
+              >
+                Tampilkan semua aplikasi
+              </button>
+            )}
+          </>
+        }
+        kolom={[
+          {
+            key: 'nama',
+            judul: 'Nama Aplikasi',
+            sel: (app) => (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[10px] border border-[#D8E5DC] bg-[#F0FDF4] overflow-hidden flex-shrink-0 flex items-center justify-center">
+                  {isImageSource(app.icon) ? (
+                    <img
+                      src={app.icon as string}
+                      alt={`Gambar ${app.nameApp}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Squares2X2Icon className="w-4 h-4 text-[#166534]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-[#1E293B]">{app.nameApp}</p>
+                  <p className="text-[11px] text-[#64748B] line-clamp-1">
+                    {app.description || 'Layanan digital terintegrasi.'}
+                  </p>
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'clientId',
+            judul: 'Client ID',
+            kelas: 'font-mono text-[11px] text-[#475569] font-medium',
+            sel: (app) => (
+              <span className="px-2 py-0.5 rounded bg-[#F0FDF4] border border-[#D8E5DC]">
+                {app.clientId}
+              </span>
+            ),
+          },
+          {
+            key: 'clientKey',
+            judul: 'Client Key',
+            kelas: 'font-mono text-[11px] text-[#475569]',
+            sel: (app) => <ClientKeyCell value={app.clientKey} />,
+          },
+          {
+            key: 'callback',
+            judul: 'Callback URL',
+            kelas: 'font-mono text-[11px] text-[#475569] max-w-xs truncate',
+            sel: (app) => <span title={app.urlRedirect}>{app.urlRedirect}</span>,
+          },
+          {
+            key: 'peran',
+            judul: 'Akses Peran',
+            sel: (app) => {
+              const roles = parseTargetRoles(app.targetRoles);
+              return (
+                <div className="flex flex-wrap gap-1">
+                  {roles.length === 0 ? (
+                    <span className="text-[10px] text-[#94A3B8]">Belum diatur</span>
+                  ) : (
+                    roles.map((role) => (
+                      <span
+                        key={role}
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#F1F5F2] text-[#475569] border border-[#D8E5DC]"
                       >
-                        Tampilkan semua aplikasi
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                filteredApps.map((app) => {
-                  const roles = parseTargetRoles(app.targetRoles);
-                  return (
-                    <tr key={app.id} className="hover:bg-[#F0FDF4] transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-[10px] border border-[#D8E5DC] bg-[#F0FDF4] overflow-hidden flex-shrink-0 flex items-center justify-center">
-                            {isImageSource(app.icon) ? (
-                              <img
-                                src={app.icon as string}
-                                alt={`Gambar ${app.nameApp}`}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <Squares2X2Icon className="w-4 h-4 text-[#166534]" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-[#1E293B]">{app.nameApp}</p>
-                            <p className="text-[11px] text-[#64748B] line-clamp-1">
-                              {app.description || 'Layanan digital terintegrasi.'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-[#475569] font-medium">
-                        <span className="px-2 py-0.5 rounded bg-[#F0FDF4] border border-[#D8E5DC]">
-                          {app.clientId}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-[#475569]">
-                        <ClientKeyCell value={app.clientKey} />
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-[#475569] max-w-xs truncate">
-                        <span title={app.urlRedirect}>{app.urlRedirect}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {roles.length === 0 ? (
-                            <span className="text-[10px] text-[#94A3B8]">Belum diatur</span>
-                          ) : (
-                            roles.map((role) => (
-                              <span
-                                key={role}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#F1F5F2] text-[#475569] border border-[#D8E5DC]"
-                              >
-                                {ROLE_LABEL[role]}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            app.isActive
-                              ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
-                              : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
-                          }`}
+                        {ROLE_LABEL[role]}
+                      </span>
+                    ))
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            key: 'status',
+            judul: 'Status',
+            sel: (app) => (
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                  app.isActive
+                    ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
+                    : 'bg-[#F1F5F2] text-[#64748B] border-[#D8E5DC]'
+                }`}
+              >
+                {app.isActive ? 'Aktif' : 'Nonaktif'}
+              </span>
+            ),
+          },
+          ...((canEdit || canDelete)
+            ? [
+                {
+                  key: 'aksi',
+                  judul: 'Aksi',
+                  rataTengah: true,
+                  sel: (app: SsoAppItem) => (
+                    <div className="flex items-center justify-center gap-1.5">
+                      {canEdit && (
+                        <button
+                          onClick={() => openEditModal(app)}
+                          title="Ubah Aplikasi"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
                         >
-                          {app.isActive ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      </td>
-                      {(canEdit || canDelete) && (
-                        <td className="py-3 px-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {canEdit && (
-                              <button
-                                onClick={() => openEditModal(app)}
-                                title="Ubah Aplikasi"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
-                              >
-                                <PencilSquareIcon className="w-3.5 h-3.5" />
-                                <span>Ubah</span>
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button
-                                onClick={() => setAppToDelete(app)}
-                                title="Hapus Aplikasi"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
-                              >
-                                <TrashIcon className="w-3.5 h-3.5" />
-                                <span>Hapus</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                          <span>Ubah</span>
+                        </button>
                       )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      {canDelete && (
+                        <button
+                          onClick={() => setAppToDelete(app)}
+                          title="Hapus Aplikasi"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          <span>Hapus</span>
+                        </button>
+                      )}
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4 overflow-y-auto">

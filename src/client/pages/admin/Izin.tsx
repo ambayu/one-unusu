@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
 import { useAdminData } from '../../hooks/useAdminData';
+import { NotificationModal, NotificationType } from '../../components/NotificationModal';
 import {
   PermissionItem,
   RoleItem,
@@ -80,7 +81,16 @@ export const Izin: React.FC = () => {
   const [isCleaning, setIsCleaning] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'used' | 'unused'>('all');
-  const [message, setMessage] = useState<FeedbackMessage | null>(null);
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: '',
+  });
 
   // State Tambah Izin Baru
   const [showAddModal, setShowAddModal] = useState(false);
@@ -88,6 +98,8 @@ export const Izin: React.FC = () => {
   const [newAction, setNewAction] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [isSubmittingPerm, setIsSubmittingPerm] = useState(false);
+  const [permToDelete, setPermToDelete] = useState<PermissionItem | null>(null);
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
 
   const loadMatrix = useCallback(async () => {
     try {
@@ -123,21 +135,33 @@ export const Izin: React.FC = () => {
   }, [loadMatrix]);
 
   const handleCleanup = async () => {
+    setShowCleanupConfirm(false);
     try {
       setIsCleaning(true);
-      setMessage(null);
       const res = await cleanupUnusedPermissions();
       if (res.data.status) {
-        setMessage({
+        setNotify({
+          isOpen: true,
           type: 'success',
-          text: res.data.message || 'Izin yang tidak digunakan berhasil dibersihkan.',
+          title: 'Pembersihan Berhasil',
+          message: res.data.message || 'Izin yang tidak digunakan berhasil dibersihkan dari database.',
         });
         await loadMatrix();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal membersihkan izin.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Membersihkan Izin',
+          message: res.data.message || 'Gagal membersihkan izin yang tidak digunakan.',
+        });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Gagal menghubungi server untuk pembersihan izin.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: 'Gagal menghubungi server untuk pembersihan izin.',
+      });
     } finally {
       setIsCleaning(false);
     }
@@ -146,19 +170,30 @@ export const Izin: React.FC = () => {
   const handleSyncCatalog = async () => {
     try {
       setIsSyncing(true);
-      setMessage(null);
       const res = await syncAdminPermissions();
       if (res.data.status) {
-        setMessage({
+        setNotify({
+          isOpen: true,
           type: 'success',
-          text: res.data.message || 'Katalog izin sub-menu berhasil disinkronkan.',
+          title: 'Sinkronisasi Selesai',
+          message: res.data.message || 'Katalog izin sub-menu berhasil disinkronkan dengan spesifikasi sistem.',
         });
         await loadMatrix();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal menyinkronkan izin.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Menyinkronkan',
+          message: res.data.message || 'Gagal menyinkronkan katalog izin.',
+        });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Gagal menghubungi server untuk sinkronisasi izin.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: 'Gagal menghubungi server untuk sinkronisasi izin.',
+      });
     } finally {
       setIsSyncing(false);
     }
@@ -208,14 +243,17 @@ export const Izin: React.FC = () => {
 
   const handleSave = async () => {
     if (dirtyRoleIds.length === 0) {
-      setMessage({ type: 'error', text: 'Belum ada perubahan izin untuk disimpan.' });
+      setNotify({
+        isOpen: true,
+        type: 'warning',
+        title: 'Tidak Ada Perubahan',
+        message: 'Belum ada perubahan matriks izin untuk disimpan.',
+      });
       return;
     }
 
     try {
       setIsSaving(true);
-      setMessage(null);
-
       const results = await Promise.allSettled(
         dirtyRoleIds.map((roleId) => updateAdminRolePermissions(roleId, draft[roleId] ?? []))
       );
@@ -223,12 +261,19 @@ export const Izin: React.FC = () => {
       const failed = results.filter((result) => result.status === 'rejected').length;
 
       if (failed > 0) {
-        setMessage({
+        setNotify({
+          isOpen: true,
           type: 'error',
-          text: `${failed} peran gagal disimpan. Periksa kembali koneksi atau hak akses Anda.`,
+          title: 'Gagal Menyimpan Izin',
+          message: `${failed} peran gagal disimpan. Periksa kembali koneksi atau hak akses administrator Anda.`,
         });
       } else {
-        setMessage({ type: 'success', text: 'Perubahan izin berhasil disimpan.' });
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Izin Disimpan',
+          message: 'Seluruh konfigurasi matriks peran dan izin berhasil disimpan dan diperbarui.',
+        });
         setDirtyRoleIds([]);
       }
 
@@ -242,7 +287,12 @@ export const Izin: React.FC = () => {
   const handleCreatePermission = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newResource.trim() || !newAction.trim()) {
-      setMessage({ type: 'error', text: 'Resource/Aplikasi dan Aksi izin wajib diisi.' });
+      setNotify({
+        isOpen: true,
+        type: 'warning',
+        title: 'Formulir Belum Lengkap',
+        message: 'Resource/Aplikasi dan Aksi izin wajib diisi sebelum menyimpan.',
+      });
       return;
     }
 
@@ -255,21 +305,36 @@ export const Izin: React.FC = () => {
       });
 
       if (res.data.status) {
-        setMessage({ type: 'success', text: res.data.message || 'Izin berhasil ditambahkan.' });
         setShowAddModal(false);
         setNewResource('');
         setNewAction('');
         setNewLabel('');
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Izin Ditambahkan',
+          message: res.data.message || 'Izin baru berhasil ditambahkan ke katalog sistem.',
+        });
         await loadMatrix();
       } else {
-        setMessage({ type: 'error', text: res.data.message || 'Gagal menambahkan izin.' });
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Menambah Izin',
+          message: res.data.message || 'Gagal menambahkan izin ke katalog.',
+        });
       }
     } catch (error: unknown) {
       const text =
         typeof error === 'object' && error !== null && 'response' in error
           ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? '')
           : '';
-      setMessage({ type: 'error', text: text || 'Gagal menambahkan izin baru.' });
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem',
+        message: text || 'Gagal menambahkan izin baru.',
+      });
     } finally {
       setIsSubmittingPerm(false);
     }
@@ -283,28 +348,6 @@ export const Izin: React.FC = () => {
       onRefresh={loadMatrix}
       refreshing={isLoading || loading}
     >
-      {message && (
-        <div
-          className={`p-3.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
-            message.type === 'success'
-              ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
-              : 'bg-[#FEE2E2] border-[#FECACA] text-[#B91C1C]'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span>{message.text}</span>
-          </div>
-          <button onClick={() => setMessage(null)} className="text-[#94A3B8] hover:text-[#475569]">
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start gap-2.5 text-[11px] text-[#475569] bg-[#F0FDF4] border border-[#BBF7D0] rounded-[10px] px-3.5 py-2.5">
           <KeyIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
@@ -328,7 +371,7 @@ export const Izin: React.FC = () => {
 
           {unusedCount > 0 && (
             <button
-              onClick={handleCleanup}
+              onClick={() => setShowCleanupConfirm(true)}
               disabled={isCleaning}
               title="Hapus seluruh izin yang belum terikat ke role manapun"
               className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
@@ -569,6 +612,27 @@ export const Izin: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Modal Dialog Konfirmasi Pembersihan Izin Kosong */}
+      <NotificationModal
+        isOpen={showCleanupConfirm}
+        type="confirm"
+        title="Bersihkan Izin Kosong?"
+        message={`Sebanyak ${unusedCount} izin yang belum terikat ke peran mana pun akan dihapus permanen dari sistem.`}
+        confirmLabel="Ya, Bersihkan Izin"
+        cancelLabel="Batal"
+        loading={isCleaning}
+        onConfirm={handleCleanup}
+        onClose={() => setShowCleanupConfirm(false)}
+      />
+
+      {/* Modal Notifikasi Hasil Aksi */}
+      <NotificationModal
+        isOpen={notify.isOpen}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((prev) => ({ ...prev, isOpen: false }))}
+      />
     </AdminPanelTemplate>
   );
 };

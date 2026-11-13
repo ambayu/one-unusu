@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
 import { resolveLandingPath } from '../lib/landing';
+import { pesanGalatPermintaan } from '../lib/pesanGalat';
 import { assetUrl } from '../lib/assets';
 import { SsoLoadingScreen } from '../components/SsoLoadingScreen';
 import {
@@ -19,6 +20,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingStatusText, setLoadingStatusText] = useState('Memproses...');
   const [error, setError] = useState<string | null>(null);
 
   // True setelah kredensial diterima server sampai navigasi ke panel selesai.
@@ -97,8 +99,21 @@ export const Login: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setLoadingStatusText('Memverifikasi kredensial...');
+
+      // Dynamic UX status updates jika proses memakan waktu lebih dari 1 detik (On-demand SIAKAD sync)
+      const timer1 = setTimeout(() => {
+        setLoadingStatusText('Memeriksa pangkalan data SIAKAD...');
+      }, 1000);
+
+      const timer2 = setTimeout(() => {
+        setLoadingStatusText('Menyinkronkan biodata & program studi...');
+      }, 2500);
 
       const res = await loginSso(identifier, password);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+
       if (res.data.status) {
         // Tampilkan layar tunggu penuh; sengaja tidak direset di `finally`
         // supaya overlay tetap tampil selama navigasi ke panel berlangsung.
@@ -128,11 +143,12 @@ export const Login: React.FC = () => {
     } catch (err: any) {
       console.error('Login error:', err);
       generateCaptcha();
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('Koneksi timeout. Server SSO sedang sibuk, silakan coba beberapa saat lagi.');
-      } else {
-        setError(err.response?.data?.message || 'Gagal terhubung ke server SSO. Pastikan server aktif.');
-      }
+
+      // Pesan dibedakan menurut penyebab sebenarnya (jaringan, 401, 403, 5xx,
+      // dst.). Sebelumnya setiap kegagalan tanpa `message` ditampilkan sebagai
+      // "Gagal terhubung ke server SSO", sehingga kredensial salah pun tampak
+      // seperti server mati.
+      setError(pesanGalatPermintaan(err, 'Login gagal. Silakan coba lagi.'));
     } finally {
       setLoading(false);
     }
@@ -296,9 +312,16 @@ export const Login: React.FC = () => {
               type="submit"
               disabled={loading}
               data-testid="login-submit-button"
-              className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150 disabled:opacity-50"
+              className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150 disabled:opacity-75 flex items-center justify-center gap-2"
             >
-              {loading ? 'Memproses...' : 'Masuk'}
+              {loading ? (
+                <>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin text-white" />
+                  <span>{loadingStatusText}</span>
+                </>
+              ) : (
+                'Masuk'
+              )}
             </button>
 
             {/* Link Sekunder */}

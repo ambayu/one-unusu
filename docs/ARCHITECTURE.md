@@ -49,7 +49,7 @@ Setiap aplikasi internal UNUSU (LMS, E-Surat, dsb.) melakukan autentikasi terpus
 [ONE UNUSU Backend]  (src/server/index.ts)
   1. Verifikasi JWT sesi user lewat middleware `authenticateToken`.
   2. Cari `SsoApp` berdasarkan `clientId`, tolak jika tidak ada atau `isActive = false`.
-  3. Baca `targetRoles` (JSON string) dan tolak jika `user.role` tidak termasuk.
+  3. Baca `targetRoles` (JSON string), petakan ke tingkat masuk yang diterima, lalu putuskan lewat `decideAppAccess(permissionKeys, targetRoles, roleCodes)`. Tolak `403` bila tidak lolos.
   4. Bersihkan `SsoAuthToken` yang kedaluwarsa lebih dari 24 jam.
   5. Terbitkan token acak 64 karakter hex (`crypto.randomBytes(32)`).
   6. Simpan ke tabel `sso_auth_tokens`: token, userId, appId, clientId, expiresAt (+5 menit), isUsed.
@@ -85,13 +85,20 @@ Otorisasi akses aplikasi cabang **tidak** memakai tabel allowlist per pengguna. 
 
 | Lapis | Lokasi | Peran | Ditegakkan pada |
 |---|---|---|---|
-| 1. Portal | `sso_apps.targetRoles` + `evaluateRoleAccess()` di `src/server/index.ts` | Menentukan ikon mana yang tampil dan tiket mana yang boleh terbit | `/api/sso/apps`, `/api/auth/panel-access`, `/api/sso/app-client/:clientId/v2/redirect`, `/api/v2/website/verify-token` |
+| 1. Portal | Izin masuk global (`masuk_admin`/`masuk_dosen`/`masuk_mahasiswa`) + `sso_apps.targetRoles`, diputuskan `decideAppAccess()` di `src/server/index.ts` | Menentukan ikon mana yang tampil dan tiket mana yang boleh terbit | `/api/sso/apps`, `/api/auth/panel-access`, `/api/sso/app-client/:clientId/v2/redirect`, `/api/v2/website/verify-token` |
 | 2. Aplikasi cabang | `ALLOWED_SSO_ROLES` di server masing-masing aplikasi | Menolak peran yang tidak berhak masuk panel cabang | `POST /api/auth/sso` & middleware otorisasi cabang |
 
+Cara kerja lapis 1 secara ringkas:
+
+1. Pengguna memegang salah satu (atau beberapa) izin masuk global pada tabel `permissions` lewat `role_permissions`. Kunci izinnya **tidak** berprefiks `clientId`.
+2. Aplikasi memiliki `targetRoles`, yang dipetakan ke tingkat masuk oleh `tingkatDiterimaAplikasi()`: peran `ADMIN_*`/`SUPERADMIN`/`ADMIN_SSO` → `admin`, `DOSEN` → `dosen`, `MAHASISWA` → `mahasiswa`.
+3. `decideAppAccess()` meloloskan bila irisan kedua himpunan tidak kosong. Untuk tingkat `admin`, pemegang `masuk_admin` tetap wajib memiliki peran yang tercantum di `targetRoles` atau peran berawalan `ADMIN_`, sehingga admin suatu unit tidak otomatis masuk ke unit lain.
+4. `SUPERADMIN` dan `ADMIN_SSO` selalu lolos tanpa pemeriksaan izin.
+
 Konsekuensi yang disengaja:
-- Ikon di portal hanya cermin dari `targetRoles`. Bila `targetRoles` meleset, login tetap ditolak lapis ke-2 — jadi ketidaksesuaian dianggap bug.
-- Isolasi admin unit (mis. `ADMIN_LPM` tidak boleh masuk panel LPPM) sepenuhnya menjadi tanggung jawab lapis ke-2, dengan pola `FOREIGN_APP_ADMIN_ROLES` seperti pada `lppm-unusu`.
-- Menambah peran baru ke sebuah aplikasi berarti mengubah `targetRoles` (seed / panel Registrasi SSO) **dan** `ALLOWED_SSO_ROLES` di repo aplikasi cabang terkait.
+- Ikon di portal adalah cermin dari keputusan `decideAppAccess()` yang sama dengan yang menegakkan tiket. Bila `targetRoles` meleset, login tetap ditolak lapis ke-2 - jadi ketidaksesuaian dianggap bug.
+- Isolasi admin unit (mis. `ADMIN_LPM` tidak boleh masuk panel LPPM) dijaga oleh kombinasi `targetRoles` di lapis 1 dan `FOREIGN_APP_ADMIN_ROLES` di lapis 2, seperti pada `lppm-unusu`.
+- Menambah peran baru ke sebuah aplikasi berarti mengubah `targetRoles` (seed / panel Registrasi SSO) **dan** `ALLOWED_SSO_ROLES` di repo aplikasi cabang terkait. Izin masuk global **tidak** perlu ditambah, karena cakupannya sudah lintas aplikasi.
 
 
 ---
@@ -140,6 +147,7 @@ Konsekuensi yang disengaja:
      - `GET|POST /api/admin/apps`, `PUT /api/admin/apps/:id`
      - `GET /api/admin/permissions`, `GET|POST /api/admin/roles`, `PUT /api/admin/roles/:id`, `PUT /api/admin/roles/:id/permissions`, `DELETE /api/admin/roles/:id`
    - Setiap endpoint admin dilindungi middleware `requirePermission(key)`; `permissions` pengguna dikirim pada `POST /api/auth/login` dan `GET /api/auth/me`.
-   - `GET /api/sso/apps` mengembalikan **semua** aplikasi aktif beserta penanda `isAllowed` (perbandingan `targetRoles` dengan peran pengguna). Penyaringan keras hanya dilakukan pada `GET /api/sso/app-client/:clientId/v2/redirect` yang menolak `403` bila peran tidak berhak.
-   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai untuk pemetaan saat seeding (`prisma/access-control.ts`, dijalankan lewat `npm run db:seed:access`).
+   - `GET /api/sso/apps` mengembalikan **semua** aplikasi aktif beserta penanda `isAllowed` yang dihitung oleh `decideAppAccess()`. Penyaringan keras diterapkan pada `GET /api/sso/app-client/:clientId/v2/redirect` dan `POST /api/v2/website/verify-token` yang menolak `403` bila keputusan tidak lolos.
+   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai saat seeding.
+   - Katalog izin resmi dan seeder-nya berada di satu tempat: `PERMISSION_CATALOG` dan `seedAccessControl()` pada `src/server/lib/accessControl.ts`. Penyelarasan ke database dijalankan lewat endpoint `POST /api/admin/permissions/sync` (butuh izin `permission:edit`).
    - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `AuditLog`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`. Model `UserAppAccess` sudah dihapus.

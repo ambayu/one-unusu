@@ -16,6 +16,11 @@ import {
   type TingkatMasuk
 } from "./lib/accessControl.js";
 import { buildSsoAppDefinitions, seedSsoApps } from "./lib/ssoApps.js";
+import {
+  authenticateSiakadApi,
+  scrapeMahasiswaProfile,
+  scrapeAllDosenFromSia,
+} from "./lib/siakadService.js";
 
 dotenv.config();
 
@@ -103,9 +108,17 @@ app.use(
         callback(null, true);
         return;
       }
-      const whitelist = allowedOrigins.length > 0
-        ? allowedOrigins
-        : ["http://localhost:5173", "http://127.0.0.1:5173"];
+    // Daftar origin lokal yang diizinkan. Port 5178 adalah port tetap Vite
+    // ONE UNUSU (lihat vite.config.ts). 5173 tetap didaftarkan agar halaman
+    // yang sudah terlanjur dibuka di port lama tidak langsung terputus.
+    const whitelist = allowedOrigins.length > 0
+      ? allowedOrigins
+      : [
+          "http://localhost:5178",
+          "http://127.0.0.1:5178",
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+        ];
       if (whitelist.includes(origin)) {
         callback(null, true);
         return;
@@ -438,14 +451,17 @@ async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
 /**
  * Keputusan akses satu pengguna ke satu aplikasi cabang.
  *
- * Sumber kebenarannya adalah tabel `permissions` + `role_permissions`:
- * pengguna boleh masuk aplikasi `clientId` bila salah satu perannya memegang
- * izin `<clientId>:masuk_admin`, `<clientId>:masuk_dosen`, atau
- * `<clientId>:masuk_mahasiswa`.
+ * Sumber kebenaran ada dua dan keduanya harus bersinggungan:
+ * 1. Izin masuk global milik pengguna (`masuk_admin`, `masuk_dosen`,
+ *    `masuk_mahasiswa`) dari tabel `permissions` + `role_permissions`.
+ * 2. Tingkat masuk yang diterima aplikasi, diturunkan dari `sso_apps.targetRoles`.
  *
- * Kolom `sso_apps.targetRoles` TIDAK lagi dipakai untuk memutuskan akses.
- * Nilainya hanya dipertahankan sebagai keterangan peran yang disarankan dan
- * sebagai bahan penyusunan izin awal ketika aplikasi baru didaftarkan.
+ * Kunci izin masuk TIDAK lagi berprefiks `clientId`; satu izin global berlaku
+ * untuk seluruh aplikasi, sedangkan pembeda antar-aplikasi adalah `targetRoles`.
+ *
+ * Khusus tingkat `admin`, pengguna juga wajib memegang peran yang tercantum di
+ * `targetRoles` atau peran berawalan `ADMIN_`, sehingga pemegang `masuk_admin`
+ * tidak otomatis memperoleh akses ke aplikasi unit lain.
  *
  * Karena izin dibaca dari database pada setiap permintaan, pencabutan akses
  * oleh administrator langsung berlaku tanpa menunggu JWT kedaluwarsa.
@@ -725,8 +741,8 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
 
     const trimmedIdentifier = identifier.trim();
 
-    // Cari berdasarkan username / NIM / NIDN
-    const user = await prisma.user.findFirst({
+    // 1. Cari berdasarkan username / NIM / NIDN di database lokal
+    let user = await prisma.user.findFirst({
       where: {
         OR: [
           { username: trimmedIdentifier },
@@ -742,6 +758,95 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
         }
       }
     });
+
+    // 2. JIT Provisioning: Jika akun belum ada di database lokal, cek langsung ke SIAKAD
+    let isProvisionedFromSiakad = false;
+    if (!user) {
+      const siakadAuth = await authenticateSiakadApi(trimmedIdentifier, password);
+      if (siakadAuth.success) {
+        // Otentikasi SIAKAD valid! Tentukan peran dan ambil biodata profil
+        const roleCode = siakadAuth.role?.toUpperCase().includes("DOSEN")
+          ? "DOSEN"
+          : siakadAuth.role?.toUpperCase().includes("ADMIN")
+          ? "ADMIN_SSO"
+          : "MAHASISWA";
+
+        const matchedRole = await prisma.role.findFirst({
+          where: { code: roleCode },
+        }) || await prisma.role.findFirst({ where: { code: "MAHASISWA" } });
+
+        if (matchedRole) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          let namaProfil = trimmedIdentifier;
+          let prodiProfil: string | null = null;
+          let fakultasProfil: string | null = null;
+          let noHpProfil: string | null = null;
+          let nikProfil: string | null = null;
+          let jenisKelaminProfil: string | null = null;
+          let tempatLahirProfil: string | null = null;
+          let tanggalLahirProfil: string | null = null;
+          let alamatProfil: string | null = null;
+          let asalSekolahProfil: string | null = null;
+          let namaIbuProfil: string | null = null;
+
+          // Jika mahasiswa, coba sedot biodata lengkap langsung dari portal mahasiswa
+          if (roleCode === "MAHASISWA") {
+            const mhsData = await scrapeMahasiswaProfile(trimmedIdentifier, password);
+            if (mhsData) {
+              namaProfil = mhsData.nama;
+              prodiProfil = mhsData.prodi || null;
+              fakultasProfil = mhsData.fakultas || null;
+              noHpProfil = mhsData.noHp || null;
+              nikProfil = mhsData.nik || null;
+              jenisKelaminProfil = mhsData.jenisKelamin || null;
+              tempatLahirProfil = mhsData.tempatLahir || null;
+              tanggalLahirProfil = mhsData.tanggalLahir || null;
+              alamatProfil = mhsData.alamat || null;
+              asalSekolahProfil = mhsData.asalSekolah || null;
+              namaIbuProfil = mhsData.namaIbuKandung || null;
+            }
+          }
+
+          // Buat akun baru di database lokal ONE UNUSU
+          const createdUser = await prisma.user.create({
+            data: {
+              username: trimmedIdentifier,
+              password: hashedPassword,
+              nama: namaProfil,
+              nim: roleCode === "MAHASISWA" ? trimmedIdentifier : null,
+              nidn: roleCode === "DOSEN" ? trimmedIdentifier : null,
+              prodi: prodiProfil,
+              fakultas: fakultasProfil,
+              noHp: noHpProfil,
+              nik: nikProfil,
+              jenisKelamin: jenisKelaminProfil,
+              tempatLahir: tempatLahirProfil,
+              tanggalLahir: tanggalLahirProfil,
+              alamat: alamatProfil,
+              asalSekolah: asalSekolahProfil,
+              namaIbuKandung: namaIbuProfil,
+              syncedAt: new Date(),
+              isActive: true,
+              roles: {
+                create: {
+                  roleId: matchedRole.id,
+                },
+              },
+            },
+            include: {
+              roles: {
+                include: {
+                  role: { select: { id: true, code: true, name: true } },
+                },
+              },
+            },
+          });
+
+          user = createdUser;
+          isProvisionedFromSiakad = true;
+        }
+      }
+    }
 
     if (!user) {
       // Bandingkan dengan hash dummy supaya waktu respons akun tidak terdaftar
@@ -760,12 +865,25 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        status: false,
-        message: "NIM / NIDN / username atau password salah."
-      });
+    // Jika bukan baru saja di-provision dari SIAKAD, verifikasi password lokal (atau fallback SIAKAD)
+    if (!isProvisionedFromSiakad) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        // Coba sinkronisasi password ke SIAKAD (jika user baru saja ganti password di SIAKAD)
+        const siakadAuth = await authenticateSiakadApi(user.username, password);
+        if (siakadAuth.success) {
+          const newHashed = await bcrypt.hash(password, 10);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: newHashed, syncedAt: new Date() },
+          });
+        } else {
+          return res.status(401).json({
+            status: false,
+            message: "NIM / NIDN / username atau password salah."
+          });
+        }
+      }
     }
 
     // Ambil daftar seluruh peran yang dimiliki pengguna
@@ -854,6 +972,16 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
         fakultas: true,
         prodi: true,
         avatar: true,
+        jenisKelamin: true,
+        tempatLahir: true,
+        tanggalLahir: true,
+        nik: true,
+        angkatan: true,
+        statusAkademik: true,
+        alamat: true,
+        asalSekolah: true,
+        namaIbuKandung: true,
+        syncedAt: true,
         isActive: true,
         createdAt: true,
         updatedAt: true
@@ -1061,7 +1189,10 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
 
     const apps = await prisma.ssoApp.findMany({
       where: { isActive: true },
-      orderBy: { order: "asc" },
+      // Yang paling sering dibuka tampil lebih dulu agar pengguna tidak perlu
+      // mencari. `order` tetap jadi penentu kedua supaya urutan stabil ketika
+      // hitCount masih sama (instalasi baru: semua bernilai 0).
+      orderBy: [{ hitCount: "desc" }, { order: "asc" }],
       // clientKey adalah kredensial server-to-server, tidak boleh bocor ke klien.
       select: {
         id: true,
@@ -1073,6 +1204,7 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
         urlRedirect: true,
         isActive: true,
         order: true,
+        hitCount: true,
         targetRoles: true,
       }
     });
@@ -1231,7 +1363,20 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
       }
     });
 
-    // 4. Bangun URL redirect ke callback cabang
+    // 4. Catat kunjungan nyata untuk dashboard. Dinaikkan tepat di sini karena
+    // titik ini berarti tiket benar-benar diterbitkan dan pengguna menuju
+    // aplikasi - bukan sekadar kartu tampil di layar. Kegagalan pencatatan
+    // sengaja tidak menggagalkan peluncuran: pengguna tetap harus bisa masuk.
+    await prisma.ssoApp
+      .update({
+        where: { id: ssoApp.id },
+        data: { hitCount: { increment: 1 }, lastUsedAt: new Date() }
+      })
+      .catch((err: unknown) => {
+        logServerError("Pencatatan kunjungan sso_apps", err);
+      });
+
+    // 5. Bangun URL redirect ke callback cabang
     const separator = ssoApp.urlRedirect.includes("?") ? "&" : "?";
     const redirectUrl = `${ssoApp.urlRedirect}${separator}client_id=${encodeURIComponent(ssoApp.clientId)}&token=${encodeURIComponent(token)}`;
 
@@ -1360,8 +1505,8 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     const primaryRole = roleCodes.includes("SUPERADMIN") ? "SUPERADMIN" : (roleCodes[0] ?? "");
 
     // 6. Penegakan Otorisasi Aplikasi Tujuan (Fail-Closed)
-    //    Sumber: izin masuk `<clientId>:masuk_*` milik pengguna di
-    //    `role_permissions`. Peran mentah tidak lagi dipakai.
+    //    Sumber: izin masuk global milik pengguna (masuk_*) di
+    //    `role_permissions`, diiriskan dengan `targetRoles` aplikasi.
     const verifyPermissionKeys = await getUserPermissionKeys(user.id);
     const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.targetRoles, roleCodes);
 
@@ -1473,6 +1618,16 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         nidn: true,
         fakultas: true,
         prodi: true,
+        jenisKelamin: true,
+        tempatLahir: true,
+        tanggalLahir: true,
+        nik: true,
+        angkatan: true,
+        statusAkademik: true,
+        alamat: true,
+        asalSekolah: true,
+        namaIbuKandung: true,
+        syncedAt: true,
         isActive: true,
         createdAt: true
       },
@@ -1493,6 +1648,16 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         nidn: u.nidn,
         fakultas: u.fakultas,
         prodi: u.prodi,
+        jenisKelamin: u.jenisKelamin,
+        tempatLahir: u.tempatLahir,
+        tanggalLahir: u.tanggalLahir,
+        nik: u.nik,
+        angkatan: u.angkatan,
+        statusAkademik: u.statusAkademik,
+        alamat: u.alamat,
+        asalSekolah: u.asalSekolah,
+        namaIbuKandung: u.namaIbuKandung,
+        syncedAt: u.syncedAt,
         isActive: u.isActive,
         createdAt: u.createdAt,
         roles: roleList,
@@ -1828,6 +1993,113 @@ app.delete("/api/admin/users/:id", authenticateToken, requirePermission("user:de
   } catch (error: any) {
     logServerError("DELETE /api/admin/users/:id", error);
     res.status(500).json({ status: false, message: "Gagal menghapus pengguna." });
+  }
+});
+
+// POST /api/admin/siakad/sync-dosen (Tarik dan Sinkronkan Seluruh Data Dosen dari SIAKAD)
+app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    // Kredensial admin SIAKAD HANYA boleh berasal dari environment. Tidak ada
+    // nilai cadangan di kode: bila belum diset, endpoint menolak berjalan alih-alih
+    // diam-diam memakai akun yang tertulis di repositori.
+    const adminUser = process.env.SIAKAD_ADMIN_USER?.trim();
+    const adminPass = process.env.SIAKAD_ADMIN_PASS;
+
+    if (!adminUser || !adminPass) {
+      logServerError(
+        "POST /api/admin/siakad/sync-dosen",
+        new Error("SIAKAD_ADMIN_USER / SIAKAD_ADMIN_PASS belum diset di environment.")
+      );
+      return res.status(503).json({
+        status: false,
+        message:
+          "Sinkronisasi dosen belum dikonfigurasi. Hubungi administrator untuk mengisi SIAKAD_ADMIN_USER dan SIAKAD_ADMIN_PASS pada berkas environment.",
+      });
+    }
+
+    const lecturers = await scrapeAllDosenFromSia(adminUser, adminPass);
+    if (!lecturers || lecturers.length === 0) {
+      return res.status(502).json({
+        status: false,
+        message: "Tidak ada data dosen yang dapat ditarik dari SIAKAD saat ini.",
+      });
+    }
+
+    const dosenRole = await prisma.role.findFirst({
+      where: { code: "DOSEN" },
+    });
+
+    if (!dosenRole) {
+      return res.status(500).json({
+        status: false,
+        message: "Peran DOSEN belum terkonfigurasi di sistem.",
+      });
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
+
+    for (const d of lecturers) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: d.nidn },
+            { nidn: d.nidn },
+          ],
+        },
+      });
+
+      if (existing) {
+        await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            nama: d.nama,
+            nidn: d.nidn,
+            prodi: d.prodi || existing.prodi,
+            fakultas: d.fakultas || existing.fakultas,
+            syncedAt: new Date(),
+          },
+        });
+        updatedCount++;
+      } else {
+        await prisma.user.create({
+          data: {
+            username: d.nidn,
+            password: defaultPasswordHash,
+            nama: d.nama,
+            nidn: d.nidn,
+            prodi: d.prodi,
+            fakultas: d.fakultas,
+            statusAkademik: "Aktif",
+            syncedAt: new Date(),
+            isActive: true,
+            roles: {
+              create: {
+                roleId: dosenRole.id,
+              },
+            },
+          },
+        });
+        createdCount++;
+      }
+    }
+
+    res.json({
+      status: true,
+      message: `Sinkronisasi Dosen SIAKAD selesai. ${createdCount} akun baru dibuat, ${updatedCount} akun diperbarui.`,
+      data: {
+        totalSia: lecturers.length,
+        created: createdCount,
+        updated: updatedCount,
+      },
+    });
+  } catch (error: any) {
+    logServerError("POST /api/admin/siakad/sync-dosen", error);
+    res.status(500).json({
+      status: false,
+      message: error?.message || "Gagal menyinkronkan data dosen dari SIAKAD.",
+    });
   }
 });
 
@@ -2194,22 +2466,22 @@ app.post("/api/admin/permissions/sync", authenticateToken, requirePermission("pe
 // POST /api/admin/permissions/cleanup (Pembersihan izin yang tidak digunakan/orphan atau usang)
 app.post("/api/admin/permissions/cleanup", authenticateToken, requirePermission("permission:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    // 1. Ambil seluruh izin di DB yang tidak lagi ada di katalog resmi atau orphan
+    // 1. Susun daftar kunci izin yang sah. Aturan pembentukan kunci wajib sama
+    //    dengan `syncPermissions()` dan `cleanObsoletePermissions()` di
+    //    lib/accessControl.ts: resource "akses" memakai action apa adanya,
+    //    resource lain memakai `${resource}:${action}`.
     const { PERMISSION_CATALOG } = await import("./lib/accessControl.js");
     const validKeys = new Set<string>();
     for (const group of PERMISSION_CATALOG) {
       for (const action of group.actions) {
-        validKeys.add(`${group.resource}:${action}`);
+        validKeys.add(group.resource === "akses" ? action : `${group.resource}:${action}`);
       }
     }
 
-    // Masukkan seluruh izin masuk aplikasi cabang yang terdaftar di sso_apps
-    const apps = await prisma.ssoApp.findMany({ select: { clientId: true } });
-    for (const app of apps) {
-      validKeys.add(`${app.clientId}:masuk_admin`);
-      validKeys.add(`${app.clientId}:masuk_dosen`);
-      validKeys.add(`${app.clientId}:masuk_mahasiswa`);
-    }
+    // Izin masuk kini global (masuk_admin/masuk_dosen/masuk_mahasiswa) dan sudah
+    // tercakup PERMISSION_CATALOG, sehingga tidak perlu ditambahkan per aplikasi.
+    // Sisa izin format lama `<clientId>:masuk_*` sengaja TIDAK dimasukkan sebagai
+    // kunci sah agar terdeteksi sebagai usang dan dapat dibersihkan.
 
     // Cari izin di database yang kuncinya tidak ada di katalog resmi maupun aplikasi cabang
     // ATAU yang tidak terikat ke peran manapun (roles.none)
@@ -2500,9 +2772,13 @@ app.delete("/api/admin/roles/:id", authenticateToken, requirePermission("role:de
 // GET /api/directories (Daftar direktori publik yang aktif)
 app.get("/api/directories", async (req: Request, res: Response) => {
   try {
+    // Diurutkan dari yang paling sering dikunjungi agar dashboard bisa
+    // menaruh direktori terpopuler di depan. Bila hitCount sama (mis. semua
+    // masih 0 pada instalasi baru), urutan manual `urutan` jadi penentu
+    // berikutnya supaya hasilnya tetap stabil dan tidak acak.
     const directories = await prisma.layananKampus.findMany({
       where: { active: true },
-      orderBy: { urutan: "asc" },
+      orderBy: [{ hitCount: "desc" }, { urutan: "asc" }],
       select: {
         id: true,
         nama: true,
@@ -2512,13 +2788,41 @@ app.get("/api/directories", async (req: Request, res: Response) => {
         icon: true,
         isExternal: true,
         urutan: true,
-        active: true
+        active: true,
+        hitCount: true
       }
     });
     res.json({ status: true, data: directories });
   } catch (error: any) {
     logServerError("GET /api/directories", error);
     res.status(500).json({ status: false, message: "Gagal memuat direktori publik." });
+  }
+});
+
+// POST /api/directories/:id/hit (Catat kunjungan direktori dari dashboard)
+// Sengaja tanpa autentikasi: endpoint GET /api/directories juga publik, dan
+// tombol "Kunjungi Tautan" bisa dipakai dari halaman yang tidak membawa token.
+// Yang dinaikkan hanya penghitung, tidak ada data pengguna yang disimpan.
+app.post("/api/directories/:id/hit", writeLimiter, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ status: false, message: "ID direktori tidak valid." });
+  }
+
+  try {
+    await prisma.layananKampus.update({
+      where: { id },
+      data: { hitCount: { increment: 1 }, lastUsedAt: new Date() }
+    });
+    res.json({ status: true });
+  } catch (error: any) {
+    // P2025 = baris tidak ada. Itu bukan kegagalan server; cukup dilaporkan
+    // sebagai 404 agar pemanggil tahu id-nya salah tanpa memicu log galat.
+    if (error?.code === "P2025") {
+      return res.status(404).json({ status: false, message: "Direktori tidak ditemukan." });
+    }
+    logServerError("POST /api/directories/:id/hit", error);
+    res.status(500).json({ status: false, message: "Gagal mencatat kunjungan." });
   }
 });
 
