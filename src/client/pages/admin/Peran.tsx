@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
   LockClosedIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -198,7 +196,7 @@ export const Peran: React.FC = () => {
         {canEdit && (
           <button
             onClick={openCreateForm}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah Peran</span>
@@ -219,7 +217,7 @@ export const Peran: React.FC = () => {
           {roles.map((role) => (
             <div
               key={role.id}
-              className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs p-4 flex flex-col gap-3"
+              className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm p-4 flex flex-col gap-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2.5 min-w-0">
@@ -351,7 +349,7 @@ export const Peran: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-sm disabled:opacity-50 transition"
                 >
                   {isSubmitting ? 'Menyimpan...' : 'Simpan'}
                 </button>

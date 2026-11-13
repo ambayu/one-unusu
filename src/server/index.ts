@@ -20,6 +20,9 @@ import {
   authenticateSiakadApi,
   scrapeMahasiswaProfile,
   scrapeAllDosenFromSia,
+  scrapeDosenDetailFromSia,
+  scrapeMahasiswaFromSia,
+  SIAKAD_PRODI_LIST,
 } from "./lib/siakadService.js";
 
 dotenv.config();
@@ -992,6 +995,38 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
       return res.status(404).json({ status: false, message: "Data pengguna tidak ditemukan." });
     }
 
+    // Auto-enrichment biodata dosen dari SIAKAD jika user adalah dosen dan NIK masih kosong
+    const isDosenRole = user.roles.some(ur => ur.role.code === "DOSEN");
+    if (isDosenRole && !user.nik && (user.nidn || user.username)) {
+      const adminUser = process.env.SIAKAD_ADMIN_USER;
+      const adminPass = process.env.SIAKAD_ADMIN_PASS;
+      if (adminUser && adminPass) {
+        // Cari kodeSia dosen ini dari SIAKAD
+        scrapeAllDosenFromSia(adminUser, adminPass).then(async (dosenList) => {
+          const matched = dosenList.find(d => d.nidn === (user.nidn || user.username) || d.nidn === user.username);
+          if (matched && matched.kodeSia) {
+            const detail = await scrapeDosenDetailFromSia(adminUser, adminPass, matched.kodeSia);
+            if (detail) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  nik: detail.nik || user.nik,
+                  tempatLahir: detail.tempatLahir || user.tempatLahir,
+                  tanggalLahir: detail.tanggalLahir || user.tanggalLahir,
+                  jenisKelamin: detail.jenisKelamin || user.jenisKelamin,
+                  noHp: detail.noHp || user.noHp,
+                  alamat: detail.alamat || user.alamat,
+                  syncedAt: new Date(),
+                },
+              });
+            }
+          }
+        }).catch((err) => {
+          logServerError("Enrichment Dosen SIAKAD background job", err);
+        });
+      }
+    }
+
     const permissionKeys = await getUserPermissionKeys(user.id);
     const roleList = user.roles.map((ur) => ur.role);
     const roleCodes = roleList.map((r) => r.code);
@@ -1618,6 +1653,8 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         nidn: true,
         fakultas: true,
         prodi: true,
+        // Foto profil untuk ditampilkan di sebelah nama pada tabel pengguna.
+        avatar: true,
         jenisKelamin: true,
         tempatLahir: true,
         tanggalLahir: true,
@@ -1648,6 +1685,7 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         nidn: u.nidn,
         fakultas: u.fakultas,
         prodi: u.prodi,
+        avatar: u.avatar,
         jenisKelamin: u.jenisKelamin,
         tempatLahir: u.tempatLahir,
         tanggalLahir: u.tanggalLahir,
@@ -2099,6 +2137,131 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
     res.status(500).json({
       status: false,
       message: error?.message || "Gagal menyinkronkan data dosen dari SIAKAD.",
+    });
+  }
+});
+
+// GET /api/admin/siakad/prodi-list (Daftar Prodi SIAKAD untuk filter sinkronisasi mahasiswa)
+app.get("/api/admin/siakad/prodi-list", authenticateToken, requirePermission("user:view"), async (_req: AuthRequest, res: Response) => {
+  res.json({
+    status: true,
+    data: SIAKAD_PRODI_LIST,
+  });
+});
+
+// POST /api/admin/siakad/sync-mahasiswa (Sinkronisasi Data Mahasiswa Massal/Terfilter dari SIAKAD)
+app.post("/api/admin/siakad/sync-mahasiswa", authenticateToken, requirePermission("user:edit"), async (req: AuthRequest, res: Response) => {
+  try {
+    const adminUser = process.env.SIAKAD_ADMIN_USER;
+    const adminPass = process.env.SIAKAD_ADMIN_PASS;
+
+    if (!adminUser || !adminPass) {
+      logServerError(
+        "POST /api/admin/siakad/sync-mahasiswa",
+        new Error("SIAKAD_ADMIN_USER / SIAKAD_ADMIN_PASS belum diset di environment.")
+      );
+      return res.status(503).json({
+        status: false,
+        message:
+          "Kredensial admin SIAKAD belum dikonfigurasi pada berkas environment.",
+      });
+    }
+
+    const { idJurusan, angkatan } = req.body || {};
+
+    const students = await scrapeMahasiswaFromSia(adminUser, adminPass, {
+      idJurusan: idJurusan ? String(idJurusan).trim() : undefined,
+      angkatan: angkatan ? String(angkatan).trim() : undefined,
+    });
+
+    if (!students || students.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "Tidak ditemukan data mahasiswa yang cocok dengan filter yang dipilih pada portal SIAKAD.",
+      });
+    }
+
+    const mhsRole = await prisma.role.findFirst({
+      where: { code: "MAHASISWA" },
+    });
+
+    if (!mhsRole) {
+      return res.status(500).json({
+        status: false,
+        message: "Peran MAHASISWA belum terkonfigurasi di sistem.",
+      });
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
+
+    for (const m of students) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: m.nim },
+            { nim: m.nim },
+          ],
+        },
+      });
+
+      if (existing) {
+        await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            nama: m.nama,
+            nim: m.nim,
+            prodi: m.prodi || existing.prodi,
+            fakultas: m.fakultas || existing.fakultas,
+            angkatan: m.angkatan || existing.angkatan,
+            jenisKelamin: m.jenisKelamin || existing.jenisKelamin,
+            statusAkademik: m.statusAkademik || existing.statusAkademik,
+            avatar: existing.avatar || m.fotoUrl || null,
+            syncedAt: new Date(),
+          },
+        });
+        updatedCount++;
+      } else {
+        await prisma.user.create({
+          data: {
+            username: m.nim,
+            password: defaultPasswordHash,
+            nama: m.nama,
+            nim: m.nim,
+            prodi: m.prodi,
+            fakultas: m.fakultas,
+            angkatan: m.angkatan,
+            jenisKelamin: m.jenisKelamin,
+            statusAkademik: m.statusAkademik || "Aktif",
+            avatar: m.fotoUrl || null,
+            syncedAt: new Date(),
+            isActive: true,
+            roles: {
+              create: {
+                roleId: mhsRole.id,
+              },
+            },
+          },
+        });
+        createdCount++;
+      }
+    }
+
+    res.json({
+      status: true,
+      message: `Sinkronisasi Mahasiswa SIAKAD berhasil. ${createdCount} akun baru dibuat, ${updatedCount} akun diperbarui. Total ${students.length} mahasiswa tersinkronkan.`,
+      data: {
+        totalSia: students.length,
+        created: createdCount,
+        updated: updatedCount,
+      },
+    });
+  } catch (error: any) {
+    logServerError("POST /api/admin/siakad/sync-mahasiswa", error);
+    res.status(500).json({
+      status: false,
+      message: error?.message || "Gagal menyinkronkan data mahasiswa dari SIAKAD.",
     });
   }
 });

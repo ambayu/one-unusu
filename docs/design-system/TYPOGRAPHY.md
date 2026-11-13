@@ -1,4 +1,4 @@
-# TYPOGRAPHY SYSTEM — PLUS JAKARTA SANS
+# TYPOGRAPHY SYSTEM - PLUS JAKARTA SANS
 
 Standar tipografi resmi aplikasi ONE UNUSU menggunakan font keluarga **Plus Jakarta Sans**.
 
@@ -22,8 +22,8 @@ Skala dibedakan per permukaan. Portal publik memakai ukuran longgar, panel SSO m
 
 | Level Elemen | Portal Publik | Panel SSO | Weight | Tracking |
 |---|---|---|---|---|
-| **Hero / Banner Heading** | 24 → 48px (`text-2xl sm:text-4xl lg:text-5xl`) | — | 700 | `tracking-tight` |
-| **Page Title** | — | 20 → 24px (`text-xl sm:text-2xl`) | 700 | `tracking-tight` |
+| **Hero / Banner Heading** | 24 → 48px (`text-2xl sm:text-4xl lg:text-5xl`) | - | 700 | `tracking-tight` |
+| **Page Title** | - | 20 → 24px (`text-xl sm:text-2xl`) | 700 | `tracking-tight` |
 | **Section Title** | 30 → 36px (`text-3xl sm:text-4xl`) | 16px (`text-base`) | 600 publik / 700 panel | `tracking-tight` / normal |
 | **Card Title** | 16–18px (`text-base sm:text-lg`) | 16px (`text-base`) | 600–700 | Normal |
 | **Body Text** | 14–16px (`text-sm sm:text-base`) | 12px (`text-xs`) | 400 | Normal |

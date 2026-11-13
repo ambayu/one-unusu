@@ -1,4 +1,4 @@
-# Profile Route — Rules
+# Profile Route - Rules
 
 Dokumentasi aturan teknis dan desain untuk rute `/profil` (Biodata Civitas).
 

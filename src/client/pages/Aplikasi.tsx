@@ -345,8 +345,8 @@ function AppCatalogCard({
     <div
       className={`group flex flex-col justify-between overflow-hidden rounded-2xl bg-white transition-all duration-200 border ${
         isSso
-          ? "border-emerald-200/90 hover:border-emerald-500 shadow-xs hover:shadow-md"
-          : "border-stone-200 hover:border-stone-400 shadow-xs hover:shadow-md"
+          ? "border-emerald-200/90 hover:border-emerald-500 shadow-sm hover:shadow-md"
+          : "border-stone-200 hover:border-stone-400 shadow-sm hover:shadow-md"
       }`}
     >
       <div>
@@ -356,7 +356,7 @@ function AppCatalogCard({
             <img
               src={entry.image}
               alt={`Tampilan ${entry.name}`}
-              className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-102"
+              className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-brand-900 text-white">
@@ -366,19 +366,19 @@ function AppCatalogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
 
           <div className="absolute top-3 left-3">
-            <span className="rounded-md bg-brand-950/85 px-2.5 py-1 text-[11px] font-semibold text-white border border-white/10 backdrop-blur-xs">
+            <span className="rounded-md bg-brand-950/85 px-2.5 py-1 text-[11px] font-semibold text-white border border-white/10 backdrop-blur-sm">
               {entry.badge}
             </span>
           </div>
 
           <div className="absolute top-3 right-3">
             {isSso ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-2.5 py-1 text-[10.5px] font-bold shadow-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-2.5 py-1 text-[10.5px] font-bold shadow-sm">
                 <span className="size-1.5 rounded-full bg-white animate-pulse" />
                 <span>Terintegrasi SSO</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 text-white px-2.5 py-1 text-[10.5px] font-bold shadow-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 text-white px-2.5 py-1 text-[10.5px] font-bold shadow-sm">
                 <span>Eksternal / Non-SSO</span>
               </span>
             )}
@@ -448,7 +448,7 @@ function AppCatalogCard({
             type="button"
             onClick={() => onLaunch(entry)}
             disabled={launching}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-60 disabled:cursor-wait"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs transition-colors shadow-sm disabled:opacity-60 disabled:cursor-wait"
           >
             <span>{launching ? "Membuka Tab Baru…" : "Buka Aplikasi"}</span>
             <Icon name="external" className="size-3" />
@@ -458,7 +458,7 @@ function AppCatalogCard({
             href={entry.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs transition-colors shadow-sm"
           >
             <span>Buka Portal</span>
             <Icon name="external" className="size-3" />

@@ -306,7 +306,7 @@ export const DirektoriPublik: React.FC = () => {
         {canEdit && (
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah Aplikasi Non-SSO</span>
@@ -533,7 +533,7 @@ export const DirektoriPublik: React.FC = () => {
                     onClick={() => setIconType('preset')}
                     className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
                       iconType === 'preset'
-                        ? 'bg-white text-[#166534] shadow-2xs'
+                        ? 'bg-white text-[#166534] shadow-sm'
                         : 'text-[#64748B] hover:text-[#1E293B]'
                     }`}
                   >
@@ -544,7 +544,7 @@ export const DirektoriPublik: React.FC = () => {
                     onClick={() => setIconType('upload')}
                     className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
                       iconType === 'upload'
-                        ? 'bg-white text-[#166534] shadow-2xs'
+                        ? 'bg-white text-[#166534] shadow-sm'
                         : 'text-[#64748B] hover:text-[#1E293B]'
                     }`}
                   >
@@ -564,7 +564,7 @@ export const DirektoriPublik: React.FC = () => {
                           onClick={() => setIcon(ic.value)}
                           className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
                             isSelected
-                              ? 'bg-[#DCFCE7] border-[#166534] text-[#166534] font-bold shadow-2xs'
+                              ? 'bg-[#DCFCE7] border-[#166534] text-[#166534] font-bold shadow-sm'
                               : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F1F5F2]'
                           }`}
                         >
@@ -579,7 +579,7 @@ export const DirektoriPublik: React.FC = () => {
                     <div className="relative border-2 border-dashed border-[#D8E5DC] hover:border-[#166534] rounded-[12px] p-3 text-center transition flex flex-col items-center justify-center min-h-[140px] bg-[#F0FDF4]/30">
                       {uploadedImage ? (
                         <div className="relative w-full flex flex-col items-center py-2">
-                          <div className="w-20 h-20 rounded-[12px] overflow-hidden border border-[#D8E5DC] bg-white shadow-2xs flex items-center justify-center">
+                          <div className="w-20 h-20 rounded-[12px] overflow-hidden border border-[#D8E5DC] bg-white shadow-sm flex items-center justify-center">
                             <img
                               src={uploadedImage}
                               alt="Pratinjau logo direktori"
@@ -651,7 +651,7 @@ export const DirektoriPublik: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-xs disabled:opacity-50 transition"
+                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-sm disabled:opacity-50 transition"
                 >
                   {isSubmitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Tambah Direktori'}
                 </button>

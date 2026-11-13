@@ -1,4 +1,4 @@
-# PROJECT RULES â€” ONE UNUSU
+# PROJECT RULES  -  ONE UNUSU
 
 Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, API endpoint, dan komponen ONE UNUSU.
 
@@ -37,9 +37,9 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - Main Text: `#1E293B`
    - Secondary Text: `#475569`
    - Border: `#D8E5DC` (Border kehijauan lembut)
-2. **Typography**: Menggunakan font utama **Plus Jakarta Sans**. Skala heading 28â€“32px (Page title), 20â€“24px (Section), 14â€“16px (Body), 14px weight 600 (Button).
+2. **Typography**: Menggunakan font utama **Plus Jakarta Sans**. Skala heading 28 - 32px (Page title), 20 - 24px (Section), 14 - 16px (Body), 14px weight 600 (Button).
 3. **Anti-Sparkles Rule**: DILARANG keras menggunakan icon `sparkles` (`Sparkles`, `SparklesIcon`, dsb). Gunakan icon fungsional spesifik dari `@heroicons/react`.
-4. **Elevation**: Hindari shadow tebal; gunakan border `#D8E5DC` yang presisi dan shadow sangat halus (`shadow-xs` / `shadow-sm`).
+4. **Elevation**: Hindari shadow tebal; gunakan border `#D8E5DC` yang presisi dan shadow sangat halus (`shadow-sm`). Kelas `shadow-xs`, `shadow-2xs`, dan `shadow-brand` TIDAK ada di Tailwind 3.4 dan dilarang dipakai karena tidak menghasilkan efek apa pun.
 5. **Radius**: Konsisten antara `8px` (button/input), `10px` (badge/icon-box), `12px` (dropdown), dan `16px` (card utama).
 6. **Palet per Permukaan**: Panel SSO (`/dashboard`, `/profil`, `/admin`, `/login`) memakai token Modern Green di `docs/design-system/COLORS.md`. Portal publik (`/`, `/aplikasi`, `/layanan`, `/bantuan`, `/fakultas`, `/prodi`, `/keamanan`) memakai token `brand` dan `gold` di `tailwind.config.js`. Dilarang mencampur kedua palet dalam satu halaman, dan dilarang menambah kode HEX baru langsung di kelas Tailwind.
 7. **Efek Dekoratif**: `backdrop-blur`, gradien, dan glow hanya dipakai jika punya alasan fungsional (keterbacaan teks di atas foto, pemisah lapisan). Maksimal satu atau dua elemen per layar.
@@ -65,9 +65,10 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 
 Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan dua sumbu**: izin masuk global milik pengguna **dan** daftar peran target milik aplikasi. Keduanya harus bersinggungan.
 
-1. **Model Peran Pengguna Dinamis (`users.roleId`)**:
+1. **Model Peran Pengguna Dinamis (many-to-many via `user_roles`)**:
    - Kolom enum `users.role` **sudah dihapus** (migrasi `20261109100200_backfill_user_roleid`).
-   - Penautan peran civitas dilakukan melalui relasi foreign key `users.roleId` ke tabel `roles`.
+   - Kolom tunggal `users.role_id` **juga sudah dihapus** (migrasi `20261109110000_multi_role_user_roles`). Satu pengguna kini dapat memegang lebih dari satu peran melalui tabel junction `user_roles` (model `UserRole`, unik pada pasangan `(userId, roleId)`).
+   - **Dilarang** merujuk `User.roleId` di kode, dokumentasi, atau endpoint baru. Yang benar: baca relasi `User.roles` (array `UserRole`) lalu ambil `role.code` tiap peran.
    - Peran admin cabang kaku (`ADMIN_LPM`, `ADMIN_LPPM`, `ADMIN_ESURAT`, `ADMIN_SARPRAS`, `ADMIN_AKREDITASI`, `ADMIN_LMS`, `ADMIN_PRODI`) **sudah dihapus** (migrasi `20261109100300_drop_app_admin_roles`).
    - Platform hanya menyemai 4 peran bawaan sistem: `SUPERADMIN`, `ADMIN_SSO`, `DOSEN`, dan `MAHASISWA`.
    - Peran kustom untuk unit/fakultas/staf dibuat secara dinamis oleh Super Administrator melalui panel **Peran & Izin** (`/admin/peran`), kemudian ditautkan ke civitas pada panel **Manajemen Pengguna** (`/admin/pengguna`).
@@ -94,7 +95,7 @@ Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan du
    - Aplikasi cabang **DILARANG mengecek nama peran mentah (`role === 'ADMIN_...'`)** untuk otorisasi.
    - Pintu masuk cabang memeriksa `data.access.allowed` dan `data.access.tingkat` (apakah memuat `admin`, `dosen`, atau `mahasiswa`).
    - Otorisasi fitur per sub-menu menegakkan izin fitur (contoh: `lppm:penelitian:create`, `sarpras:aset:delete`, dsb.) yang diteruskan oleh token SSO.
-7. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran (`roleId === null`) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
+7. **Fail-Closed**: Akun pengguna yang belum ditautkan ke peran mana pun (relasi `User.roles` kosong) atau tidak memiliki izin masuk ke aplikasi tujuan akan ditolak dengan HTTP `403`.
 8. **Penyesuaian Katalog Izin**:
    - Katalog resmi hidup di `PERMISSION_CATALOG` (`src/server/lib/accessControl.ts`) dan disemai oleh `seedAccessControl()`.
    - Endpoint `POST /api/admin/permissions/sync` menyinkronkan katalog ke database **dan** membersihkan izin usang sekaligus.

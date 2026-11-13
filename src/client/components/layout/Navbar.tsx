@@ -203,7 +203,7 @@ export function Navbar({ items, registerUrl }: NavbarProps) {
             to={loginTargetUrl}
             onClick={handleLoginClick}
             data-testid="nav-masuk-button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50/80 hover:bg-brand-100 text-brand-900 px-3.5 py-2 text-xs font-bold transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50/80 hover:bg-brand-100 text-brand-900 px-3.5 py-2 text-xs font-bold transition shadow-sm"
           >
             <Icon name="shield" className="size-3.5 text-brand-700" />
             <span>{isLoggedIn ? "Dashboard" : "Masuk"}</span>

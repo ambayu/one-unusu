@@ -275,6 +275,23 @@ export const syncDosenFromSiakad = () =>
     };
   }>('/admin/siakad/sync-dosen');
 
+export const fetchSiakadProdiList = () =>
+  api.get<{
+    status: boolean;
+    data: Array<{ id: string; nama: string; fakultas: string }>;
+  }>('/admin/siakad/prodi-list');
+
+export const syncMahasiswaFromSiakad = (filter?: { idJurusan?: string; angkatan?: string }) =>
+  api.post<{
+    status: boolean;
+    message: string;
+    data: {
+      totalSia: number;
+      created: number;
+      updated: number;
+    };
+  }>('/admin/siakad/sync-mahasiswa', filter);
+
 // ==========================================
 // ADMIN API — REGISTRY APLIKASI
 // ==========================================

@@ -28,7 +28,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
       if (res.data.status) {
         setDirectories(res.data.data);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Gagal memuat direktori non-SSO:', err);
       setError('Gagal memuat daftar portal non-SSO dari server.');
     } finally {
@@ -102,7 +102,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Halaman */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-[#FEF3C7] flex items-center justify-center text-[#B45309]">
             <GlobeAltIcon className="w-6 h-6" />
@@ -126,7 +126,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
       </div>
 
       {/* Filter Kategori & Search Bar */}
-      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {categories.map((category) => (
             <button
@@ -135,7 +135,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
               onClick={() => setSelectedCategory(category)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === category
-                  ? 'bg-[#166534] text-white shadow-xs'
+                  ? 'bg-[#166534] text-white shadow-sm'
                   : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
               }`}
             >
@@ -188,14 +188,14 @@ export const AplikasiNonSsoPage: React.FC = () => {
           {filteredDirectories.map((dir) => (
             <div
               key={dir.id}
-              className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] bg-white shadow-xs transition-all duration-200 hover:border-[#166534] hover:shadow-md"
+              className="group flex flex-col justify-between overflow-hidden rounded-[18px] border border-[#D8E5DC] bg-white shadow-sm transition-all duration-200 hover:border-[#166534] hover:shadow-md"
             >
               <div>
                 <div className="relative aspect-[16/10] overflow-hidden bg-[#14532D]">
                   <img
                     src={getDirectoryPreviewImage(dir)}
                     alt={`Gambar portal ${dir.nama}`}
-                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-103"
+                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
 
@@ -206,7 +206,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
                   </div>
 
                   <div className="absolute top-3 right-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                       <GlobeAltIcon className="w-3 h-3" />
                       <span>Non-SSO</span>
                     </span>
@@ -228,7 +228,7 @@ export const AplikasiNonSsoPage: React.FC = () => {
                   href={dir.urlTarget}
                   target={dir.isExternal ? '_blank' : '_self'}
                   rel={dir.isExternal ? 'noopener noreferrer' : undefined}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-sm hover:shadow-sm transition-all"
                 >
                   <span>Kunjungi Portal</span>
                   <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />

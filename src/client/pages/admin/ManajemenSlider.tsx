@@ -277,7 +277,7 @@ export const ManajemenSlider: React.FC = () => {
     >
       {/* 1. Ringkasan Kartu Statistik */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-2xs flex items-center gap-3.5">
+        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-sm flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#166534] flex items-center justify-center flex-shrink-0">
             <PhotoIcon className="w-5 h-5" />
           </div>
@@ -287,7 +287,7 @@ export const ManajemenSlider: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-2xs flex items-center gap-3.5">
+        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-sm flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] text-[#15803D] flex items-center justify-center flex-shrink-0">
             <EyeIcon className="w-5 h-5" />
           </div>
@@ -297,7 +297,7 @@ export const ManajemenSlider: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-2xs flex items-center gap-3.5">
+        <div className="p-4 rounded-[14px] bg-white border border-[#D8E5DC] shadow-sm flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-[#F1F5F2] text-[#64748B] flex items-center justify-center flex-shrink-0">
             <EyeSlashIcon className="w-5 h-5" />
           </div>
@@ -317,7 +317,7 @@ export const ManajemenSlider: React.FC = () => {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-semibold shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-semibold shadow-sm transition"
           >
             <PlusIcon className="w-4 h-4" />
             <span>Tambah Foto Slider</span>
@@ -358,7 +358,7 @@ export const ManajemenSlider: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`flex flex-col justify-between rounded-2xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs ${
+                className={`flex flex-col justify-between rounded-2xl border bg-white overflow-hidden transition-all shadow-sm hover:shadow-sm ${
                   item.active ? 'border-[#D8E5DC]' : 'border-stone-200 opacity-70 bg-stone-50/50'
                 }`}
               >
@@ -378,11 +378,11 @@ export const ManajemenSlider: React.FC = () => {
 
                   {/* Badges Over Image */}
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
-                    <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold">
                       Slide #{item.urutan}
                     </span>
                     {previewMob && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#166534]/80 backdrop-blur-xs text-white text-[11px] font-semibold">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#166534]/80 backdrop-blur-sm text-white text-[11px] font-semibold">
                         <DevicePhoneMobileIcon className="w-3 h-3" />
                         <span>Mobile 1:1</span>
                       </span>
@@ -394,7 +394,7 @@ export const ManajemenSlider: React.FC = () => {
                       type="button"
                       onClick={() => handleToggleActive(item)}
                       disabled={!canEdit}
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-xs ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition shadow-sm ${
                         item.active
                           ? 'bg-[#DCFCE7] text-[#15803D] hover:bg-[#BBF7D0]'
                           : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
@@ -454,7 +454,7 @@ export const ManajemenSlider: React.FC = () => {
 
       {/* 4. Modal Form Tambah / Edit */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="w-full max-w-xl rounded-2xl bg-white border border-[#D8E5DC] shadow-xl overflow-hidden my-8">
             <div className="flex items-center justify-between p-4 px-6 border-b border-[#E8EFEA] bg-[#F9FBFA]">
               <div>
@@ -627,7 +627,7 @@ export const ManajemenSlider: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-semibold shadow-xs transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Tambah Slide'}
                 </button>
@@ -639,7 +639,7 @@ export const ManajemenSlider: React.FC = () => {
 
       {/* 5. Dialog Konfirmasi Hapus */}
       {itemToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white border border-[#D8E5DC] shadow-xl p-5 space-y-4">
             <div className="w-10 h-10 rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center mx-auto">
               <TrashIcon className="w-5 h-5" />
@@ -661,7 +661,7 @@ export const ManajemenSlider: React.FC = () => {
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="flex-1 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-semibold transition shadow-xs"
+                className="flex-1 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-semibold transition shadow-sm"
               >
                 Hapus
               </button>

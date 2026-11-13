@@ -1,5 +1,15 @@
 # Changelog - Autentikasi SSO
 
+## [2026-11-14] - Pesan Galat Login yang Jujur & Type Safety
+
+### Added
+- **Helper `pesanGalatPermintaan`**: `src/client/lib/pesanGalat.ts` memetakan galat axios menjadi pesan yang menyebut penyebab sebenarnya (jaringan, 401, 403, 5xx, atau galat tanpa respons) beserta tipe `GalatPermintaan`.
+
+### Fixed
+- **Pesan "Server Mati" untuk Galat Ber-respons**: Sebelumnya setiap kegagalan tanpa `message` ditampilkan sebagai "Gagal terhubung ke server SSO", sehingga kata sandi salah pun tampak seperti server mati. Kini pesan dibedakan menurut penyebabnya.
+- **`catch (err: any)` pada Formulir Login**: Diganti `catch (err)` dengan penyempitan tipe eksplisit sebelum diteruskan ke helper (`err !== null && typeof err === 'object' ? (err as GalatPermintaan) : {}`), sesuai PROJECT_RULES 5.4.
+- **Port Dev Tetap 5178**: `vite.config.ts` memakai `strictPort: true` dan `CORS_ORIGIN` diselaraskan ke 5178, sehingga Vite gagal dengan jelas alih-alih diam-diam berpindah port dan membuat browser memblokir respons karena origin tidak terdaftar.
+
 ## [2026-11-13] - Integrasi JIT Provisioning & Multi-Stage Loading UX SIAKAD
 
 ### Added

@@ -1,4 +1,4 @@
-# Dashboard SSO — Overview
+# Dashboard SSO - Overview
 
 Rute `/dashboard` merupakan pintu gerbang utama setelah civitas login ke ONE UNUSU. Di rute ini, pengguna dapat melihat ringkasan identitas dan meluncurkan aplikasi-aplikasi kampus tanpa perlu memasukkan password kembali.
 

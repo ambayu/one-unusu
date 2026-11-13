@@ -1,10 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  AcademicCapIcon,
   ArrowPathIcon,
-  BriefcaseIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
   KeyIcon,
   LinkIcon,
   MagnifyingGlassIcon,
@@ -382,7 +378,7 @@ export const RegistrasiSso: React.FC = () => {
       refreshing={loading}
     >
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-sm flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-xs font-semibold text-[#64748B]">Aplikasi Terdaftar</span>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalApps ?? 0}</p>
@@ -393,7 +389,7 @@ export const RegistrasiSso: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-sm flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-xs font-semibold text-[#64748B]">Token Aktif</span>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalTokens ?? 0}</p>
@@ -404,7 +400,7 @@ export const RegistrasiSso: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-sm flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-xs font-semibold text-[#64748B]">Total Pengguna</span>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalUsers ?? 0}</p>
@@ -415,7 +411,7 @@ export const RegistrasiSso: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-xs flex items-center justify-between gap-3">
+        <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-sm flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-xs font-semibold text-[#64748B]">Akses Terbuka</span>
             <p className="mt-1 text-2xl font-bold text-[#1E293B]">
@@ -448,7 +444,7 @@ export const RegistrasiSso: React.FC = () => {
               onClick={handleSyncApps}
               disabled={isSyncing}
               title="Sinkronkan registry aplikasi terpadu dan kunci akses pengelola bawaan kampus"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs shadow-xs transition disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs shadow-sm transition disabled:opacity-50"
             >
               <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#166534]' : ''}`} />
               <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Aplikasi'}</span>
@@ -457,7 +453,7 @@ export const RegistrasiSso: React.FC = () => {
 
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Daftarkan Aplikasi Baru</span>
@@ -901,7 +897,7 @@ export const RegistrasiSso: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-xs disabled:opacity-50 transition"
+                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-sm disabled:opacity-50 transition"
                 >
                   {isSubmitting
                     ? editingApp

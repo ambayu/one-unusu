@@ -4,9 +4,7 @@ import {
   AcademicCapIcon,
   ArrowPathIcon,
   BriefcaseIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
+  CheckIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -24,6 +22,8 @@ import {
   updateAdminUser,
   deleteAdminUser,
   syncDosenFromSiakad,
+  syncMahasiswaFromSiakad,
+  fetchSiakadProdiList,
   fetchAdminRoles,
   fetchAcademicHierarchy,
   AcademicFacultyItem,
@@ -68,6 +68,20 @@ function badgeForRole(code: string): string {
     hash = (hash * 31 + code.charCodeAt(i)) % BADGE_PALETTE.length;
   }
   return BADGE_PALETTE[hash];
+}
+
+/**
+ * Inisial nama untuk pengganti foto profil.
+ *
+ * Diambil dari maksimal dua kata pertama. Nama yang hanya satu kata tetap
+ * menghasilkan satu huruf, bukan string kosong.
+ */
+function inisialNama(nama: string | null | undefined): string {
+  const bersih = (nama ?? '').trim();
+  if (!bersih) return '?';
+  const kata = bersih.split(/\s+/).filter(Boolean);
+  const inisial = kata.slice(0, 2).map((k) => k[0]).join('');
+  return inisial.toUpperCase();
 }
 
 export const ManajemenPengguna: React.FC = () => {
@@ -242,6 +256,13 @@ export const ManajemenPengguna: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSyncingSiakad, setIsSyncingSiakad] = useState(false);
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+
+  // State Tarik Mahasiswa SIAKAD
+  const [showSyncMhsModal, setShowSyncMhsModal] = useState(false);
+  const [isSyncingMhs, setIsSyncingMhs] = useState(false);
+  const [siakadProdiOptions, setSiakadProdiOptions] = useState<Array<{ id: string; nama: string; fakultas: string }>>([]);
+  const [selectedMhsProdi, setSelectedMhsProdi] = useState('');
+  const [selectedMhsAngkatan, setSelectedMhsAngkatan] = useState('');
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -495,6 +516,58 @@ export const ManajemenPengguna: React.FC = () => {
     }
   };
 
+  const handleOpenSyncMhs = async () => {
+    setShowSyncMhsModal(true);
+    if (siakadProdiOptions.length === 0) {
+      try {
+        const res = await fetchSiakadProdiList();
+        if (res.data.status && res.data.data) {
+          setSiakadProdiOptions(res.data.data);
+        }
+      } catch {
+        // Fallback jika gagal ambil list
+      }
+    }
+  };
+
+  const handleExecuteSyncMhs = async () => {
+    try {
+      setIsSyncingMhs(true);
+      const res = await syncMahasiswaFromSiakad({
+        idJurusan: selectedMhsProdi || undefined,
+        angkatan: selectedMhsAngkatan || undefined,
+      });
+
+      setShowSyncMhsModal(false);
+      if (res.data.status) {
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Sinkronisasi Mahasiswa Berhasil',
+          message: res.data.message || 'Data mahasiswa dari SIAKAD berhasil disinkronkan ke ONE UNUSU.',
+        });
+        await reload();
+      } else {
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Sinkronisasi Mahasiswa',
+          message: res.data.message || 'Gagal menyinkronkan data mahasiswa dari SIAKAD.',
+        });
+      }
+    } catch (err: any) {
+      setShowSyncMhsModal(false);
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Kesalahan Sistem SIAKAD',
+        message: err.response?.data?.message || 'Terjadi anomali saat menyinkronkan mahasiswa dari portal SIAKAD.',
+      });
+    } finally {
+      setIsSyncingMhs(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingUser) return;
 
@@ -553,7 +626,7 @@ export const ManajemenPengguna: React.FC = () => {
           className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
             filterRole === 'ALL'
               ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
-              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-xs'
+              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-sm'
           }`}
         >
           <div className="min-w-0">
@@ -586,7 +659,7 @@ export const ManajemenPengguna: React.FC = () => {
           className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
             filterRole === 'MAHASISWA'
               ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
-              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-xs'
+              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-sm'
           }`}
         >
           <div className="min-w-0">
@@ -619,7 +692,7 @@ export const ManajemenPengguna: React.FC = () => {
           className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#B45309] ${
             filterRole === 'DOSEN'
               ? 'bg-[#FEFCE8] border-[#B45309] shadow-sm ring-1 ring-[#B45309]'
-              : 'bg-white border-[#D8E5DC] hover:border-[#FDE68A] hover:bg-[#FFFDF5] shadow-xs'
+              : 'bg-white border-[#D8E5DC] hover:border-[#FDE68A] hover:bg-[#FFFDF5] shadow-sm'
           }`}
         >
           <div className="min-w-0">
@@ -652,7 +725,7 @@ export const ManajemenPengguna: React.FC = () => {
           className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] ${
             filterRole === 'SUPERADMIN'
               ? 'bg-[#EFF6FF] border-[#1D4ED8] shadow-sm ring-1 ring-[#1D4ED8]'
-              : 'bg-white border-[#D8E5DC] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] shadow-xs'
+              : 'bg-white border-[#D8E5DC] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] shadow-sm'
           }`}
         >
           <div className="min-w-0">
@@ -682,7 +755,7 @@ export const ManajemenPengguna: React.FC = () => {
       </div>
 
       {/* Filter status keaktifan â€” chip ringkas, target sentuh >= 44px */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
             Status Akun
@@ -709,7 +782,7 @@ export const ManajemenPengguna: React.FC = () => {
                 aria-pressed={isActive}
                 className={`inline-flex items-center gap-1.5 min-h-[44px] px-3 text-[11px] font-semibold rounded-full border transition ${
                   isActive
-                    ? 'bg-[#166534] border-[#166534] text-white shadow-xs'
+                    ? 'bg-[#166534] border-[#166534] text-white shadow-sm'
                     : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4] hover:border-[#86EFAC]'
                 }`}
               >
@@ -782,17 +855,27 @@ export const ManajemenPengguna: React.FC = () => {
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
             onClick={() => setShowSyncConfirm(true)}
-            disabled={isSyncingSiakad}
+            disabled={isSyncingSiakad || isSyncingMhs}
             title="Tarik seluruh data Dosen dari SIAKAD UNUSU"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-xs transition disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-sm transition disabled:opacity-60"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingSiakad ? 'animate-spin' : ''}`} />
-            <span>{isSyncingSiakad ? 'Menyinkronkan...' : 'Tarik Dosen SIAKAD'}</span>
+            <span>{isSyncingSiakad ? 'Menyinkronkan Dosen...' : 'Tarik Dosen SIAKAD'}</span>
+          </button>
+
+          <button
+            onClick={handleOpenSyncMhs}
+            disabled={isSyncingSiakad || isSyncingMhs}
+            title="Tarik data Mahasiswa dari SIAKAD UNUSU berdasarkan Prodi & Angkatan"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-sm transition disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingMhs ? 'animate-spin' : ''}`} />
+            <span>{isSyncingMhs ? 'Menyinkronkan Mhs...' : 'Tarik Mahasiswa SIAKAD'}</span>
           </button>
 
           <button
             onClick={openModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah Akun Baru</span>
@@ -800,7 +883,7 @@ export const ManajemenPengguna: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+      <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm overflow-hidden">
         {/* Bar hanya dirender bila ada filter aktif. Tanpa penjagaan ini,
             bar menghilang isinya tetapi tetap tampil sebagai pita abu kosong
             setinggi ~44px di atas tabel. */}
@@ -888,7 +971,28 @@ export const ManajemenPengguna: React.FC = () => {
               key: 'nama',
               judul: 'Nama Lengkap',
               kelas: 'font-semibold text-[#1E293B]',
-              sel: (user) => user.nama,
+              sel: (user) => (
+                <div className="flex items-center gap-2.5 min-w-[180px]">
+                  {/* Foto profil di sebelah kiri nama. Bila belum diunggah,
+                      ditampilkan inisial supaya kolom tidak tampak kosong. */}
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={`Foto ${user.nama}`}
+                      loading="lazy"
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#D8E5DC] bg-[#F0FDF4]"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="w-8 h-8 rounded-full flex-shrink-0 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] flex items-center justify-center text-[11px] font-bold uppercase"
+                    >
+                      {inisialNama(user.nama)}
+                    </span>
+                  )}
+                  <span className="truncate">{user.nama}</span>
+                </div>
+              ),
             },
             {
               key: 'peran',
@@ -1170,7 +1274,7 @@ export const ManajemenPengguna: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-sm disabled:opacity-50 transition"
                 >
                   {isSubmitting ? 'Menyimpan...' : 'Tambah Akun'}
                 </button>
@@ -1398,7 +1502,7 @@ export const ManajemenPengguna: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-xs disabled:opacity-50 transition"
+                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-sm disabled:opacity-50 transition"
                 >
                   {isUpdating ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
@@ -1436,6 +1540,109 @@ export const ManajemenPengguna: React.FC = () => {
         onConfirm={handleSyncSiakadDosen}
         onClose={() => setShowSyncConfirm(false)}
       />
+
+      {/* Modal Dialog Tarik Mahasiswa SIAKAD dengan Filter */}
+      {showSyncMhsModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[16px] shadow-2xl max-w-lg w-full p-6 sm:p-7 border border-[#D8E5DC] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-bold text-[#1E293B] flex items-center gap-2">
+                  <ArrowPathIcon className="w-5 h-5 text-[#166534]" />
+                  <span>Tarik Mahasiswa SIAKAD</span>
+                </h3>
+                <p className="text-xs text-[#64748B]">
+                  Pilih program studi atau tahun angkatan untuk menarik data mahasiswa secara bertarget dari server SIAKAD.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSyncingMhs && setShowSyncMhsModal(false)}
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#1E293B] transition"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#1E293B]">
+                  Filter Program Studi
+                </label>
+                <select
+                  value={selectedMhsProdi}
+                  onChange={(e) => setSelectedMhsProdi(e.target.value)}
+                  disabled={isSyncingMhs}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#CBD5E1] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                >
+                  <option value="">-- Semua Program Studi & Fakultas --</option>
+                  {siakadProdiOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nama} ({p.fakultas})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-[#64748B]">
+                  Biarkan opsi default untuk menyinkronkan seluruh prodi sekaligus.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#1E293B]">
+                  Tahun Angkatan (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={selectedMhsAngkatan}
+                  onChange={(e) => setSelectedMhsAngkatan(e.target.value)}
+                  placeholder="Misal: 2026, 2025, 2024 (kosongkan untuk semua angkatan)"
+                  disabled={isSyncingMhs}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#CBD5E1] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                />
+              </div>
+
+              <div className="p-3 bg-[#F0FDF4] rounded-[10px] border border-[#BBF7D0] text-xs text-[#166534] space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <CheckIcon className="w-4 h-4" />
+                  <span>Ketentuan Sinkronisasi SSO</span>
+                </p>
+                <p className="text-[11px] text-[#14532D] leading-relaxed">
+                  Mahasiswa yang ditarik otomatis dibuatkan akun portal SSO dengan password default <span className="font-mono font-bold">Unusu123!</span> dan foto profil resmi dari direktori SIAKAD (jika tersedia).
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#E8EFEA] flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowSyncMhsModal(false)}
+                disabled={isSyncingMhs}
+                className="px-4 py-2 rounded-[8px] border border-[#CBD5E1] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#64748B] transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteSyncMhs}
+                disabled={isSyncingMhs}
+                className="px-5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isSyncingMhs ? (
+                  <>
+                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menarik Data SIAKAD...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowPathIcon className="w-3.5 h-3.5" />
+                    <span>Mulai Sinkronisasi</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Notifikasi Hasil Aksi (Berhasil / Gagal) */}
       <NotificationModal

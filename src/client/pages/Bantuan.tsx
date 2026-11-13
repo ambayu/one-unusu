@@ -46,7 +46,7 @@ export const BantuanPage: React.FC = () => {
 
           {/* Kartu Kontak Cepat */}
           <div className="mt-12 grid gap-6 sm:grid-cols-3">
-            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col items-center text-center">
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm flex flex-col items-center text-center">
               <div className="grid size-12 place-items-center rounded-xl bg-brand-50 text-brand-700">
                 <Icon name="mail" className="size-6" />
               </div>
@@ -60,7 +60,7 @@ export const BantuanPage: React.FC = () => {
               </a>
             </div>
 
-            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col items-center text-center">
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm flex flex-col items-center text-center">
               <div className="grid size-12 place-items-center rounded-xl bg-gold-50 text-gold-700">
                 <Icon name="phone" className="size-6" />
               </div>
@@ -71,7 +71,7 @@ export const BantuanPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col items-center text-center">
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm flex flex-col items-center text-center">
               <div className="grid size-12 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
                 <Icon name="shield" className="size-6" />
               </div>
@@ -93,7 +93,7 @@ export const BantuanPage: React.FC = () => {
               {faqs.map((faq, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl border border-stone-200 bg-white overflow-hidden shadow-xs"
+                  className="rounded-xl border border-stone-200 bg-white overflow-hidden shadow-sm"
                 >
                   <button
                     type="button"

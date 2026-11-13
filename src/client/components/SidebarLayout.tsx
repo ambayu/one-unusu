@@ -5,7 +5,6 @@ import { assetUrl } from '../lib/assets';
 import {
   HomeIcon,
   UserCircleIcon,
-  Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
@@ -15,7 +14,6 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   Squares2X2Icon,
-  RectangleGroupIcon,
   UsersIcon,
   KeyIcon,
   ShieldCheckIcon,
@@ -218,7 +216,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
             title="ONE UNUSU - Halaman Depan"
             data-testid="link-brand-home"
           >
-            <div className="w-11 h-11 rounded-[14px] bg-white border border-[#A5DCB9] p-1 shadow-2xs flex-shrink-0 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-[14px] bg-white border border-[#A5DCB9] p-1 shadow-sm flex-shrink-0 flex items-center justify-center">
               <img
                 src={assetUrl("/assets/pai/logo-unusu.jpg")}
                 alt="Logo UNUSU"
@@ -316,7 +314,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
       <div className={`relative z-10 space-y-2 ${isCollapsed ? 'p-2' : 'p-4'}`}>
         {isCollapsed ? (
           <div
-            className="flex items-center justify-center py-2.5 rounded-[12px] bg-white border border-[#C5D9CA] shadow-2xs"
+            className="flex items-center justify-center py-2.5 rounded-[12px] bg-white border border-[#C5D9CA] shadow-sm"
             title="SSO Gateway V2 — ONLINE"
           >
             <span className="relative flex w-2.5 h-2.5">
@@ -325,7 +323,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
             </span>
           </div>
         ) : (
-          <div className="px-3.5 py-2.5 rounded-[14px] bg-white border border-[#C5D9CA] flex items-center gap-2 text-xs shadow-2xs">
+          <div className="px-3.5 py-2.5 rounded-[14px] bg-white border border-[#C5D9CA] flex items-center gap-2 text-xs shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
             <span className="text-[#1E293B] font-bold">SSO Gateway V2</span>
           </div>
@@ -334,7 +332,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Keluar Akun' : undefined}
-          className={`w-full flex items-center justify-center rounded-[14px] bg-white hover:bg-[#FEE2E2] border border-[#C5D9CA] hover:border-[#FECACA] font-semibold text-[#3A5544] hover:text-[#B91C1C] transition shadow-2xs group ${
+          className={`w-full flex items-center justify-center rounded-[14px] bg-white hover:bg-[#FEE2E2] border border-[#C5D9CA] hover:border-[#FECACA] font-semibold text-[#3A5544] hover:text-[#B91C1C] transition shadow-sm group ${
             isCollapsed ? 'py-2.5 px-0' : 'gap-2 px-3.5 py-2.5 text-[13px]'
           }`}
         >
@@ -360,7 +358,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" id="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu navigasi">
           <div
-            className="fixed inset-0 bg-[#1E293B]/40 backdrop-blur-xs"
+            className="fixed inset-0 bg-[#1E293B]/40 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
           <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 overflow-y-auto shadow-2xl">
@@ -375,7 +373,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
          *  agar tidak memakan ruang layar kecil. Breadcrumb disederhanakan:
          *  "ONE UNUSU / <halaman>" disembunyikan di bawah `sm` karena nama
          *  halaman sudah jelas dari menu; menyisakan tombol menu + tombol aksi. */}
-        <header className="sticky top-0 z-20 bg-white border-b border-[#D8E5DC] px-3 sm:px-6 flex h-16 lg:h-[88px] items-center justify-between gap-2 shadow-2xs">
+        <header className="sticky top-0 z-20 bg-white border-b border-[#D8E5DC] px-3 sm:px-6 flex h-16 lg:h-[88px] items-center justify-between gap-2 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile drawer toggle */}
             <button

@@ -26,7 +26,7 @@ export const KeamananPage: React.FC = () => {
 
           {/* 3 Pilar Keamanan */}
           <div className="mt-12 grid gap-6 md:grid-cols-3">
-            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-xs">
+            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
               <div className="grid size-12 place-items-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-brand-100">
                 <Icon name="shield" className="size-6" />
               </div>
@@ -38,7 +38,7 @@ export const KeamananPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-xs">
+            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
               <div className="grid size-12 place-items-center rounded-xl bg-gold-50 text-gold-700 ring-1 ring-gold-100">
                 <Icon name="lock" className="size-6" />
               </div>
@@ -50,7 +50,7 @@ export const KeamananPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-xs">
+            <div className="rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
               <div className="grid size-12 place-items-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                 <Icon name="layers" className="size-6" />
               </div>

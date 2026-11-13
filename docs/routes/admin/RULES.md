@@ -1,4 +1,4 @@
-# Admin Panel Route — Rules
+# Admin Panel Route - Rules
 
 Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata kelola SSO.
 
@@ -14,14 +14,30 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 ---
 
 ## 2. Struktur Halaman
-- Setiap halaman memakai `AdminPanelTemplate` (judul, deskripsi, tombol muat ulang, slot konten).
+- Setiap halaman memakai `AdminPanelTemplate` (judul, deskripsi, tombol muat ulang, slot konten), yang dipasang di bawah `PanelLayout`.
 - Data bersama diambil melalui hook `useAdminData` dengan `Promise.allSettled`, sehingga pengguna berizin terbatas tetap mendapat data yang boleh dibaca tanpa membuat seluruh halaman gagal.
+
+### 2.1 Pemetaan Halaman, Template, dan Komponen
+
+| Halaman | Rute | Template | Wadah data | Penyimpangan |
+| --- | --- | --- | --- | --- |
+| Registrasi SSO | `/admin` | `AdminPanelTemplate` | `DataTable` | - |
+| Manajemen Pengguna | `/admin/pengguna` | `AdminPanelTemplate` | `DataTable` (kolom avatar + nomor urut) | - |
+| Aplikasi Non-SSO | `/admin/direktori` | `AdminPanelTemplate` | `DataTable` | - |
+| Izin | `/admin/izin` | `AdminPanelTemplate` | `<table>` manual | Disetujui: matriks peran dinamis, checkbox per sel, kolom pertama `sticky left-0` |
+| Peran | `/admin/peran` | `AdminPanelTemplate` | Grid kartu | Disetujui: satu peran = satu kartu berisi daftar izin ringkas |
+| Slider Hero | `/admin/slider` | `AdminPanelTemplate` | Grid kartu | Disetujui: pratinjau gambar lebih penting daripada baris tabel |
+
+Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menyatakan kolom yang jumlahnya berubah mengikuti data (matriks izin) maupun isi berbentuk gambar besar (slider). Penyimpangan baru **wajib** dicatat di tabel ini sebelum dikerjakan.
 
 ---
 
 ## 3. Struktur Visual & Tabel Data
 - Stats grid menggunakan 4 kartu operasional ber-border `#D8E5DC` dengan icon container warna fungsional di kanan tengah (`w-13 h-13 rounded-[14px]` dan icon `w-8 h-8`).
-- Tabel daftar aplikasi dan tabel akun civitas wajib menggunakan header `#F0FDF4` dengan teks `#166534` dan border pembatas `#D8E5DC`.
+- Tabel daftar aplikasi, akun civitas, dan direktori **wajib** memakai `DataTable` (`src/client/components/DataTable.tsx`). Dilarang menulis `<table>` baru dengan `thead` `#F0FDF4` di halaman admin.
+- **Aturan nomor urut**: kolom "No." tampil secara bawaan (`tampilkanNomor` default `true`) dan nomornya **melanjutkan antar halaman** (`paginasi.dari + indeks`). Halaman 2 dimulai dari 11, bukan 1.
+- **Aturan ukuran huruf tabel**: judul kolom `text-[12.5px] font-bold`; isi sel mewarisi `text-xs` (12px). Judul kolom **wajib lebih besar** dari isi sel; dilarang menyeragamkan keduanya.
+- **Kolom avatar pada Manajemen Pengguna**: sel pertama setelah "No." menampilkan pasfoto pengguna bila `avatar` terisi; bila kosong, tampilkan inisial nama lewat `inisialNama(nama)` di dalam lingkaran `#DCFCE7` bertulisan `#166534`. Inisial diambil dari maksimal dua kata pertama dan selalu huruf besar; nama kosong menghasilkan `?`. Dilarang memakai gambar placeholder eksternal atau mengosongkan sel.
 - Modal pendaftaran aplikasi baru dan penambahan akun menggunakan backdrop transparan gelap dan card ber-radius 16px.
 - Matriks izin pada halaman Izin memakai baris izin dan kolom peran; kolom pertama bersifat sticky agar tetap terbaca saat tabel digeser horizontal.
 
@@ -32,7 +48,7 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 ---
 
 ## 5. Aturan Manajemen Pengguna & Peran Dinamis (Baru)
-- **Otorisasi via `roleId`**: Form penambahan dan pengeditan pengguna mengirimkan `roleId` (ID peran di database), bukan string enum peran.
+- **Otorisasi via `roleIds` (multi-peran)**: Form penambahan dan pengeditan pengguna mengirimkan `roleIds: number[]` (daftar ID peran di database), bukan string enum peran. Server menyimpan relasi ke tabel junction `user_roles`. Kolom tunggal `roleId` sudah dihapus dari skema.
 - **Pemuatan Peran Dinamis**: Dropdown pilihan peran di `/admin/pengguna` dimuat langsung dari `GET /api/admin/roles` (`fetchAdminRoles()`), tidak pernah di-hardcode di kode frontend.
 - **Identifikasi Masukan Otomatis**: Label input identitas menyesuaikan peran yang dipilih: `Nomor Induk Mahasiswa (NIM)` untuk kode peran `MAHASISWA`, `NIDN / NUP` untuk kode `DOSEN`, dan `Username` untuk peran lainnya.
 - **Badge Warna Dinamis**: Penanda badge peran pada tabel pengguna menggunakan helper `badgeForRole(code)` yang menghasilkan warna konsisten secara deterministik untuk peran kustom maupun sistem.

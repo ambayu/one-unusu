@@ -83,7 +83,7 @@ export const SsoLogo: React.FC<SsoLogoProps> = ({
           />
 
           {/* Mini Key Shield di pojok bawah kanan */}
-          <div className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 rounded-full p-0.5 shadow-xs border border-emerald-950">
+          <div className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 rounded-full p-0.5 shadow-sm border border-emerald-950">
             <ShieldCheckIcon className="w-3 h-3 text-emerald-950" />
           </div>
         </div>

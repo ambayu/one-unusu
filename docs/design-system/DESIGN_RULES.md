@@ -1,4 +1,4 @@
-# DESIGN RULES — ONE UNUSU DESIGN SYSTEM
+# DESIGN RULES - ONE UNUSU DESIGN SYSTEM
 
 Dokumen ini mendefinisikan prinsip estetika, visual hierarchy, elevation, spacing, dan aturan form section layout pada aplikasi ONE UNUSU.
 
@@ -48,7 +48,9 @@ Dokumen ini mendefinisikan prinsip estetika, visual hierarchy, elevation, spacin
 ## 4. Spacing & Elevation
 
 - **Skala Spacing**: Menggunakan kelipatan 4px Tailwind (`gap-2` = 8px, `gap-3.5` = 14px, `gap-4` = 16px, `gap-6` = 24px, `p-6` = 24px, `p-7` = 28px).
-- **Elevation**: Hindari shadow tebal; gunakan border `#D8E5DC` yang presisi didukung `shadow-xs` atau `shadow-2xs`.
+- **Elevation**: Hindari shadow tebal. Kedalaman visual utama dibuat oleh border `#D8E5DC` yang presisi; shadow hanya pelengkap. Skala shadow netral yang **sah** di proyek ini (Tailwind 3.4, tanpa `boxShadow` kustom di `tailwind.config.js`): `shadow-sm`, `shadow`, `shadow-md`, `shadow-lg`, `shadow-xl`, `shadow-2xl`, `shadow-inner`, `shadow-none`.
+- **Kelas yang dilarang** (tidak ada di Tailwind 3.4 sehingga menjadi kelas mati tanpa efek): `shadow-xs`, `shadow-2xs`, `scale-103`. Gunakan `shadow-sm` sebagai pengganti untuk kedalaman sangat halus, dan `scale-105` untuk pembesaran hover.
+- **Shadow berwarna**: `shadow-brand-900` dan `shadow-brand-950/15` **sah** karena `brand-900` dan `brand-950` terdefinisi di `tailwind.config.js`. Yang dilarang adalah nama skala ukuran yang tidak ada (`shadow-xs`), bukan shadow berwarna.
 - **Border Radius**:
   - `8px` (`rounded-[8px]`): Tombol, input teks, filter selector.
   - `10px` (`rounded-[10px]`): Wadah icon, dropdown menu item, badge status.

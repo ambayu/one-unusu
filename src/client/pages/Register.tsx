@@ -14,7 +14,7 @@ export const Register: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F1F5F2] relative">
       {/* SISI KIRI (INFORMASI REGISTRASI SSO & PMB) */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 lg:p-16 xl:p-20 z-10 bg-white shadow-xs">
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 lg:p-16 xl:p-20 z-10 bg-white shadow-sm">
         {/* Navigasi Kembali ke Home / Login */}
         <div className="flex items-center gap-3">
           <Link
@@ -65,7 +65,7 @@ export const Register: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 rounded-[10px] bg-white border border-[#D8E5DC] shadow-xs">
+            <div className="p-4 rounded-[10px] bg-white border border-[#D8E5DC] shadow-sm">
               <div className="flex items-start gap-3">
                 <InformationCircleIcon className="w-5 h-5 text-[#166534] shrink-0 mt-0.5" />
                 <div className="text-xs text-[#1E293B] space-y-1">
@@ -85,7 +85,7 @@ export const Register: React.FC = () => {
                 href={externalUrls.pmb}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-sm transition duration-150"
               >
                 <span>Daftar Mahasiswa Baru (Portal PMB)</span>
                 <ArrowTopRightOnSquareIcon className="w-4 h-4" />

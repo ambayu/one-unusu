@@ -28,7 +28,7 @@ export const ProdiPage: React.FC = () => {
               return (
                 <div
                   key={p.id}
-                  className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs hover:border-brand-300 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:border-brand-300 hover:shadow-md transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">

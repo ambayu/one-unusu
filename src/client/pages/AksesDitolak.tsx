@@ -157,7 +157,7 @@ export const AksesDitolak: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8EFEA]">
               <Link
                 to={DASHBOARD_PATH}
-                className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition"
+                className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
               >
                 <ArrowLeftIcon className="w-4 h-4" />
                 Kembali ke Dashboard

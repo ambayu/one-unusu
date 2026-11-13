@@ -1,4 +1,27 @@
-# Changelog — Admin Panel
+# Changelog - Admin Panel
+
+## [2026-11-14] - `DataTable` Bersama, Kolom Nomor Urut, dan Kolom Avatar Pengguna
+
+### Added
+- **Komponen `DataTable`**: Tabel data standar panel (`src/client/components/DataTable.tsx`) yang menggantikan penulisan `<table>` berulang. Kolom dideklarasikan sebagai data (`kolom`, `sel(baris, indeks)`), bukan JSX per halaman.
+- **Kolom "No." Bawaan**: Prop `tampilkanNomor` (bawaan `true`) dan `judulNomor` (bawaan `"No."`). Nomor **melanjutkan antar halaman** karena dihitung dari `paginasi.dari + indeks`, bukan indeks potongan halaman.
+- **Hook `usePagination`**: `OPSI_PER_HALAMAN` (`[10, 25, 50, 100]`), `PER_HALAMAN_BAWAAN` (`10`), dan `usePagination(data, { perHalaman })` agar ringkasan serta nomor urut konsisten di semua tabel.
+- **Kolom Avatar pada Manajemen Pengguna**: Sel identitas menampilkan pasfoto dari `avatar` bila tersedia; bila kosong ditampilkan inisial nama lewat `inisialNama()` di dalam lingkaran `#DCFCE7`. `inisialNama()` mengambil maksimal dua kata pertama, selalu huruf besar, dan mengembalikan `?` untuk nama kosong.
+- **Kolom "No." pada Riwayat SSO**: Tabel riwayat tiket SSO kini bernomor urut.
+
+### Changed
+- **Ukuran Huruf Tabel**: Judul kolom `text-[12.5px] font-bold`, isi sel mewarisi `text-xs` (12px). Judul kolom wajib lebih besar dari isi sel.
+- **Payload `GET /api/admin/users`**: Respons kini menyertakan `avatar` yang sebelumnya tidak dikirim, sehingga kolom avatar dapat dirender tanpa permintaan tambahan.
+- **Status Aktif Menu Sidebar**: Perhitungan `isActive` memakai pencocokan batas segmen (`pathname === to` atau `pathname.startsWith(to + '/')`) dengan kecocokan terpanjang menang, sehingga `/admin` tidak menyala di `/admin/pengguna`.
+
+### Fixed
+- **Impor `CheckIcon` Hilang**: `ManajemenPengguna.tsx` memakai `<CheckIcon />` pada panel sinkronisasi mahasiswa tanpa mengimpornya, sehingga `tsc` gagal. Ditambahkan ke blok impor `@heroicons/react/24/outline`.
+- **Impor Ikon Mati**: Dibersihkan dari `ManajemenPengguna.tsx`, `RegistrasiSso.tsx`, `Izin.tsx`, `Peran.tsx`, dan `SidebarLayout.tsx`.
+
+### Documentation
+- `docs/routes/admin/RULES.md` menambah tabel pemetaan halaman/template/wadah data beserta penyimpangan yang disetujui (`/admin/izin`, `/admin/peran`, `/admin/slider`), aturan `DataTable`, aturan nomor urut, aturan ukuran huruf, dan aturan kolom avatar.
+- `docs/design-system/COMPONENTS.md` menambahkan bagian `DataTable`, `usePagination`, dan `Carousel` beserta tabel props lengkap.
+- Otorisasi pengguna pada dokumentasi dikoreksi dari `roleId` tunggal menjadi `roleIds: number[]` (multi-peran melalui tabel junction `user_roles`).
 
 ## [2026-11-13] - Sinkronisasi Massal Dosen SIAKAD & Cascading Hirarki Akademik
 

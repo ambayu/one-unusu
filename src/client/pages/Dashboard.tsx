@@ -339,7 +339,7 @@ export const Dashboard: React.FC = () => {
       {/* =========================================================================
           1. HERO WELCOME CARD (Permukaan pale green, ilustrasi kampus, logo)
          ========================================================================= */}
-      <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-8 shadow-xs">
+      <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-8 shadow-sm">
         <div 
           className="absolute top-0 right-0 h-full w-1/2 pointer-events-none opacity-85 hidden sm:block bg-no-repeat bg-right bg-cover"
           style={{
@@ -350,7 +350,7 @@ export const Dashboard: React.FC = () => {
         />
 
         <div className="relative z-10 flex items-center gap-5">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-xs flex-shrink-0 flex items-center justify-center">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] bg-white border-2 border-[#166534]/20 p-2 shadow-sm flex-shrink-0 flex items-center justify-center">
             <img 
               src={assetUrl("/assets/pai/logo-unusu.jpg")} 
               alt="UNUSU Logo" 
@@ -372,7 +372,7 @@ export const Dashboard: React.FC = () => {
       {/* =========================================================================
           2. IDENTITAS CIVITAS (Daftar 2 kolom, menyesuaikan peran pengguna)
          ========================================================================= */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-4">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 text-sm font-bold text-[#1E293B]">
           <IdentificationIcon className="w-5 h-5 text-[#166534]" />
           <span>{identitySectionTitle}</span>
@@ -420,7 +420,7 @@ export const Dashboard: React.FC = () => {
       {/* =========================================================================
           3. WRAP KARTU TERPADU: LAYANAN SSO & AKSES KAMPUS (DENGAN GAMBAR PREVIEW)
          ========================================================================= */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
@@ -480,7 +480,7 @@ export const Dashboard: React.FC = () => {
             return (
             <div
               key={app.id}
-              className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 w-[290px] sm:w-[320px] flex-shrink-0 ${
+              className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-sm transition-all duration-200 w-[290px] sm:w-[320px] flex-shrink-0 ${
                 isLocked
                   ? 'border-[#E2E8F0] opacity-90'
                   : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
@@ -506,12 +506,12 @@ export const Dashboard: React.FC = () => {
 
                   <div className="absolute top-3 right-3">
                     {isLocked ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#1E293B]/90 text-white border border-white/20 px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#1E293B]/90 text-white border border-white/20 px-2.5 py-0.5 text-[10px] font-bold shadow-sm">
                         <LockClosedIcon className="w-3 h-3" />
                         Terkunci
                       </span>
                     ) : (
-                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-2xs">
+                      <span className="rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold shadow-sm">
                         Terkoneksi
                       </span>
                     )}
@@ -548,7 +548,7 @@ export const Dashboard: React.FC = () => {
                   className={`w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold transition disabled:opacity-50 ${
                     isLocked
                       ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
-                      : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                      : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-sm hover:shadow-sm'
                   }`}
                 >
                   <span>
@@ -575,7 +575,7 @@ export const Dashboard: React.FC = () => {
         {/* =========================================================================
             4. WRAP KARTU TERPADU: PORTAL INFORMASI & DIREKTORI KAMPUS
            ========================================================================= */}
-        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-5">
           {/* Kepala halaman disamakan dengan blok SSO di atas: judul di kiri,
               tombol di kanan. Tombol ini sengaja membaca ulang seluruh data
               dashboard, bukan hanya direktori, supaya perilakunya sama dengan
@@ -629,7 +629,7 @@ export const Dashboard: React.FC = () => {
               {directories.map((dir) => (
                 <div
                   key={dir.id}
-                  className="w-[290px] sm:w-[320px] flex-shrink-0 overflow-hidden rounded-[18px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition-all duration-200 flex flex-col justify-between group shadow-xs hover:shadow-md"
+                  className="w-[290px] sm:w-[320px] flex-shrink-0 overflow-hidden rounded-[18px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition-all duration-200 flex flex-col justify-between group shadow-sm hover:shadow-md"
                 >
                   <div>
                     {/* Gambar sampul direktori - disamakan dengan kartu SSO */}
@@ -647,7 +647,7 @@ export const Dashboard: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-[8px] bg-white/95 border border-white/40 text-[#166534] shadow-2xs">
+                      <div className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-[8px] bg-white/95 border border-white/40 text-[#166534] shadow-sm">
                         {renderDirectoryIcon(dir.icon)}
                       </div>
                     </div>
@@ -670,7 +670,7 @@ export const Dashboard: React.FC = () => {
                       target={dir.isExternal ? '_blank' : '_self'}
                       rel="noreferrer"
                       onClick={() => catatKunjunganDirektori(dir.id)}
-                      className="w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm transition"
+                      className="w-full flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-4 rounded-[12px] text-xs font-bold bg-[#166534] hover:bg-[#14532D] text-white shadow-sm hover:shadow-sm transition"
                     >
                       <span>Kunjungi Tautan</span>
                       <ArrowRightIcon className="w-3.5 h-3.5" />
@@ -685,7 +685,7 @@ export const Dashboard: React.FC = () => {
         {/* =========================================================================
             5. BOTTOM BANNER: SATU AKUN, SEMUA LAYANAN
            ========================================================================= */}
-        <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-7 shadow-xs">
+        <div className="relative overflow-hidden rounded-[24px] bg-[#F0FDF4] border border-[#D8E5DC] p-6 sm:p-7 shadow-sm">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-6">
               <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 hidden sm:flex items-center justify-center">

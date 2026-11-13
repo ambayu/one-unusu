@@ -4,11 +4,14 @@ import { Badge } from "../ui/Badge";
 import { Container } from "../ui/Container";
 import { Icon } from "../ui/Icon";
 import { SectionHeading } from "../ui/SectionHeading";
-import { digitalServices } from "../../data/services";
+import { digitalServices, ssoIntegratedServices } from "../../data/services";
+
+/** Hanya layanan ber-SSO yang ditampilkan pada seksi ini. */
+const listedServices = ssoIntegratedServices.length > 0 ? ssoIntegratedServices : digitalServices;
 
 export function DigitalServicesSection() {
   const [activeServiceId, setActiveServiceId] = useState<string>(
-    digitalServices[0]?.id || ""
+    listedServices[0]?.id || ""
   );
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function DigitalServicesSection() {
     : "/login";
 
   const activeService =
-    digitalServices.find((s) => s.id === activeServiceId) || digitalServices[0];
+    listedServices.find((s) => s.id === activeServiceId) || listedServices[0];
 
   return (
     <section
@@ -50,12 +53,12 @@ export function DigitalServicesSection() {
           id="layanan-title"
           eyebrow="Ekosistem Aplikasi Terpadu"
           title="Aplikasi Terintegrasi ONE UNUSU"
-          description="Pilih modul di sebelah kiri untuk melihat pratinjau tampilan antarmuka dan spesifikasi layanan digital kampus."
+          description="Seluruh modul di bawah ini terhubung Single Sign-On ONE UNUSU: cukup satu akun untuk masuk ke semuanya. Pilih modul di sebelah kiri untuk melihat pratinjau antarmuka dan spesifikasi layanan."
           align="center"
           action={
             <Link
               to="/aplikasi"
-              className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 hover:bg-brand-50 transition-colors shadow-xs"
+              className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 hover:bg-brand-50 transition-colors shadow-sm"
             >
               <span>Lihat Detail Katalog</span>
               <Icon name="arrow-right" className="size-4" />
@@ -73,12 +76,12 @@ export function DigitalServicesSection() {
                   Daftar Modul Terkoneksi
                 </span>
                 <span className="text-[11px] font-semibold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200">
-                  {digitalServices.length} Aplikasi
+                  {listedServices.length} Aplikasi
                 </span>
               </div>
 
               <div className="space-y-2">
-                {digitalServices.map((service) => {
+                {listedServices.map((service) => {
                   const isActive = service.id === activeService?.id;
                   return (
                     <button
@@ -87,7 +90,7 @@ export function DigitalServicesSection() {
                       className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 flex items-center gap-3.5 group relative ${
                         isActive
                           ? "bg-brand-900 text-white shadow-md shadow-brand-950/15"
-                          : "hover:bg-white text-stone-700 hover:text-brand-900 border border-transparent hover:border-stone-200 hover:shadow-xs"
+                          : "hover:bg-white text-stone-700 hover:text-brand-900 border border-transparent hover:border-stone-200 hover:shadow-sm"
                       }`}
                     >
                       <div
@@ -144,7 +147,7 @@ export function DigitalServicesSection() {
               <Link
                 to={authTargetUrl}
                 data-testid="hero-masuk-button"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-800 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-xs"
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-800 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-sm"
               >
                 <Icon name="shield" className="size-4 text-gold-300" />
                 <span>

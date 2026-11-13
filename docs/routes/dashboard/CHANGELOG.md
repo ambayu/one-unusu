@@ -1,5 +1,26 @@
 # Changelog Route: Dashboard SSO
 
+## [2026-11-14] - Katalog Dashboard Berbasis Kunjungan Nyata & Carousel Geser
+
+### Added
+- **Kolom `hitCount` dan `lastUsedAt`**: Migrasi `20261114090000_add_hit_count_for_dashboard` menambah dua kolom pada `sso_apps` dan `layanan_kampus` beserta index `hitCount` untuk pengurutan cepat. Baris lama otomatis bernilai `0`.
+- **Endpoint Pencatat Kunjungan Direktori**: `POST /api/directories/:id/hit` (tanpa autentikasi, dibatasi `writeLimiter`) yang hanya menaikkan penghitung; tidak menyimpan data pengguna.
+- **Komponen `Carousel`**: Wadah geser mendatar dengan tombol panah kiri/kanan dan dukungan tarik-geser (mouse dan layar sentuh) untuk katalog aplikasi SSO dan direktori publik di dashboard.
+- **Tombol "Daftar Aplikasi" dan "Daftar Direktori"**: Tombol pil pada kepala kartu katalog untuk memuat ulang seluruh data dashboard.
+
+### Changed
+- **Urutan Katalog Berdasarkan Kunjungan Nyata**: `GET /api/sso/apps` diurutkan `[{ hitCount: "desc" }, { order: "asc" }]` dan `GET /api/directories` diurutkan `[{ hitCount: "desc" }, { urutan: "asc" }]`. Kolom urutan manual kini hanya menjadi pemutus seri.
+- **Pengambilan Data Paralel Toleran Gagal**: Dashboard memakai `Promise.allSettled([fetchMe(), fetchSsoApps(), fetchDirectories()])`, bukan `Promise.all`, sehingga kegagalan satu daftar tidak menjatuhkan dua daftar lainnya.
+- **Kartu Direktori Publik Bergambar**: Kartu direktori disamakan bentuknya dengan kartu aplikasi SSO melalui `getDirectoryPreviewImage(dir)`; gambar sampul, badge kategori, dan deskripsi dua baris.
+- **Skeleton Direktori Seukuran Kartu**: Skeleton pemuatan memakai lebar `w-[290px] sm:w-[320px]` agar tata letak tidak melompat saat data tiba.
+
+### Fixed
+- **Galat Jujur per Daftar**: State `galatApps` dan `galatDirektori` memisahkan kegagalan pemuatan dari keadaan kosong. Saat server gagal, dashboard menampilkan kotak galat merah, bukan teks "Belum ada aplikasi SSO aktif".
+
+### Documentation
+- `docs/routes/dashboard/RULES.md` ditulis ulang menjadi 9 bagian: `Promise.allSettled`, aturan loading/galat/kosong, `Carousel` + `hitCount`, aturan kepala kartu, dan larangan yang tidak boleh diubah tanpa keputusan formal.
+- `docs/design-system/PAGE_TEMPLATES.md` Template A diperbarui: `PanelLayout` sebagai induk rute, `Carousel` sebagai wadah katalog, dan aturan keadaan (loading, galat, kosong).
+
 ## [2026-11-13] - Standardisasi Pop-Up Modal Umpan Balik Input (Z-Index Terdepan)
 
 ### Changed
@@ -88,7 +109,7 @@
 - **Ornamen Daun Diperbesar**: Kontainer ilustrasi daun sudut kiri bawah dinaikkan dari `w-56 h-80` menjadi `w-72 h-[420px]` dengan offset `-bottom-6 -left-6`, `backgroundSize: cover`, dan opacity `0.85` agar ornamen menjulang lebih tinggi di sisi sidebar.
 - **Aset SVG Daun Digambar Ulang**: `public/assets/sidebar-leaves.svg` memakai viewBox lebih tinggi (`300x520`), lima helai daun berlapis (pale, mint, deep green, gold), plus aksen stem, dengan gradient fill agar tetap tajam saat diskalakan besar.
 - **Ambient Glow Kuning Diperluas**: Radial halo kiri atas dibesarkan dari `w-44 h-44` menjadi `w-72 h-72` dengan offset `-top-16 -left-16` sehingga gradasi kuning menutup seluruh area brand header.
-- **Diferensiasi Warna Brand Header**: Kata "ONE" memakai slate `#475569`, "UNUSU" memakai emerald tua `#14532D`, dan subtitle "Gateway Sistem Terpadu" memakai hijau sage `#7FAD8E` dengan gaya italic — kontras antar elemen lebih jelas.
+- **Diferensiasi Warna Brand Header**: Kata "ONE" memakai slate `#475569`, "UNUSU" memakai emerald tua `#14532D`, dan subtitle "Gateway Sistem Terpadu" memakai hijau sage `#7FAD8E` dengan gaya italic - kontras antar elemen lebih jelas.
 - **Saturasi Background Sidebar**: Background dinaikkan saturasinya dari `#F7FAF7` ke `#EEF7EF` dengan border `#C8DDD0` / `#B8D0BD`.
 
 ### Added

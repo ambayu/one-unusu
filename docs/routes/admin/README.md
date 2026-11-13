@@ -1,4 +1,4 @@
-# Admin Panel — Overview
+# Admin Panel - Overview
 
 Rute `/admin` adalah pusat tata kelola integrasi SSO ONE UNUSU. Halaman dipecah menjadi sub-rute berikut, masing-masing dilindungi izin `resource:action`:
 
@@ -16,4 +16,4 @@ Rute `/admin` adalah pusat tata kelola integrasi SSO ONE UNUSU. Halaman dipecah 
 
 > Analisis teknis mendalam mengenai Permission Directory dan model Audit Log dapat dibaca pada [`docs/PERMISSION_DIRECTORY_AND_AUDIT_LOG.md`](../../PERMISSION_DIRECTORY_AND_AUDIT_LOG.md).
 
-Izin tidak diturunkan dari nama peran. Setiap pengguna memperoleh daftar izin dari peran yang melekat padanya (`User.roleId` ke model `Role`), lalu daftar tersebut dikirim pada respons login dan `GET /api/auth/me` sebagai `permissions: string[]`.
+Izin tidak diturunkan dari nama peran. Setiap pengguna memperoleh daftar izin dari seluruh peran yang melekat padanya melalui tabel junction `user_roles` (`User.roles` -> `Role`), lalu daftar tersebut dikirim pada respons login dan `GET /api/auth/me` sebagai `permissions: string[]`.

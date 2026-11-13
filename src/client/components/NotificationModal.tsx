@@ -181,7 +181,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         >
           <div className="flex items-center gap-4">
             <div
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] ${config.iconBg} border ${config.iconBorder} flex items-center justify-center flex-shrink-0 ${config.iconColor} shadow-2xs`}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] ${config.iconBg} border ${config.iconBorder} flex items-center justify-center flex-shrink-0 ${config.iconColor} shadow-sm`}
             >
               <IconComponent className="w-8 h-8 sm:w-9 sm:h-9" aria-hidden="true" />
             </div>
@@ -237,7 +237,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 type="button"
                 onClick={onConfirm}
                 disabled={loading}
-                className={`min-h-[44px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
+                className={`min-h-[44px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
               >
                 {loading ? 'Memproses...' : confirmLabel}
               </button>
@@ -246,7 +246,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`min-h-[44px] w-full sm:w-auto sm:min-w-[160px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-xs transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
+              className={`min-h-[44px] w-full sm:w-auto sm:min-w-[160px] px-6 py-2.5 rounded-[10px] text-white ${config.btnBg} font-bold text-sm shadow-sm transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1`}
             >
               Mengerti & Tutup
             </button>

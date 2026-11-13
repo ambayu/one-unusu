@@ -222,7 +222,7 @@ export const DaftarAplikasi: React.FC = () => {
       />
 
       {/* Header Halaman */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
@@ -249,7 +249,7 @@ export const DaftarAplikasi: React.FC = () => {
 
       {/* Statistik Ringkas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-xs flex items-center gap-3.5">
+        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-sm flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-[#DCFCE7] text-[#166534] flex items-center justify-center flex-shrink-0">
             <LinkIcon className="w-5 h-5" />
           </div>
@@ -261,7 +261,7 @@ export const DaftarAplikasi: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-xs flex items-center gap-3.5">
+        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-sm flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-[#FEF3C7] text-[#B45309] flex items-center justify-center flex-shrink-0">
             <GlobeAltIcon className="w-5 h-5" />
           </div>
@@ -273,7 +273,7 @@ export const DaftarAplikasi: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-xs flex items-center gap-3.5">
+        <div className="bg-white rounded-[16px] border border-[#D8E5DC] p-4.5 shadow-sm flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-[#EFF6FF] text-[#1D4ED8] flex items-center justify-center flex-shrink-0">
             <CheckCircleIcon className="w-5 h-5" />
           </div>
@@ -287,14 +287,14 @@ export const DaftarAplikasi: React.FC = () => {
       </div>
 
       {/* Filter Tab & Search Bar */}
-      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3.5">
+      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3.5">
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <button
             type="button"
             onClick={() => setFilterTab('all')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               filterTab === 'all'
-                ? 'bg-[#166534] text-white shadow-xs'
+                ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
             }`}
           >
@@ -305,7 +305,7 @@ export const DaftarAplikasi: React.FC = () => {
             onClick={() => setFilterTab('sso')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
               filterTab === 'sso'
-                ? 'bg-[#166534] text-white shadow-xs'
+                ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
             }`}
           >
@@ -317,7 +317,7 @@ export const DaftarAplikasi: React.FC = () => {
             onClick={() => setFilterTab('non-sso')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
               filterTab === 'non-sso'
-                ? 'bg-[#166534] text-white shadow-xs'
+                ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
             }`}
           >
@@ -347,7 +347,7 @@ export const DaftarAplikasi: React.FC = () => {
 
       {/* SEKSI 1: APLIKASI TERINTEGRASI SSO */}
       {filterTab !== 'non-sso' && (
-        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] pb-4">
             <div>
               <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
@@ -386,7 +386,7 @@ export const DaftarAplikasi: React.FC = () => {
                 return (
                   <div
                     key={app.id}
-                    className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
+                    className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-sm transition-all duration-200 ${
                       isLocked
                         ? 'border-[#E2E8F0] opacity-90'
                         : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
@@ -398,7 +398,7 @@ export const DaftarAplikasi: React.FC = () => {
                           src={getAppPreviewImage(app)}
                           alt={`Gambar aplikasi ${app.nameApp}`}
                           className={`w-full h-full object-cover object-center transition-transform duration-300 ${
-                            isLocked ? 'grayscale' : 'group-hover:scale-103'
+                            isLocked ? 'grayscale' : 'group-hover:scale-105'
                           }`}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
@@ -411,12 +411,12 @@ export const DaftarAplikasi: React.FC = () => {
 
                         <div className="absolute top-3 right-3">
                           {isLocked ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#B91C1C]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#B91C1C]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                               <LockClosedIcon className="w-3 h-3" />
                               <span>Tidak Ada Akses</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#166534]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#166534]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                               <CheckCircleIcon className="w-3 h-3" />
                               <span>Tersedia</span>
                             </span>
@@ -444,7 +444,7 @@ export const DaftarAplikasi: React.FC = () => {
                         className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition-all ${
                           isLocked
                             ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
-                            : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                            : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-sm hover:shadow-sm'
                         }`}
                       >
                         <span>
@@ -471,7 +471,7 @@ export const DaftarAplikasi: React.FC = () => {
 
       {/* SEKSI 2: PORTAL INFORMASI & DIREKTORI NON-SSO */}
       {filterTab !== 'sso' && (
-        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs space-y-5">
+        <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] pb-4">
             <div>
               <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
@@ -506,7 +506,7 @@ export const DaftarAplikasi: React.FC = () => {
               {filteredDirectories.map((dir) => (
                 <div
                   key={dir.id}
-                  className="p-4.5 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-2xs"
+                  className="p-4.5 rounded-[16px] bg-white border border-[#D8E5DC] hover:border-[#166534] transition flex flex-col justify-between space-y-3 group shadow-sm"
                 >
                   <div className="space-y-2.5">
                     <div className="w-10 h-10 rounded-[10px] bg-[#DCFCE7] flex items-center justify-center text-[#166534] transition-colors group-hover:bg-[#166534] group-hover:text-white">

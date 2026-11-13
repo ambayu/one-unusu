@@ -40,6 +40,16 @@ export interface DataTableProps<T> {
   lebarMinimal?: string;
   /** Baris diklik (opsional). */
   onBarisKlik?: (baris: T) => void;
+  /**
+   * Tampilkan kolom "No." di paling kiri. Bawaan: aktif.
+   *
+   * Nomornya melanjutkan antar halaman (halaman 2 dimulai dari 11, bukan 1),
+   * karena dihitung dari posisi baris pada data utuh - bukan dari indeks
+   * potongan halaman.
+   */
+  tampilkanNomor?: boolean;
+  /** Judul kolom nomor. */
+  judulNomor?: string;
 }
 
 /**
@@ -78,21 +88,36 @@ export function DataTable<T>({
   labelRingkasan,
   lebarMinimal = '720px',
   onBarisKlik,
+  tampilkanNomor = true,
+  judulNomor = 'No.',
 }: DataTableProps<T>): React.ReactElement {
   const paginasi = usePagination(data, { perHalaman: perHalamanAwal });
   const baris = berpaginasi ? paginasi.barisHalaman : data;
-  const jumlahKolom = kolom.length;
+  const jumlahKolom = kolom.length + (tampilkanNomor ? 1 : 0);
+
+  // Nomor urut melanjutkan antar halaman. `paginasi.dari` adalah nomor posisi
+  // baris pertama pada halaman aktif (berbasis 1); untuk tabel tanpa pagination
+  // nilainya tidak dipakai karena `dari` tetap 1 dan baris = seluruh data.
+  const nomorAwal = berpaginasi ? paginasi.dari : 1;
 
   const ringkasan =
     labelRingkasan?.(paginasi.dari, paginasi.sampai, paginasi.total) ??
     `Menampilkan ${paginasi.dari}-${paginasi.sampai} dari ${paginasi.total} baris`;
 
   return (
-    <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+    <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm overflow-hidden">
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left text-xs" style={{ minWidth: lebarMinimal }}>
           <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534]">
             <tr>
+              {tampilkanNomor && (
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-[12.5px] font-bold tracking-wide whitespace-nowrap text-center w-[56px]"
+                >
+                  {judulNomor}
+                </th>
+              )}
               {kolom.map((k) => (
                 <th
                   key={k.key}
@@ -124,6 +149,11 @@ export function DataTable<T>({
                     onBarisKlik ? 'cursor-pointer ' : ''
                   }hover:bg-[#F0FDF4]`}
                 >
+                  {tampilkanNomor && (
+                    <td className="py-3 px-4 text-center text-[11.5px] font-semibold text-[#94A3B8] tabular-nums">
+                      {nomorAwal + indeks}
+                    </td>
+                  )}
                   {kolom.map((k) => (
                     <td
                       key={k.key}

@@ -7,6 +7,19 @@ export const mainNavigation: NavItem[] = [
   { id: "bantuan", label: "Pusat Bantuan", href: "/bantuan" },
 ];
 
+/**
+ * Catatan pembagian peran antar menu (jangan disatukan):
+ *
+ * - "Aplikasi Terintegrasi" (/aplikasi) → katalog aplikasi yang login-nya
+ *   lewat SSO ONE UNUSU (LMS, E-Surat, LPM, LPPM, SDM & Sarpras, Akreditasi).
+ *   Landing page menampilkan subset ini pada `DigitalServicesSection`.
+ *
+ * - "Layanan Terpadu" (/layanan) → pintu masuk seluruh layanan, termasuk
+ *   direktori publik & portal mandiri NON-SSO (website prodi, PMB, jurnal,
+ *   SIAKAD). Seksi `NonSsoServicesSection` di landing page tidak lagi
+ *   memuat daftar kartu; ia mengarahkan pengunjung ke halaman ini.
+ */
+
 export const topbarLinks: NavLink[] = [
   { label: "Bantuan PUSTIK UNUSU", href: "/bantuan" },
   { label: "Status SSO: Aktif", href: null },

@@ -57,7 +57,7 @@ function NewsCard({ item, featured }: { item: NewsItem; featured: boolean }) {
     <article
       className={`flex h-full overflow-hidden rounded-2xl border border-stone-200 bg-white ${
         featured ? "flex-col md:flex-row" : "flex-col"
-      } shadow-xs hover:shadow-md transition-shadow`}
+      } shadow-sm hover:shadow-md transition-shadow`}
     >
       <ImagePlaceholder
         label="Foto kegiatan"

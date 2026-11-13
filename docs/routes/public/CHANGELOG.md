@@ -1,5 +1,20 @@
 # Changelog - Portal Publik
 
+## [2026-11-14] - Audit Kelas Tailwind Tidak Valid di Seluruh Portal
+
+### Fixed
+- **Kelas Shadow Mati**: Seluruh `shadow-xs` dan `shadow-2xs` diganti `shadow-sm`. Kedua nama itu milik Tailwind v4 dan **tidak ada** di Tailwind 3.4 yang dipakai proyek ini (tanpa `boxShadow` kustom di `tailwind.config.js`), sehingga sebelumnya menghasilkan nol efek - kartu tampil tanpa bayangan padahal kode menyatakan sebaliknya.
+- **Kelas Scale Tidak Valid**: `scale-103` dan `scale-102` tidak ada di skala Tailwind 3.4 (`0, 50, 75, 90, 95, 100, 105, 110, 125, 150`); diganti `scale-105`. Terdampak: `NonSsoServicesSection.tsx`, `NonSsoDirectoryPanel.tsx`, `Aplikasi.tsx`, `AplikasiSsoPage.tsx`, `AplikasiNonSsoPage.tsx`, `DaftarAplikasi.tsx`.
+- **Kelas Backdrop Blur Tidak Valid**: `backdrop-blur-xs` (13 kemunculan, 8 berkas) diganti `backdrop-blur-sm`.
+
+### Changed
+- **Halaman Layanan Memakai Panel Direktori Bersama**: `NonSsoDirectoryPanel.tsx` diperbaiki kelasnya dan dikonfirmasi aktif dipakai `Layanan.tsx`.
+
+### Documentation
+- `docs/design-system/DESIGN_RULES.md` bagian Elevation kini mencantumkan daftar skala shadow yang sah dan kelas yang dilarang, serta penegasan bahwa `shadow-brand-900`/`shadow-brand-950/15` **sah** karena warnanya terdefinisi di config.
+- `docs/PROJECT_RULES.md` bagian 3.4 diselaraskan dengan aturan elevation tersebut.
+- `docs/routes/public/RULES.md` ditegaskan kembali: seluruh halaman publik wajib `Topbar` + `Navbar` + `main` + `Footer`.
+
 ## [2026-11-01]
 
 ### Fixed
@@ -9,17 +24,17 @@
   - Teks label tombol secara dinamis menyesuaikan peran ("Buka Panel Admin" untuk superadmin, "Buka Dashboard SSO" untuk pengguna login reguler, atau "Masuk Portal SSO Sekarang" / "Masuk dengan NIM / NIDN" untuk tamu).
 
 ### Changed
-- **Section Profil Landing Page**: `ProfileSection` diubah fokusnya dari profil universitas menjadi profil platform **ONE UNUSU** — eyebrow "Tentang Platform", judul "Mengenal ONE UNUSU", narasi tentang gateway identitas digital tunggal, serta daftar keunggulan (satu kredensial, token SSO single-use, kendali akses berbasis peran).
+- **Section Profil Landing Page**: `ProfileSection` diubah fokusnya dari profil universitas menjadi profil platform **ONE UNUSU** - eyebrow "Tentang Platform", judul "Mengenal ONE UNUSU", narasi tentang gateway identitas digital tunggal, serta daftar keunggulan (satu kredensial, token SSO single-use, kendali akses berbasis peran).
 - **Kartu "Ekosistem ONE UNUSU" Dihapus**: Blok kartu ekosistem 4 lapis di kolom kanan dihapus dan digantikan visual foto mahasiswa berukuran besar, sehingga section menjadi dua kolom seimbang (narasi di kiri, visual di kanan).
-- **Banner Ajakan Masuk SSO**: `DigitalServicesSection` — card "Siap Mengakses Layanan Kampus Anda?" diubah dari `max-w-4xl mx-auto` menjadi `w-full` sehingga selebar kontainer section.
-- **Hero Landing Page — Teks Menyatu di Gambar**: `HeroSection` tidak lagi menampilkan panel teks overlay (tag, judul, paragraf). Headline tiap slide di-bake langsung ke dalam aset banner agar foto tetap jernih tanpa lapisan blur. Sisa overlay di JSX hanya tombol aksi, indikator slide, dan navigasi; judul halaman dipindah ke `h1.sr-only` untuk aksesibilitas.
-- **Hero Landing Page — Pesan per Slide**: Teks banner kini berbeda tiap slide (bukan "ONE UNUSU" seragam): *Kampus Terpadu / Gedung Rektorat Gaperta*, *Aktivitas Akademik / Kolaborasi Mahasiswa*, *Fasilitas Teknologi / Laboratorium Komputasi*, *Pusat Literasi / Perpustakaan Kampus*.
-- **Hero Landing Page — Mobile**: Banner memakai aset mobile 1:1 terpisah lewat `<picture><source media="(max-width: 767px)">`, dirender pada kontainer `aspect-square` sehingga tampil utuh tanpa ter-crop dan teks tetap besar. Mulai breakpoint `md` banner menjadi full-bleed `absolute inset-0` memakai aset 16:9 dengan `object-cover`.
-- **Hero Landing Page — Overlay Dihapus**: Gradient scrim `linear-gradient` di atas banner (dan `backdrop-blur` pada tombol sekunder) dihapus total. Tombol aksi, indikator, dan navigasi slide memakai warna solid `brand-950` agar foto tampil apa adanya.
-- **Hero Landing Page — Tombol CTA Dihapus**: Tombol "Masuk SSO" dan "Katalog (n)" di dalam hero dihilangkan. Hero kini murni banner bergambar dengan navigasi slide (dot + panah) di bagian bawah. Jalur masuk tetap tersedia lewat Navbar (`Login SSO`) dan banner SSO di `DigitalServicesSection`.
+- **Banner Ajakan Masuk SSO**: `DigitalServicesSection` - card "Siap Mengakses Layanan Kampus Anda?" diubah dari `max-w-4xl mx-auto` menjadi `w-full` sehingga selebar kontainer section.
+- **Hero Landing Page - Teks Menyatu di Gambar**: `HeroSection` tidak lagi menampilkan panel teks overlay (tag, judul, paragraf). Headline tiap slide di-bake langsung ke dalam aset banner agar foto tetap jernih tanpa lapisan blur. Sisa overlay di JSX hanya tombol aksi, indikator slide, dan navigasi; judul halaman dipindah ke `h1.sr-only` untuk aksesibilitas.
+- **Hero Landing Page - Pesan per Slide**: Teks banner kini berbeda tiap slide (bukan "ONE UNUSU" seragam): *Kampus Terpadu / Gedung Rektorat Gaperta*, *Aktivitas Akademik / Kolaborasi Mahasiswa*, *Fasilitas Teknologi / Laboratorium Komputasi*, *Pusat Literasi / Perpustakaan Kampus*.
+- **Hero Landing Page - Mobile**: Banner memakai aset mobile 1:1 terpisah lewat `<picture><source media="(max-width: 767px)">`, dirender pada kontainer `aspect-square` sehingga tampil utuh tanpa ter-crop dan teks tetap besar. Mulai breakpoint `md` banner menjadi full-bleed `absolute inset-0` memakai aset 16:9 dengan `object-cover`.
+- **Hero Landing Page - Overlay Dihapus**: Gradient scrim `linear-gradient` di atas banner (dan `backdrop-blur` pada tombol sekunder) dihapus total. Tombol aksi, indikator, dan navigasi slide memakai warna solid `brand-950` agar foto tampil apa adanya.
+- **Hero Landing Page - Tombol CTA Dihapus**: Tombol "Masuk SSO" dan "Katalog (n)" di dalam hero dihilangkan. Hero kini murni banner bergambar dengan navigasi slide (dot + panah) di bagian bawah. Jalur masuk tetap tersedia lewat Navbar (`Login SSO`) dan banner SSO di `DigitalServicesSection`.
 
 ### Added
-- **Aset hero mobile** `public/assets/hero/*-mobile.png` (1024×1024) — empat banner vertikal dengan tipografi di tengah-atas dan scrim gradient hijau tua di bagian atas.
+- **Aset hero mobile** `public/assets/hero/*-mobile.png` (1024×1024) - empat banner vertikal dengan tipografi di tengah-atas dan scrim gradient hijau tua di bagian atas.
 - **Aset `public/assets/profil-mahasiswa.png`**: potret **setengah badan** (waist-up) mahasiswa berhijab mint dengan blazer kampus, latar transparan (alpha channel), dipotong presisi memakai flood-fill chroma key + feathering tepi, lalu auto-crop bounding box (726×962 px).
 - **Aset hero baru** `public/assets/hero/hero-library-4.png` (1376×768) sebagai slide keempat, menggantikan tangkapan layar `app-lms.png` yang tidak sesuai konteks banner.
 - Seluruh aset hero desktop (`hero-campus-1.png`, `hero-students-2.png`, `hero-digital-3.png`, `hero-library-4.png`) diregenerasi 1376×768 dengan tipografi di-bake dan scrim gradient hijau tua di sisi kiri.

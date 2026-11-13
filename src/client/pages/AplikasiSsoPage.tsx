@@ -177,7 +177,7 @@ export const AplikasiSsoPage: React.FC = () => {
       />
 
       {/* Header Halaman */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
             <LinkIcon className="w-6 h-6" />
@@ -201,7 +201,7 @@ export const AplikasiSsoPage: React.FC = () => {
       </div>
 
       {/* Bar Pencarian */}
-      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-[#3A5544]">
           <span className="w-2 h-2 rounded-full bg-[#166534]" />
           <span>Menampilkan {filteredApps.length} modul SSO aktif</span>
@@ -250,7 +250,7 @@ export const AplikasiSsoPage: React.FC = () => {
             return (
               <div
                 key={app.id}
-                className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-xs transition-all duration-200 ${
+                className={`group flex flex-col justify-between overflow-hidden rounded-[18px] border bg-white shadow-sm transition-all duration-200 ${
                   isLocked
                     ? 'border-[#E2E8F0] opacity-90'
                     : 'border-[#D8E5DC] hover:border-[#166534] hover:shadow-md'
@@ -262,7 +262,7 @@ export const AplikasiSsoPage: React.FC = () => {
                       src={getAppPreviewImage(app)}
                       alt={`Gambar aplikasi ${app.nameApp}`}
                       className={`w-full h-full object-cover object-center transition-transform duration-300 ${
-                        isLocked ? 'grayscale' : 'group-hover:scale-103'
+                        isLocked ? 'grayscale' : 'group-hover:scale-105'
                       }`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B]/60 via-transparent to-transparent pointer-events-none" />
@@ -275,12 +275,12 @@ export const AplikasiSsoPage: React.FC = () => {
 
                     <div className="absolute top-3 right-3">
                       {isLocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#B91C1C]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#B91C1C]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                           <LockClosedIcon className="w-3 h-3" />
                           <span>Tidak Ada Akses</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#166534]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs backdrop-blur-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#166534]/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                           <CheckCircleIcon className="w-3 h-3" />
                           <span>Tersedia</span>
                         </span>
@@ -306,7 +306,7 @@ export const AplikasiSsoPage: React.FC = () => {
                     className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition-all ${
                       isLocked
                         ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
-                        : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-xs hover:shadow-sm'
+                        : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-sm hover:shadow-sm'
                     }`}
                   >
                     <span>

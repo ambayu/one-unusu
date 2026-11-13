@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
   FunnelIcon,
   KeyIcon,
   LockClosedIcon,
@@ -363,7 +361,7 @@ export const Izin: React.FC = () => {
             onClick={handleSyncCatalog}
             disabled={isSyncing}
             title="Sinkronkan katalog izin resmi sesuai sub-menu dan bersihkan izin usang"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sub-Menu'}</span>
@@ -374,7 +372,7 @@ export const Izin: React.FC = () => {
               onClick={() => setShowCleanupConfirm(true)}
               disabled={isCleaning}
               title="Hapus seluruh izin yang belum terikat ke role manapun"
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
               <TrashIcon className="w-3.5 h-3.5" />
               <span>{isCleaning ? 'Membersihkan...' : `Bersihkan ${unusedCount} Izin Kosong`}</span>
@@ -383,7 +381,7 @@ export const Izin: React.FC = () => {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-xs transition whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-sm transition whitespace-nowrap"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah Izin</span>
@@ -392,7 +390,7 @@ export const Izin: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={isSaving || dirtyRoleIds.length === 0}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <span>{isSaving ? 'Menyimpan...' : `Simpan Perubahan${dirtyRoleIds.length > 0 ? ` (${dirtyRoleIds.length})` : ''}`}</span>
           </button>
@@ -445,7 +443,7 @@ export const Izin: React.FC = () => {
           Memuat matriks izin...
         </div>
       ) : (
-        <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+        <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm overflow-hidden">
           <div className="w-full overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
@@ -533,7 +531,7 @@ export const Izin: React.FC = () => {
 
       {/* Modal Tambah Izin Baru */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-white rounded-[16px] border border-[#D8E5DC] p-6 shadow-xl">
             <div className="flex items-center justify-between pb-3 border-b border-[#D8E5DC] mb-4">
               <div>

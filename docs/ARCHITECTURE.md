@@ -1,4 +1,4 @@
-# ARCHITECTURE — ONE UNUSU
+# ARCHITECTURE - ONE UNUSU
 
 Dokumen arsitektur sistem, peta modul, SSO flow, dan model integrasi data kampus terpadu Universitas Nahdlatul Ulama Sumatera Utara.
 
@@ -148,6 +148,6 @@ Konsekuensi yang disengaja:
      - `GET /api/admin/permissions`, `GET|POST /api/admin/roles`, `PUT /api/admin/roles/:id`, `PUT /api/admin/roles/:id/permissions`, `DELETE /api/admin/roles/:id`
    - Setiap endpoint admin dilindungi middleware `requirePermission(key)`; `permissions` pengguna dikirim pada `POST /api/auth/login` dan `GET /api/auth/me`.
    - `GET /api/sso/apps` mengembalikan **semua** aplikasi aktif beserta penanda `isAllowed` yang dihitung oleh `decideAppAccess()`. Penyaringan keras diterapkan pada `GET /api/sso/app-client/:clientId/v2/redirect` dan `POST /api/v2/website/verify-token` yang menolak `403` bila keputusan tidak lolos.
-   - Izin dibaca dari relasi `User.roleId → Role → RolePermission → Permission`. Karena itu `User.roleId` wajib terisi; kolom enum `User.role` hanya dipakai saat seeding.
+   - Izin dibaca dari relasi `User.roles` (junction `user_roles`) -> `Role` -> `RolePermission` -> `Permission`. Karena itu setiap pengguna wajib punya minimal satu baris di `user_roles`; kolom enum `User.role` dan kolom tunggal `User.roleId` sudah dihapus dari skema.
    - Katalog izin resmi dan seeder-nya berada di satu tempat: `PERMISSION_CATALOG` dan `seedAccessControl()` pada `src/server/lib/accessControl.ts`. Penyelarasan ke database dijalankan lewat endpoint `POST /api/admin/permissions/sync` (butuh izin `permission:edit`).
    - Model Prisma: `User`, `Role`, `Permission`, `RolePermission`, `SsoApp`, `SsoAuthToken`, `AuditLog`, `Fakultas`, `Prodi`, `LayananKampus`, `Berita`, `BannerSlider`. Model `UserAppAccess` sudah dihapus.

@@ -29,7 +29,7 @@ export const FakultasPage: React.FC = () => {
               return (
                 <div
                   key={f.id}
-                  className="bg-white rounded-3xl p-8 border border-stone-200 shadow-xs hover:shadow-xl hover:border-brand-300 transition-all flex flex-col justify-between"
+                  className="bg-white rounded-3xl p-8 border border-stone-200 shadow-sm hover:shadow-xl hover:border-brand-300 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">

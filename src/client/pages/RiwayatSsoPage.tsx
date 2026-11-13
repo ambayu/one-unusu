@@ -9,7 +9,6 @@ import {
   ExclamationCircleIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ArrowTopRightOnSquareIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
@@ -26,7 +25,7 @@ export const RiwayatSsoPage: React.FC = () => {
       if (res.data.status) {
         setHistory(res.data.data);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Gagal memuat riwayat SSO:', err);
       setError('Gagal memuat riwayat otentikasi SSO dari server.');
     } finally {
@@ -83,7 +82,7 @@ export const RiwayatSsoPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Halaman */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-[#DCFCE7] flex items-center justify-center text-[#166534]">
             <ClockIcon className="w-6 h-6" />
@@ -114,7 +113,7 @@ export const RiwayatSsoPage: React.FC = () => {
       )}
 
       {/* Tabel Riwayat */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] shadow-xs overflow-hidden">
+      <div className="bg-white rounded-[20px] border border-[#D8E5DC] shadow-sm overflow-hidden">
         <div className="p-5 border-b border-[#E2E8F0] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-bold text-[#1E293B]">
             <ShieldCheckIcon className="w-4 h-4 text-[#166534]" />
@@ -144,16 +143,20 @@ export const RiwayatSsoPage: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F8FAF9] text-[#475569] font-bold border-b border-[#E2E8F0]">
                 <tr>
-                  <th className="py-3.5 px-5">Aplikasi Tujuan</th>
-                  <th className="py-3.5 px-4">Waktu Diterbitkan</th>
-                  <th className="py-3.5 px-4">Waktu Digunakan</th>
-                  <th className="py-3.5 px-4">Alamat IP</th>
-                  <th className="py-3.5 px-5 text-right">Status Penukaran</th>
+                  <th className="py-3.5 px-4 text-center w-[56px] font-bold">No.</th>
+                  <th className="py-3.5 px-5 font-bold">Aplikasi Tujuan</th>
+                  <th className="py-3.5 px-4 font-bold">Waktu Diterbitkan</th>
+                  <th className="py-3.5 px-4 font-bold">Waktu Digunakan</th>
+                  <th className="py-3.5 px-4 font-bold">Alamat IP</th>
+                  <th className="py-3.5 px-5 text-right font-bold">Status Penukaran</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]">
-                {history.map((item) => (
+                {history.map((item, indeks) => (
                   <tr key={item.id} className="hover:bg-[#F8FAF9] transition">
+                    <td className="py-4 px-4 text-center text-[11.5px] font-semibold text-[#94A3B8] tabular-nums">
+                      {indeks + 1}
+                    </td>
                     <td className="py-4 px-5">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-[#DCFCE7] text-[#166534] flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { loginSso } from '../services/api';
 import { resolveLandingPath } from '../lib/landing';
-import { pesanGalatPermintaan } from '../lib/pesanGalat';
+import { pesanGalatPermintaan, GalatPermintaan } from '../lib/pesanGalat';
 import { assetUrl } from '../lib/assets';
 import { SsoLoadingScreen } from '../components/SsoLoadingScreen';
 import {
@@ -140,7 +140,7 @@ export const Login: React.FC = () => {
         setError(res.data.message || 'Login gagal.');
         generateCaptcha();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error:', err);
       generateCaptcha();
 
@@ -148,7 +148,15 @@ export const Login: React.FC = () => {
       // dst.). Sebelumnya setiap kegagalan tanpa `message` ditampilkan sebagai
       // "Gagal terhubung ke server SSO", sehingga kredensial salah pun tampak
       // seperti server mati.
-      setError(pesanGalatPermintaan(err, 'Login gagal. Silakan coba lagi.'));
+      // `catch` memberi `unknown`, bukan `any`. Bentuknya diperiksa lebih
+      // dulu agar helper hanya menerima objek yang memang berbentuk galat
+      // permintaan; nilai lain jatuh ke pesan bawaan.
+      setError(
+        pesanGalatPermintaan(
+          err !== null && typeof err === 'object' ? (err as GalatPermintaan) : {},
+          'Login gagal. Silakan coba lagi.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -223,7 +231,7 @@ export const Login: React.FC = () => {
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Masukkan NIM, NIDN, atau username"
                 data-testid="login-identifier-input"
-                className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-sm"
                 required
               />
             </div>
@@ -239,7 +247,7 @@ export const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan kata sandi"
-                  className="w-full pl-4 pr-11 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                  className="w-full pl-4 pr-11 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-sm"
                   required
                 />
                 <button
@@ -293,7 +301,7 @@ export const Login: React.FC = () => {
               </p>
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="flex items-center justify-center py-2 px-4 bg-white border border-[#D8E5DC] rounded-[8px] font-mono text-base font-bold text-[#1E293B] tracking-wider shadow-xs">
+                <div className="flex items-center justify-center py-2 px-4 bg-white border border-[#D8E5DC] rounded-[8px] font-mono text-base font-bold text-[#1E293B] tracking-wider shadow-sm">
                   {captchaNum1} + {captchaNum2} = ?
                 </div>
                 <input
@@ -301,7 +309,7 @@ export const Login: React.FC = () => {
                   value={captchaAnswer}
                   onChange={(e) => setCaptchaAnswer(e.target.value)}
                   placeholder="Jawaban"
-                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-center text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] shadow-xs"
+                  className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-center text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] shadow-sm"
                   required
                 />
               </div>
@@ -312,7 +320,7 @@ export const Login: React.FC = () => {
               type="submit"
               disabled={loading}
               data-testid="login-submit-button"
-              className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-xs transition duration-150 disabled:opacity-75 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-semibold text-sm rounded-[8px] shadow-sm transition duration-150 disabled:opacity-75 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

@@ -91,7 +91,7 @@ export const SsoAuthorize: React.FC = () => {
             ditangani layar tunggu di atas), jadi tidak perlu ternary lagi. */}
         <>
             <div className="bg-[#F0FDF4] border-b border-[#D8E5DC] px-6 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6 flex items-center gap-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] flex items-center justify-center flex-shrink-0 shadow-2xs">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] flex items-center justify-center flex-shrink-0 shadow-sm">
                 <ShieldExclamationIcon className="w-8 h-8 sm:w-9 sm:h-9" aria-hidden="true" />
               </div>
               <div className="space-y-1.5 text-left">
@@ -126,7 +126,7 @@ export const SsoAuthorize: React.FC = () => {
               <Link
                 to="/dashboard"
                 data-testid="link-kembali-dashboard"
-                className="min-h-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-[10px] bg-[#166534] hover:bg-[#14532D] text-white text-sm font-bold shadow-xs transition"
+                className="min-h-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-[10px] bg-[#166534] hover:bg-[#14532D] text-white text-sm font-bold shadow-sm transition"
               >
                 Kembali ke Portal ONE UNUSU
               </Link>

@@ -37,7 +37,7 @@ export function HowItWorksSection() {
           {features.map((item, index) => (
             <div
               key={item.title}
-              className="relative flex flex-col justify-between rounded-3xl bg-white p-8 border border-stone-200/90 shadow-xs hover:border-brand-300 transition-colors"
+              className="relative flex flex-col justify-between rounded-3xl bg-white p-8 border border-stone-200/90 shadow-sm hover:border-brand-300 transition-colors"
             >
               <div>
                 <span className="grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100">

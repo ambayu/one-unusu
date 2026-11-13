@@ -95,6 +95,18 @@ export const digitalServices: DigitalService[] = [
   },
 ];
 
+/**
+ * Layanan yang benar-benar terhubung Single Sign-On ONE UNUSU.
+ *
+ * Dipakai seksi "Aplikasi Terintegrasi" pada landing page agar hanya
+ * menampilkan aplikasi yang login-nya lewat SSO. SIAKAD bertanda
+ * `isSsoIntegrated: false` (sistem eksternal) sehingga TIDAK ikut di sini;
+ * ia masuk daftar Direktori Publik & Portal Mandiri Non-SSO.
+ */
+export const ssoIntegratedServices: DigitalService[] = digitalServices.filter(
+  (service) => service.isSsoIntegrated === true
+);
+
 export function getService(id: string): DigitalService | undefined {
   return digitalServices.find((service) => service.id === id);
 }

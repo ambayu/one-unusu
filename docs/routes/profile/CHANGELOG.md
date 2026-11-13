@@ -1,4 +1,13 @@
-# Changelog — Profile & Biodata
+# Changelog - Profile & Biodata
+
+## [2026-11-14] - Perbaikan Pemotongan Pasfoto 3x4
+
+### Fixed
+- **Geser Pemotongan Pasfoto Tidak Akurat**: Perhitungan potong gambar pada modal crop `/profil` memakai `getBoundingClientRect()` untuk dua hal yang berbeda sekaligus - ukuran bingkai dan ukuran foto setelah `object-contain`. Karena kedua nilai itu tidak sama (foto lebih kecil dari bingkai), hasil potongan bergeser dari posisi yang dipilih pengguna. Kini `getBoundingClientRect()` **hanya** dipakai untuk ukuran bingkai, sedangkan ukuran foto yang tampil dihitung terpisah dari rasio asli gambar.
+- **Seret Gambar Ikut Bawaan Browser**: Ditambahkan `preventDefault()` pada gestur seret gambar crop agar gambar tidak ikut ter-drag bawaan browser di tengah proses pemotongan.
+
+### Changed
+- **Pendengar Seret di `window`**: `mousemove` dan `mouseup` dipasang pada `window`, bukan pada elemen, sehingga menggeser tetap berjalan walau kursor keluar dari area bingkai.
 
 ## [2026-11-13] - Integrasi Field Biodata SIAKAD & Standardisasi Pop-up Modal
 

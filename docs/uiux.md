@@ -1,4 +1,4 @@
-# PROMPT VIBE CODING — MODERN GREEN UI DESIGN SYSTEM
+# PROMPT VIBE CODING - MODERN GREEN UI DESIGN SYSTEM
 
 Bertindaklah sebagai Senior UI/UX Designer dan Senior Frontend Engineer yang ahli dalam membangun website modern, profesional, minimalis, dan production-ready.
 
