@@ -508,8 +508,8 @@ export const ManajemenPengguna: React.FC = () => {
       setNotify({
         isOpen: true,
         type: 'error',
-        title: 'Kesalahan Sistem SIAKAD',
-        message: err.response?.data?.message || 'Terjadi kesalahan saat menyinkronkan data dari SIAKAD.',
+        title: 'Kesalahan Sinkronisasi',
+        message: err.response?.data?.message || 'Terjadi kesalahan saat menyinkronkan data dosen.',
       });
     } finally {
       setIsSyncingSiakad(false);
@@ -560,8 +560,8 @@ export const ManajemenPengguna: React.FC = () => {
       setNotify({
         isOpen: true,
         type: 'error',
-        title: 'Kesalahan Sistem SIAKAD',
-        message: err.response?.data?.message || 'Terjadi anomali saat menyinkronkan mahasiswa dari portal SIAKAD.',
+        title: 'Kesalahan Sinkronisasi',
+        message: err.response?.data?.message || 'Terjadi kesalahan saat menyinkronkan data mahasiswa.',
       });
     } finally {
       setIsSyncingMhs(false);

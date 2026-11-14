@@ -60,6 +60,6 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
 - **Peran Kustom oleh Superadmin**: Super Administrator dapat membuat peran kustom di `/admin/peran` dan mengatur izin fitur serta izin masuk aplikasi di `/admin/izin`, lalu menautkan peran tersebut ke pengguna di `/admin/pengguna`. Izin masuk aplikasi bersifat **global** (tiga kunci `masuk_admin`, `masuk_dosen`, `masuk_mahasiswa`, tanpa prefiks `clientId`); pembeda antar-aplikasi adalah `targetRoles` pada registry aplikasi SSO. Peran admin per-aplikasi kaku telah dihapus dari sistem.
 - **Super Administrator & Admin SSO Access**: Akun ber-peran `SUPERADMIN` atau `ADMIN_SSO` secara otomatis melewati batasan izin masuk peluncuran aplikasi SSO dan memperoleh hak penuh untuk seluruh aplikasi satelit.
 - **Penyelarasan Callback per Lingkungan**: Pengaturan URL redirect aplikasi satelit terbagi dua:
-  - Mode **Local**: Menunjuk port frontend Vite lokal (`5174` s.d. `5180`).
+  - Mode **Local**: Menunjuk port frontend Vite lokal (`5175` s.d. `5181`).
   - Mode **VPS**: Menunjuk sub-path reverse-proxy (`https://unusu.ac.id/{app}/sso/callback`).
   - Dikelola melalui perintah `npm run db:sso-dev-urls` dan `npm run db:sso-vps-urls`.

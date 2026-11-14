@@ -36,7 +36,7 @@ export interface SsoAppRegistryOptions {
 
 /** Pemetaan URL callback untuk mode pengembangan lokal (port tiap aplikasi) */
 export const LOCAL_DEV_CALLBACKS: Record<string, string> = {
-  "50e3ed28134b379d": "http://localhost:5174/sso/callback",
+  "50e3ed28134b379d": "http://localhost:5181/sso/callback",
   "223ea0752e7619e2": "http://localhost:5178/sso/callback",
   "014813db6bffb39f": "http://localhost:5177/sso/callback",
   "e538eac90fb83578": "http://localhost:5175/sso/callback",

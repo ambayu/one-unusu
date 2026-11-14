@@ -17,7 +17,7 @@ import {
 } from "./lib/accessControl.js";
 import { buildSsoAppDefinitions, seedSsoApps } from "./lib/ssoApps.js";
 import {
-  authenticateSiakadApi,
+  authenticateExternalSystem,
   scrapeMahasiswaProfile,
   scrapeAllDosenFromSia,
   scrapeDosenDetailFromSia,
@@ -112,15 +112,12 @@ app.use(
         return;
       }
     // Daftar origin lokal yang diizinkan. Port 5178 adalah port tetap Vite
-    // ONE UNUSU (lihat vite.config.ts). 5173 tetap didaftarkan agar halaman
-    // yang sudah terlanjur dibuka di port lama tidak langsung terputus.
+    // ONE UNUSU (lihat vite.config.ts).
     const whitelist = allowedOrigins.length > 0
       ? allowedOrigins
       : [
           "http://localhost:5178",
           "http://127.0.0.1:5178",
-          "http://localhost:5173",
-          "http://127.0.0.1:5173",
         ];
       if (whitelist.includes(origin)) {
         callback(null, true);
@@ -762,15 +759,15 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       }
     });
 
-    // 2. JIT Provisioning: Jika akun belum ada di database lokal, cek langsung ke SIAKAD
-    let isProvisionedFromSiakad = false;
+    // 2. JIT Provisioning: Jika akun belum ada di database lokal, autentikasi via sistem eksternal
+    let isProvisionedFromExternal = false;
     if (!user) {
-      const siakadAuth = await authenticateSiakadApi(trimmedIdentifier, password);
-      if (siakadAuth.success) {
-        // Otentikasi SIAKAD valid! Tentukan peran dan ambil biodata profil
-        const roleCode = siakadAuth.role?.toUpperCase().includes("DOSEN")
+      const extAuth = await authenticateExternalSystem(trimmedIdentifier, password);
+      if (extAuth.success) {
+        // Otentikasi eksternal valid! Tentukan peran dan ambil biodata profil
+        const roleCode = extAuth.role?.toUpperCase().includes("DOSEN")
           ? "DOSEN"
-          : siakadAuth.role?.toUpperCase().includes("ADMIN")
+          : extAuth.role?.toUpperCase().includes("ADMIN")
           ? "ADMIN_SSO"
           : "MAHASISWA";
 
@@ -868,15 +865,16 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       });
     }
 
-    // Jika bukan baru saja di-provision dari SIAKAD, verifikasi password lokal (atau fallback SIAKAD)
-    if (!isProvisionedFromSiakad) {
+    // Jika bukan baru saja di-provision dari sistem eksternal, verifikasi password lokal (atau fallback eksternal)
+    if (!isProvisionedFromExternal) {
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        // Coba sinkronisasi password ke SIAKAD (jika user baru saja ganti password di SIAKAD)
-        const siakadAuth = await authenticateSiakadApi(user.username, password);
-        if (siakadAuth.success) {
+        // Coba verifikasi ulang ke sistem eksternal (jika user baru saja ganti password di sana)
+        const extAuth = await authenticateExternalSystem(user.username, password);
+        if (extAuth.success) {
           const newHashed = await bcrypt.hash(password, 10);
-          await prisma.user.update({
+          await prisma.user.update(
+            {
             where: { id: user.id },
             data: { password: newHashed, syncedAt: new Date() },
           });
@@ -2085,7 +2083,7 @@ app.delete("/api/admin/users/:id", authenticateToken, requirePermission("user:de
 // POST /api/admin/siakad/sync-dosen (Tarik dan Sinkronkan Seluruh Data Dosen dari SIAKAD)
 app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("user:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    // Kredensial admin SIAKAD HANYA boleh berasal dari environment. Tidak ada
+    // Kredensial admin sistem eksternal HANYA boleh berasal dari environment. Tidak ada
     // nilai cadangan di kode: bila belum diset, endpoint menolak berjalan alih-alih
     // diam-diam memakai akun yang tertulis di repositori.
     const adminUser = process.env.SIAKAD_ADMIN_USER?.trim();
@@ -2099,7 +2097,7 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
       return res.status(503).json({
         status: false,
         message:
-          "Sinkronisasi dosen belum dikonfigurasi. Hubungi administrator untuk mengisi SIAKAD_ADMIN_USER dan SIAKAD_ADMIN_PASS pada berkas environment.",
+          "Sinkronisasi data belum dikonfigurasi. Hubungi administrator untuk mengisi kredensial sistem eksternal pada berkas environment.",
       });
     }
 
@@ -2107,7 +2105,7 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
     if (!lecturers || lecturers.length === 0) {
       return res.status(502).json({
         status: false,
-        message: "Tidak ada data dosen yang dapat ditarik dari SIAKAD saat ini.",
+        message: "Tidak ada data dosen yang dapat ditarik saat ini.",
       });
     }
 

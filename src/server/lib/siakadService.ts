@@ -1,6 +1,8 @@
 import https from 'https';
 import querystring from 'querystring';
 
+const SIAKAD_BASE_URL = (process.env.SIAKAD_BASE_URL || 'https://siakad.unusu.ac.id').replace(/\/$/, '');
+
 export interface SiakadStudentProfile {
   nim: string;
   nama: string;
@@ -91,9 +93,9 @@ function makeRequest(urlStr: string, opts: {
 }
 
 /**
- * 1. Autentikasi Credential via SIAKAD JSON API (/auth/index.php)
+ * 1. Autentikasi Credential via Sistem Eksternal (/auth/index.php)
  */
-export async function authenticateSiakadApi(username: string, password: string): Promise<{
+export async function authenticateExternalSystem(username: string, password: string): Promise<{
   success: boolean;
   message?: string;
   role?: string;
@@ -101,7 +103,7 @@ export async function authenticateSiakadApi(username: string, password: string):
 }> {
   try {
     const payload = JSON.stringify({ username, password });
-    const res = await makeRequest('https://siakad.unusu.ac.id/auth/index.php', {
+    const res = await makeRequest(`${SIAKAD_BASE_URL}/auth/index.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,11 +143,11 @@ export async function scrapeMahasiswaProfile(nim: string, password: string): Pro
       password,
     });
 
-    const loginRes = await makeRequest('https://siakad.unusu.ac.id/mahasiswa/index.php?module=login&action=cek_login', {
+    const loginRes = await makeRequest(`${SIAKAD_BASE_URL}/mahasiswa/index.php?module=login&action=cek_login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer': 'https://siakad.unusu.ac.id/mahasiswa/index.php',
+        'Referer': `${SIAKAD_BASE_URL}/mahasiswa/index.php`,
       },
       body: bodyStr,
     });
@@ -158,10 +160,10 @@ export async function scrapeMahasiswaProfile(nim: string, password: string): Pro
     if (!cookie) return null;
 
     // Ambil halaman profil utama
-    const pageRes = await makeRequest('https://siakad.unusu.ac.id/mahasiswa/index.php?module=home', {
+    const pageRes = await makeRequest(`${SIAKAD_BASE_URL}/mahasiswa/index.php?module=home`, {
       headers: {
         'Cookie': cookie,
-        'Referer': 'https://siakad.unusu.ac.id/mahasiswa/index.php',
+        'Referer': `${SIAKAD_BASE_URL}/mahasiswa/index.php`,
       },
     });
 
@@ -220,11 +222,11 @@ export async function scrapeAllDosenFromSia(adminUsername: string, adminPass: st
     password: adminPass,
   });
 
-  const loginRes = await makeRequest('https://siakad.unusu.ac.id/sia/index.php?module=login&action=cek_login&tpl=no', {
+  const loginRes = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?module=login&action=cek_login&tpl=no`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Referer': 'https://siakad.unusu.ac.id/sia/index.php',
+      'Referer': `${SIAKAD_BASE_URL}/sia/index.php`,
     },
     body: bodyStr,
   });
@@ -236,10 +238,10 @@ export async function scrapeAllDosenFromSia(adminUsername: string, adminPass: st
   const cookie = (loginRes.setCookie || []).map(c => c.split(';')[0]).join('; ');
   if (!cookie) throw new Error('Cookie sesi admin SIAKAD tidak diperoleh.');
 
-  const page = await makeRequest('https://siakad.unusu.ac.id/sia/index.php?main=dosen&module=data_dosen', {
+  const page = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?main=dosen&module=data_dosen`, {
     headers: {
       'Cookie': cookie,
-      'Referer': 'https://siakad.unusu.ac.id/sia/index.php',
+      'Referer': `${SIAKAD_BASE_URL}/sia/index.php`,
     },
   });
 
@@ -313,11 +315,11 @@ export async function scrapeDosenDetailFromSia(
       password: adminPass,
     });
 
-    const loginRes = await makeRequest('https://siakad.unusu.ac.id/sia/index.php?module=login&action=cek_login&tpl=no', {
+    const loginRes = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?module=login&action=cek_login&tpl=no`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer': 'https://siakad.unusu.ac.id/sia/index.php',
+        'Referer': `${SIAKAD_BASE_URL}/sia/index.php`,
       },
       body: bodyStr,
     });
@@ -325,10 +327,10 @@ export async function scrapeDosenDetailFromSia(
     const cookie = (loginRes.setCookie || []).map(c => c.split(';')[0]).join('; ');
     if (!cookie) return null;
 
-    const page = await makeRequest(`https://siakad.unusu.ac.id/sia/index.php?main=dosen&module=data_dosen&action=edit_dosen&kode=${kodeSia}`, {
+    const page = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?main=dosen&module=data_dosen&action=edit_dosen&kode=${kodeSia}`, {
       headers: {
         'Cookie': cookie,
-        'Referer': 'https://siakad.unusu.ac.id/sia/index.php?main=dosen&module=data_dosen',
+        'Referer': `${SIAKAD_BASE_URL}/sia/index.php?main=dosen&module=data_dosen`,
       },
     });
 
@@ -409,11 +411,11 @@ export async function scrapeMahasiswaFromSia(
     password: adminPass,
   });
 
-  const loginRes = await makeRequest('https://siakad.unusu.ac.id/sia/index.php?module=login&action=cek_login&tpl=no', {
+  const loginRes = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?module=login&action=cek_login&tpl=no`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Referer': 'https://siakad.unusu.ac.id/sia/index.php',
+      'Referer': `${SIAKAD_BASE_URL}/sia/index.php`,
     },
     body: bodyStr,
   });
@@ -433,10 +435,10 @@ export async function scrapeMahasiswaFromSia(
 
   for (const jurusan of targetJurusanList) {
     // Ambil daftar angkatan untuk jurusan ini
-    const jurusanPage = await makeRequest(`https://siakad.unusu.ac.id/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}`, {
+    const jurusanPage = await makeRequest(`${SIAKAD_BASE_URL}/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}`, {
       headers: {
         'Cookie': cookie,
-        'Referer': 'https://siakad.unusu.ac.id/sia/index.php?main=mahasiswa&module=data_mahasiswa',
+        'Referer': `${SIAKAD_BASE_URL}/sia/index.php?main=mahasiswa&module=data_mahasiswa`,
       },
     });
 
@@ -458,11 +460,11 @@ export async function scrapeMahasiswaFromSia(
 
     for (const angk of angkatansToScrape) {
       const mhsPage = await makeRequest(
-        `https://siakad.unusu.ac.id/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}&action=tampil_mhs&angkatan=${angk}`,
+        `${SIAKAD_BASE_URL}/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}&action=tampil_mhs&angkatan=${angk}`,
         {
           headers: {
             'Cookie': cookie,
-            'Referer': `https://siakad.unusu.ac.id/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}`,
+            'Referer': `${SIAKAD_BASE_URL}/sia/index.php?main=mahasiswa&module=data_mahasiswa&id_jurusan=${jurusan.id}`,
           },
         }
       );
@@ -483,7 +485,7 @@ export async function scrapeMahasiswaFromSia(
         let fotoUrl: string | null = null;
         if (imgMatch && imgMatch[1] && !imgMatch[1].includes('blank') && !imgMatch[1].includes('default')) {
           fotoUrl = imgMatch[1].startsWith('..')
-            ? `https://siakad.unusu.ac.id/sia/${imgMatch[1].replace(/^\.\.\//, '')}`
+            ? `${SIAKAD_BASE_URL}/sia/${imgMatch[1].replace(/^\.\.\//, '')}`
             : imgMatch[1];
         }
 

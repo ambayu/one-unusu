@@ -106,7 +106,7 @@ Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan du
 URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkungan target:
 
 1. **Pemetaan Lingkungan**:
-   - **Mode Lokal (`local`)**: Setiap aplikasi satelit berjalan di port Vite mandiri (`http://localhost:5174` s.d. `5180`). Nilai `urlRedirect` di tabel `sso_apps` harus mengarah ke port lokal masing-masing (`http://localhost:517x/sso/callback`).
+   - **Mode Lokal (`local`)**: Setiap aplikasi satelit berjalan di port Vite mandiri (`http://localhost:5175` s.d. `5181`). Nilai `urlRedirect` di tabel `sso_apps` harus mengarah ke port lokal masing-masing (`http://localhost:517x/sso/callback`).
    - **Mode VPS / Produksi (`vps`)**: Seluruh aplikasi satelit diakses via reverse-proxy Nginx sub-path di bawah domain utama (`{PUBLIC_BASE_URL}/{app}/sso/callback`), kecuali Portal Prodi yang memiliki multi-domain mandiri (`{PRODI_BASE_URL}/sso/callback`).
 2. **Skrip Penyelaras Database**:
    - `npm run db:sso-dev-urls`: Memperbarui seluruh `urlRedirect` di database lokal menjadi port localhost.
