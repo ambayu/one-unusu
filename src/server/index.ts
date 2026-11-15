@@ -2541,14 +2541,26 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
     const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
 
     for (const d of lecturers) {
-      const existing = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { username: d.nidn },
-            { nidn: d.nidn },
-          ],
-        },
-      });
+      /*
+       * Pencocokan akun portal dengan baris SIAKAD.
+       *
+       * NIDN adalah kunci utama, tetapi tidak semua dosen memilikinya (dosen
+       * baru atau data SIAKAD yang belum lengkap). Karena itu username SIAKAD
+       * (`d.usernameSia`, kolom <code> pada tabel dosen) ikut dijadikan kunci
+       * agar satu baris SIAKAD tidak berubah menjadi akun ganda setiap kali
+       * sinkronisasi dijalankan.
+       */
+      const kunciCocok: Array<{ username?: string; nidn?: string }> = [];
+      if (d.nidn) {
+        kunciCocok.push({ username: d.nidn }, { nidn: d.nidn });
+      }
+      if (d.usernameSia) {
+        kunciCocok.push({ username: d.usernameSia });
+      }
+
+      const existing = kunciCocok.length
+        ? await prisma.user.findFirst({ where: { OR: kunciCocok } })
+        : null;
 
       if (existing) {
         await prisma.user.update({
@@ -2565,7 +2577,9 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
       } else {
         await prisma.user.create({
           data: {
-            username: d.nidn,
+            // Username wajib unik; pakai NIDN, lalu username SIAKAD sebagai
+            // cadangan bila NIDN belum diisi pada data SIAKAD.
+            username: d.nidn || d.usernameSia || `dosen-${d.kodeSia ?? Date.now()}`,
             password: defaultPasswordHash,
             nama: d.nama,
             nidn: d.nidn,

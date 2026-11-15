@@ -25,6 +25,12 @@ export interface SiakadStudentProfile {
 export interface SiakadLecturerProfile {
   nidn: string;
   nama: string;
+  /**
+   * Username akun SIAKAD dosen (mis. "yusdiah"). Diambil dari kolom `<code>`
+   * pada tabel daftar dosen. Dipakai untuk mencocokkan akun portal bila NIDN
+   * belum terisi.
+   */
+  usernameSia?: string | null;
   prodi?: string | null;
   fakultas?: string | null;
   email?: string | null;
@@ -272,30 +278,51 @@ export async function scrapeAllDosenFromSia(adminUsername: string, adminPass: st
   const lecturers: SiakadLecturerProfile[] = [];
   const rows = page.body.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
 
+  /**
+   * Membersihkan nilai homebase dari SIAKAD.
+   *
+   * SIAKAD menulis tanda "-" (dibungkus `<span class="text-muted">`) ketika
+   * dosen belum punya homebase. Nilai seperti itu bukan nama program studi,
+   * jadi harus menjadi `null` agar tidak disimpan sebagai fakta palsu dan
+   * tidak ikut dicocokkan ke tabel fakultas.
+   */
+  const rapikanProdi = (nilai: string | undefined): string | null => {
+    const bersih = (nilai || '').trim();
+    if (!bersih) return null;
+    if (/^[-–—.,/]+$/.test(bersih)) return null;
+    return bersih;
+  };
+
   for (const r of rows) {
     const cells = (r.match(/<td[^>]*>[\s\S]*?<\/td>/gi) || []).map(cell => cleanHtmlText(cell));
     // Tabel dosen SIAKAD memiliki 6 kolom:
-    // cells[0]: Inisial (misal: "SKR")
-    // cells[1]: NIDN (misal: "NIDN 0105069201")
+    // cells[0]: Inisial (misal: "YHS")
+    // cells[1]: NIDN (misal: "NIDN 0119068902")
     // cells[2]: Nama & Gelar (misal: "SITI KHAIRANI, SST., M.Agr")
-    // cells[3]: Username SIAKAD (misal: "sitikhairani")
-    // cells[4]: Homebase Prodi (misal: "Budidaya Pertanian")
-    // cells[5]: Aksi (terdapat href edit_dosen&kode=...)
+    // cells[3]: Username SIAKAD (dibungkus <code>, misal: "sitikhairani")
+    // cells[4]: Homebase Prodi (misal: "Budidaya Pertanian", atau "-" bila kosong)
+    // cells[5]: Aksi (terdapat href action=edit_dosen&kode=...)
     const kodeMatch = r.match(/action=edit_dosen&kode=([0-9]+)/i);
     const kodeSia = kodeMatch ? kodeMatch[1] : null;
+
+    // Username diambil langsung dari elemen <code> pada baris, bukan dari
+    // `cells[3]`, supaya tetap benar bila kolomnya berubah urutan.
+    const usernameMatch = r.match(/<code[^>]*>([\s\S]*?)<\/code>/i);
+    const usernameSia = usernameMatch ? cleanHtmlText(usernameMatch[1]).trim() || null : null;
 
     if (cells.length >= 5) {
       const nidnMatch = cells[1].match(/([0-9]{8,15})/);
       const nidn = nidnMatch ? nidnMatch[1].trim() : '';
       const nama = cells[2]?.trim() || '';
-      const prodi = cells[4]?.trim() || '';
+      const prodi = rapikanProdi(cells[4]);
 
       if (nidn && nama) {
         lecturers.push({
           nidn,
           nama,
+          usernameSia,
           prodi,
-          fakultas: mapProdiToFakultas(prodi),
+          fakultas: prodi ? mapProdiToFakultas(prodi) : null,
           statusAkademik: 'Aktif',
           kodeSia,
         });
@@ -309,12 +336,13 @@ export async function scrapeAllDosenFromSia(adminUsername: string, adminPass: st
     if (match) {
       const nidn = match[1].trim();
       const nama = match[2].trim();
-      const prodi = match[4].trim();
+      const prodi = rapikanProdi(match[4]);
       lecturers.push({
         nidn,
         nama,
+        usernameSia,
         prodi,
-        fakultas: mapProdiToFakultas(prodi),
+        fakultas: prodi ? mapProdiToFakultas(prodi) : null,
         statusAkademik: 'Aktif',
         kodeSia,
       });
@@ -376,16 +404,35 @@ export async function scrapeDosenDetailFromSia(
     const kecamatan = getVal('kecamatan');
     const alamatDetail = [kecamatan, kabupaten].filter(Boolean).join(', ');
 
-    // Jenis kelamin biasanya select
+    /**
+     * Membaca opsi yang sedang terpilih dari sebuah <select>.
+     *
+     * Bug sebelumnya: kode mencari `<option ... selected ... value="X">`, padahal
+     * SIAKAD menulis `<option selected>Perempuan</option>` TANPA atribut `value`.
+     * Akibatnya jenis kelamin selalu `null` meski di SIAKAD sudah terisi.
+     * Fungsi ini mengambil opsi ber-atribut `selected`, lalu jatuh ke atribut
+     * `value` bila ada, dan terakhir memakai teks opsinya.
+     */
+    const ambilOpsiTerpilih = (nama: string): string | null => {
+      const blok = page.body.match(
+        new RegExp(`<select[^>]*name=["']${nama}["'][\\s\\S]*?<\\/select>`, 'i')
+      );
+      if (!blok) return null;
+      const opsi = blok[0].match(/<option[^>]*selected[^>]*>[\s\S]*?<\/option>/i);
+      if (!opsi) return null;
+      const nilaiAtribut = opsi[0].match(/value=["']([^"']*)["']/i);
+      const teksOpsi = cleanHtmlText(opsi[0]);
+      const hasil = (nilaiAtribut && nilaiAtribut[1].trim()) || teksOpsi.trim();
+      if (!hasil || /^[-–—]*$/.test(hasil)) return null;
+      return hasil;
+    };
+
+    // SIAKAD menulis "Laki-laki" / "Perempuan"; portal memakai kode "L" / "P".
     let jenisKelamin: string | null = null;
-    if (page.body.includes('name="jenis_kelamin"') || page.body.includes("name='jenis_kelamin'")) {
-      const jkMatch = page.body.match(/<select[^>]*name=["']jenis_kelamin["'][\s\S]*?<\/select>/i);
-      if (jkMatch) {
-        const selected = jkMatch[0].match(/<option[^>]*selected[^>]*value=["']([^"']*)["']/i);
-        if (selected && selected[1]) {
-          jenisKelamin = selected[1].toUpperCase() === 'L' ? 'L' : selected[1].toUpperCase() === 'P' ? 'P' : selected[1];
-        }
-      }
+    const jk = ambilOpsiTerpilih('jenis_kelamin');
+    if (jk) {
+      const hurufAwal = jk.trim().charAt(0).toUpperCase();
+      jenisKelamin = hurufAwal === 'L' ? 'L' : hurufAwal === 'P' ? 'P' : jk;
     }
 
     return {
