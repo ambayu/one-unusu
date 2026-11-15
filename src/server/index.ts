@@ -2540,6 +2540,76 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
     let updatedCount = 0;
     const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
 
+    /*
+     * Opsi `biodata`.
+     *
+     * Daftar dosen SIAKAD hanya memuat NIDN, nama, username, dan homebase prodi.
+     * NIK, tempat/tanggal lahir, jenis kelamin, nomor HP, dan alamat hanya ada
+     * di halaman edit per dosen, sehingga tiap dosen menambah satu permintaan
+     * HTTP (~250 ms). Karena itu pengambilan biodata dibuat OPSIONAL dan
+     * bertahap (`offset` & `limit`) supaya satu permintaan tidak melewati batas
+     * waktu proxy nginx.
+     *
+     * Hanya field yang belum terisi pada akun portal yang diisi. Data yang
+     * sudah ada tidak pernah ditimpa, dan nilai kosong dari SIAKAD dilewati —
+     * banyak dosen memang belum melengkapi biodatanya di SIAKAD.
+     */
+    const mauBiodata = req.body?.biodata === true || req.body?.biodata === "true";
+    const offsetBiodata = Math.max(0, Number(req.body?.offset ?? 0) || 0);
+    const limitBiodataRaw = Number(req.body?.limit ?? 0) || 0;
+    const limitBiodata = mauBiodata
+      ? Math.min(Math.max(limitBiodataRaw || 40, 1), 100)
+      : 0;
+
+    const biodataBatch = mauBiodata
+      ? lecturers.filter((d) => Boolean(d.kodeSia)).slice(offsetBiodata, offsetBiodata + limitBiodata)
+      : [];
+
+    let biodataTerisi = 0;
+    let biodataKosongDiSia = 0;
+
+    for (const d of biodataBatch) {
+      try {
+        const detail = await scrapeDosenDetailFromSia(adminUser, adminPass, d.kodeSia as string);
+        if (!detail) continue;
+
+        const adaIsi = Boolean(
+          detail.nik || detail.tempatLahir || detail.tanggalLahir ||
+          detail.jenisKelamin || detail.noHp || detail.alamat
+        );
+        if (!adaIsi) {
+          biodataKosongDiSia++;
+          continue;
+        }
+
+        const kunciCari: Array<{ username?: string; nidn?: string }> = [];
+        if (d.nidn) kunciCari.push({ username: d.nidn }, { nidn: d.nidn });
+        if (d.usernameSia) kunciCari.push({ username: d.usernameSia });
+        if (kunciCari.length === 0) continue;
+
+        const akun = await prisma.user.findFirst({ where: { OR: kunciCari } });
+        if (!akun) continue;
+
+        // "||" dipakai sengaja: nilai kosong dari SIAKAD tidak boleh menimpa
+        // data yang sudah ada di portal.
+        await prisma.user.update({
+          where: { id: akun.id },
+          data: {
+            nik: detail.nik || akun.nik,
+            tempatLahir: detail.tempatLahir || akun.tempatLahir,
+            tanggalLahir: detail.tanggalLahir || akun.tanggalLahir,
+            jenisKelamin: detail.jenisKelamin || akun.jenisKelamin,
+            noHp: detail.noHp || akun.noHp,
+            alamat: detail.alamat || akun.alamat,
+          },
+        });
+        biodataTerisi++;
+      } catch (error) {
+        // Satu dosen gagal tidak boleh menggagalkan seluruh proses.
+        logServerError(`POST /api/admin/siakad/sync-dosen (biodata ${d.nidn})`, error);
+      }
+    }
+
     for (const d of lecturers) {
       /*
        * Pencocokan akun portal dengan baris SIAKAD.
@@ -2599,13 +2669,31 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
       }
     }
 
+    const totalBerkodeSia = lecturers.filter((d) => Boolean(d.kodeSia)).length;
+    const biodataSelesai = mauBiodata && offsetBiodata + biodataBatch.length >= totalBerkodeSia;
+
     res.json({
       status: true,
-      message: `Sinkronisasi Dosen SIAKAD selesai. ${createdCount} akun baru dibuat, ${updatedCount} akun diperbarui.`,
+      message: mauBiodata
+        ? `Sinkronisasi Dosen SIAKAD selesai. ${createdCount} akun baru dibuat, ${updatedCount} akun diperbarui. Biodata: ${biodataTerisi} diisi, ${biodataKosongDiSia} kosong di SIAKAD.`
+        : `Sinkronisasi Dosen SIAKAD selesai. ${createdCount} akun baru dibuat, ${updatedCount} akun diperbarui.`,
       data: {
         totalSia: lecturers.length,
         created: createdCount,
         updated: updatedCount,
+        // Hanya relevan ketika `biodata: true`.
+        biodata: mauBiodata
+          ? {
+              diminta: true,
+              diproses: biodataBatch.length,
+              terisi: biodataTerisi,
+              kosongDiSia: biodataKosongDiSia,
+              offset: offsetBiodata,
+              offsetBerikutnya: biodataSelesai ? null : offsetBiodata + biodataBatch.length,
+              totalBerkodeSia,
+              selesai: biodataSelesai,
+            }
+          : { diminta: false },
       },
     });
   } catch (error: any) {
