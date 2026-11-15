@@ -79,6 +79,29 @@ if (process.env.TRUST_PROXY === "true") {
 }
 app.disable("x-powered-by");
 
+/**
+ * Normalisasi prefix `/sso` pada jalur API.
+ *
+ * Frontend produksi dibangun dengan `VITE_API_URL="/sso/api"`, karena aplikasi
+ * ini dipasang di sub-path `/sso/` (lihat `PROD_BASE` pada vite.config.ts).
+ * Seluruh router di berkas ini terdaftar pada `/api`, bukan `/sso/api`.
+ *
+ * Tanpa pemangkasan ini, permintaan browser `GET /sso/api/health` tidak cocok
+ * dengan satu pun router, lalu jatuh ke fallback SPA dan klien menerima
+ * `index.html` (HTTP 200 text/html) alih-alih JSON. Akibatnya seluruh halaman
+ * portal gagal membaca data meski server tampak "sehat".
+ *
+ * Middleware diletakkan paling awal agar setiap penanganan berikutnya melihat
+ * jalur yang sudah seragam, dan hanya menyentuh jalur `/sso/api` supaya aset
+ * statis `/sso/assets/...` serta halaman `/sso/login` tidak terpengaruh.
+ */
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.url === "/sso/api" || req.url.startsWith("/sso/api/") || req.url.startsWith("/sso/api?")) {
+    req.url = req.url.slice("/sso".length);
+  }
+  next();
+});
+
 // ==========================================
 // KEAMANAN: HEADER, CORS, DAN BATAS PAYLOAD
 // ==========================================
