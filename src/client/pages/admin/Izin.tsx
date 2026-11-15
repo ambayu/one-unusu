@@ -228,6 +228,25 @@ export const Izin: React.FC = () => {
     }));
   }, [filteredPermissions]);
 
+  /**
+   * Nomor urut tiap izin, melanjutkan lintas kelompok.
+   *
+   * Matriks izin dikelompokkan per resource, sehingga menghitung nomor dari
+   * indeks di dalam kelompok akan mengulang 1, 2, 3 pada setiap kelompok.
+   * Peta ini memberi satu deret utuh dari atas ke bawah saat tabel dibaca.
+   */
+  const nomorIzin = useMemo(() => {
+    const peta = new Map<number, number>();
+    let urut = 0;
+    groups.forEach((group) => {
+      group.items.forEach((permission) => {
+        urut += 1;
+        peta.set(permission.id, urut);
+      });
+    });
+    return peta;
+  }, [groups]);
+
   const togglePermission = (roleId: number, key: string) => {
     setDraft((previous) => {
       const current = previous[roleId] ?? [];
@@ -450,7 +469,8 @@ export const Izin: React.FC = () => {
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="bg-[#F0FDF4] border-b border-[#D8E5DC] text-[#166534] font-semibold">
                 <tr>
-                  <th className="py-3 px-4 sticky left-0 bg-[#F0FDF4] z-10 min-w-[240px]">Izin</th>
+                  <th className="py-3 px-3 text-center sticky left-0 bg-[#F0FDF4] z-10 w-[56px]">No.</th>
+                  <th className="py-3 px-4 sticky left-[56px] bg-[#F0FDF4] z-10 min-w-[240px]">Izin</th>
                   {roles.map((role) => (
                     <th key={role.id} className="py-3 px-3 text-center whitespace-nowrap">
                       <div className="flex flex-col items-center gap-0.5">
@@ -471,7 +491,7 @@ export const Izin: React.FC = () => {
                   <React.Fragment key={group.resource}>
                     <tr className="bg-[#F8FBF9]">
                       <td
-                        colSpan={roles.length + 1}
+                        colSpan={roles.length + 2}
                         className="py-2.5 px-4 text-xs font-bold text-[#1E293B] border-y border-[#D8E5DC] flex items-center gap-2"
                       >
                         <span className="w-2 h-2 rounded-full bg-[#166534]"></span>
@@ -481,7 +501,10 @@ export const Izin: React.FC = () => {
                     </tr>
                     {group.items.map((permission) => (
                       <tr key={permission.id} className="hover:bg-[#F0FDF4] transition-colors">
-                        <td className="py-2.5 px-4 sticky left-0 bg-white hover:bg-[#F0FDF4] z-10">
+                        <td className="py-2.5 px-3 text-center sticky left-0 bg-white z-10 text-[11px] font-semibold text-[#94A3B8] tabular-nums">
+                          {nomorIzin.get(permission.id)}
+                        </td>
+                        <td className="py-2.5 px-4 sticky left-[56px] bg-white hover:bg-[#F0FDF4] z-10">
                           <div className="flex items-center gap-2">
                             <span
                               className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${
@@ -520,7 +543,7 @@ export const Izin: React.FC = () => {
                 ))}
                 {groups.length === 0 && (
                   <tr>
-                    <td colSpan={roles.length + 1} className="py-8 text-center text-xs text-[#94A3B8]">
+                    <td colSpan={roles.length + 2} className="py-8 text-center text-xs text-[#94A3B8]">
                       Tidak ada izin yang sesuai dengan filter yang dipilih.
                     </td>
                   </tr>

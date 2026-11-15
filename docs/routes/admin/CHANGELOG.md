@@ -1,5 +1,21 @@
 # Changelog - Admin Panel
 
+## [2026-11-15] - Nomor Urut pada Seluruh Tabel
+
+### Added
+- **Kolom "No." pada semua tabel yang belum memilikinya.** Sebelumnya nomor urut hanya muncul pada tabel berbasis `DataTable` dan pada Riwayat SSO. Tabel manual kini ikut bernomor:
+  - `Berkas Dosen` — daftar jenis berkas di dalam akordeon dosen (14 baris), kolom `No.` di paling kiri.
+  - `Izin` — matriks izin, kolom `No.` di kiri kolom "Izin".
+  - `Integrasi & API Hub` — ketiga tabelnya: Endpoint, API Key, dan Riwayat Penggunaan.
+
+### Catatan Teknis
+- **Matriks Izin memakai peta nomor terpisah (`nomorIzin`).** Tabelnya dikelompokkan per resource, sehingga menghitung dari indeks di dalam `group.items` akan mengulang 1, 2, 3 pada setiap kelompok. `nomorIzin` dibuat dengan `useMemo` yang menomori seluruh grup berurutan, memberi satu deret utuh dari atas ke bawah.
+- Matriks Izin menggeser horizontal, jadi kini ada **dua kolom sticky**: `No.` pada `left-0` (`w-[56px]`) dan kolom `Izin` dipindah ke `left-[56px]`. Tanpa pergeseran ini nomor akan tertinggal saat tabel digeser. `colSpan` baris judul kelompok diubah dari `roles.length + 1` menjadi `roles.length + 2`, termasuk baris "tidak ada izin".
+- Tabel pada akordeon Berkas Dosen memakai lebar `w-[48px]` dan padding lebih rapat (`px-3 py-2`) agar tidak memakan ruang di dalam panel yang sudah menjorok.
+- Gaya kolom nomor diseragamkan dengan `DataTable`: rata tengah, `text-[11.5px]` (11px di akordeon), `font-semibold`, warna `#94A3B8`, `tabular-nums` agar angka tidak bergeser.
+- **Riwayat Masuk SSO tidak diubah** — sudah bernomor dan tabelnya tidak berpaginasi, sehingga `indeks + 1` sudah benar.
+- Halaman **Peran tidak diubah** karena berbentuk grid kartu, bukan tabel.
+
 ## [2026-11-15] - Dashboard Tanpa Chip Kekurangan & Tanpa Blok Identitas
 
 ### Removed

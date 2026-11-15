@@ -597,6 +597,62 @@ export interface DokumenIntegrasiParams {
   take?: number;
 }
 
+export interface KurikulumProdiItem {
+  id: number;
+  name: string;
+  year: number;
+  description?: string;
+  isActive: boolean;
+  studyProgram: {
+    id: number;
+    code: string;
+    name: string;
+    degree: string;
+    faculty: string | null;
+  };
+  totalCourses: number;
+  totalCredits: number;
+  courses: Array<{
+    id: number;
+    source: string;
+    courseId: number | null;
+    code: string;
+    name: string;
+    credits: number;
+    description?: string;
+    academicSemester: {
+      id: number;
+      code: string;
+      name: string;
+      isActive: boolean;
+    } | null;
+    lecturers: any[];
+    rpsDocuments: Array<{
+      id: number;
+      title: string;
+      fileUrl: string;
+      revision: number;
+    }>;
+  }>;
+}
+
+export interface KurikulumProdiParams {
+  prodi?: string;
+  year?: string | number;
+  semester?: string;
+  search?: string;
+  isActive?: boolean | string;
+}
+
+/** Mengambil seluruh kurikulum prodi terintegrasi dari Prodi UNUSU */
+export const fetchKurikulumProdi = (params?: KurikulumProdiParams) =>
+  api.get<{
+    success: boolean;
+    totalCurriculums: number;
+    curriculums: KurikulumProdiItem[];
+    message?: string;
+  }>('/inter-service/kurikulum-prodi', { params });
+
 /** Arsip dokumen milik aplikasi LPM UNUSU. */
 export const fetchDokumenLpm = (params?: DokumenIntegrasiParams) =>
   api.get<{ status: boolean; app: string; data: DokumenIntegrasiItem[]; message?: string }>(

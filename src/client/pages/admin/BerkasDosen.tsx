@@ -492,6 +492,7 @@ export const BerkasDosen: React.FC = () => {
                           <table className="w-full min-w-[640px]">
                             <thead>
                               <tr className="bg-[#F0FDF4]">
+                                <th className="px-3 py-2 text-center text-[11.5px] font-bold text-[#1E293B] w-[48px]">No.</th>
                                 <th className="px-4 py-2 text-left text-[11.5px] font-bold text-[#1E293B]">Jenis</th>
                                 <th className="px-3 py-2 text-left text-[11.5px] font-bold text-[#1E293B]">Status</th>
                                 <th className="px-3 py-2 text-left text-[11.5px] font-bold text-[#1E293B]">Dokumen</th>
@@ -501,7 +502,7 @@ export const BerkasDosen: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {barisJenis.map(({ kode, nama, isRequired, berkas }) => {
+                              {barisJenis.map(({ kode, nama, isRequired, berkas }, indeksJenis) => {
                                 // Satu jenis bisa diunggah beberapa kali
                                 // (mis. perpanjangan SK). Baris pertama menjadi
                                 // isi utama; sisanya diringkas pada keterangan.
@@ -515,6 +516,9 @@ export const BerkasDosen: React.FC = () => {
                                       utama ? '' : 'bg-[#FCFDFC]'
                                     }`}
                                   >
+                                    <td className="px-3 py-2 text-center text-[11px] font-semibold text-[#94A3B8] tabular-nums">
+                                      {indeksJenis + 1}
+                                    </td>
                                     <td className="px-4 py-2 text-xs font-semibold text-[#1E293B]">
                                       {nama}
                                       {isRequired && (

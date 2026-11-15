@@ -4724,6 +4724,58 @@ app.get(
   }
 );
 
+// GET /api/v1/inter-service/kurikulum-prodi
+// Endpoint proxy API Hub untuk mengambil seluruh data kurikulum & mata kuliah lintas prodi
+app.get("/api/v1/inter-service/kurikulum-prodi", async (req: Request, res: Response) => {
+  try {
+    const prodiBase = process.env.PRODI_BASE_URL || "http://localhost:5010";
+    let prodiApiUrl = prodiBase;
+    if (prodiApiUrl.includes(":5180")) {
+      prodiApiUrl = prodiApiUrl.replace(":5180", ":5010");
+    }
+
+    const params = new URLSearchParams();
+    if (typeof req.query.prodi === "string" && req.query.prodi.trim()) {
+      params.set("prodi", req.query.prodi.trim());
+    }
+    if (typeof req.query.year === "string" && req.query.year.trim()) {
+      params.set("year", req.query.year.trim());
+    }
+    if (typeof req.query.semester === "string" && req.query.semester.trim()) {
+      params.set("semester", req.query.semester.trim());
+    }
+    if (typeof req.query.search === "string" && req.query.search.trim()) {
+      params.set("search", req.query.search.trim());
+    }
+    if (typeof req.query.isActive === "string" && req.query.isActive.trim()) {
+      params.set("isActive", req.query.isActive.trim());
+    }
+
+    const url = `${prodiApiUrl.replace(/\/$/, "")}/api/v1/public/all-curriculums${params.toString() ? `?${params}` : ""}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const upstreamRes = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!upstreamRes.ok) {
+      return res.status(upstreamRes.status).json({
+        success: false,
+        message: "Gagal mengambil data kurikulum dari upstream Prodi UNUSU.",
+      });
+    }
+
+    const data = await upstreamRes.json();
+    res.json(data);
+  } catch (error: any) {
+    logServerError("GET /api/v1/inter-service/kurikulum-prodi", error);
+    res.status(502).json({
+      success: false,
+      message: "Layanan Prodi UNUSU sedang tidak dapat dijangkau (timeout atau offline).",
+    });
+  }
+});
+
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });
