@@ -61,7 +61,30 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-      }
+      },
+      // Animasi halaman status (mis. 403). Semua keyframe hanya menggerakkan
+      // transform/opacity supaya tidak memicu reflow; halaman memakai
+      // `motion-safe:` sehingga otomatis diam pada prefers-reduced-motion.
+      keyframes: {
+        gerakLembut: {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+          '50%': { transform: 'translate3d(10px, -12px, 0) scale(1.08)' },
+        },
+        denyutLembut: {
+          '0%, 100%': { opacity: '0.35', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.5)' },
+        },
+        denyutCincin: {
+          '0%': { opacity: '0.6', transform: 'scale(0.85)' },
+          '70%': { opacity: '0', transform: 'scale(1.25)' },
+          '100%': { opacity: '0', transform: 'scale(1.25)' },
+        },
+      },
+      animation: {
+        gerakLembut: 'gerakLembut 9s ease-in-out infinite',
+        denyutLembut: 'denyutLembut 4s ease-in-out infinite',
+        denyutCincin: 'denyutCincin 3.5s ease-out infinite',
+      },
     },
   },
   plugins: [],

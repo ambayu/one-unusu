@@ -92,6 +92,18 @@ function makeRequest(urlStr: string, opts: {
   });
 }
 
+function checkSessionStorageError(html: string): void {
+  if (
+    html.includes('No space left on device') ||
+    html.includes('Failed to read session data') ||
+    html.includes('open(/var/lib/lsphp/session')
+  ) {
+    throw new Error(
+      'Server SIAKAD (siakad.unusu.ac.id) menolak pembuatan sesi login karena kapasitas disk penyimpanan sesi di server SIAKAD sedang penuh (No space left on device). Harap hubungi tim administrator / hosting SIAKAD untuk membersihkan sesi.'
+    );
+  }
+}
+
 /**
  * 1. Autentikasi Credential via Sistem Eksternal (/auth/index.php)
  */
@@ -245,6 +257,18 @@ export async function scrapeAllDosenFromSia(adminUsername: string, adminPass: st
     },
   });
 
+  checkSessionStorageError(page.body);
+
+  if (page.body.includes('loginForm') || page.body.includes('Login Sistem Akademik')) {
+    // Periksa apakah ada pesan error sesi
+    if (page.body.includes('No space left on device') || page.body.includes('sess_')) {
+      checkSessionStorageError(page.body);
+    }
+    throw new Error(
+      'Gagal mengakses daftar dosen di SIAKAD. Sesi login admin ditolak atau tidak tersimpan oleh server SIAKAD.'
+    );
+  }
+
   const lecturers: SiakadLecturerProfile[] = [];
   const rows = page.body.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
 
@@ -333,6 +357,9 @@ export async function scrapeDosenDetailFromSia(
         'Referer': `${SIAKAD_BASE_URL}/sia/index.php?main=dosen&module=data_dosen`,
       },
     });
+
+    checkSessionStorageError(page.body);
+    if (page.body.includes('loginForm')) return null;
 
     const getVal = (name: string): string => {
       const m = page.body.match(new RegExp(`name=["']${name}["'][^>]*value=["']([^"']*)["']`, 'i')) ||
@@ -441,6 +468,13 @@ export async function scrapeMahasiswaFromSia(
         'Referer': `${SIAKAD_BASE_URL}/sia/index.php?main=mahasiswa&module=data_mahasiswa`,
       },
     });
+
+    checkSessionStorageError(jurusanPage.body);
+    if (jurusanPage.body.includes('loginForm')) {
+      throw new Error(
+        'Gagal mengakses daftar mahasiswa di SIAKAD. Sesi login admin ditolak atau tidak tersimpan oleh server SIAKAD.'
+      );
+    }
 
     // Cari link-link angkatan
     // Contoh link: action=tampil_mhs&angkatan=2026

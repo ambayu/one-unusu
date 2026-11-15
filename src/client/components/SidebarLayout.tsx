@@ -20,8 +20,11 @@ import {
   PhotoIcon,
   LinkIcon,
   ClockIcon,
+  SparklesIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { PERMISSIONS, hasPermission } from '../lib/permissions';
+import { canOpenAdminPanel } from '../lib/landing';
 import { isBiodataComplete } from '../lib/biodata';
 
 /**
@@ -50,7 +53,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
   const handleLogout = async () => {
     try {
-      // Hapus sesi di server agar cookie HttpOnly ikut dibersihkan.
       await logoutSession();
     } catch {
       // Sesi mungkin sudah berakhir; pembersihan lokal tetap dilanjutkan.
@@ -110,7 +112,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/riwayat-sso',
     '/daftar-aplikasi',
     '/profil',
+    '/berkas-dosen',
     '/admin',
+    '/admin/berkas-dosen',
+    '/admin/api-hub',
     '/admin/slider',
     '/admin/direktori',
     '/admin/pengguna',
@@ -122,7 +127,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     const current = location.pathname;
 
     if (current === path) {
-      // '/admin' hanya aktif tepat di '/admin' (bukan '/admin/...').
       if (path === '/admin') return true;
       const longerMatch = allNavPaths.find(
         (p) => p.length > path.length && current.startsWith(`${p}/`)
@@ -144,11 +148,23 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     { path: '/aplikasi-sso', label: 'Aplikasi SSO', icon: LinkIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
     { path: '/aplikasi-non-sso', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
     { path: '/riwayat-sso', label: 'Riwayat Masuk SSO', icon: ClockIcon as React.ElementType, permission: PERMISSIONS.dashboardMenu },
+    // Berkas Saya — halaman dosen mengunggah dokumennya sendiri di /berkas-dosen.
+    // Diletakkan di MENU UTAMA, bukan TATA KELOLA, karena ini pekerjaan harian
+    // dosen; menu /admin/berkas-dosen pada TATA KELOLA adalah panel pemantauan
+    // untuk pengelola. Keduanya dijaga izin berbeda sehingga tidak pernah
+    // muncul bersamaan pada satu akun.
+    { path: '/berkas-dosen', label: 'Berkas Saya', icon: DocumentTextIcon as React.ElementType, permission: PERMISSIONS.berkasBerkaMenu },
     { path: '/profil', label: 'Biodata', icon: UserCircleIcon as React.ElementType, permission: PERMISSIONS.profileMenu },
   ].filter((item) => hasPermission(user, item.permission));
 
   const governanceNavItems = [
     { path: '/admin', label: 'Registrasi SSO', icon: Squares2X2Icon as React.ElementType, permission: PERMISSIONS.applicationMenu },
+    // Entri ini dijaga `berkas_dosen:menu`, TETAPI izin itu juga dipegang dosen
+    // untuk halaman /berkas-dosen miliknya. Tanpa syarat tambahan, menu panel
+    // pemantauan ini ikut muncul pada sidebar dosen. Karena itu seluruh grup
+    // TATA KELOLA disaring lagi dengan `canOpenAdminPanel` di bawah.
+    { path: '/admin/berkas-dosen', label: 'Berkas Dosen', icon: DocumentTextIcon as React.ElementType, permission: PERMISSIONS.berkasBerkaMenu },
+    { path: '/admin/api-hub', label: 'Integrasi & API Hub', icon: SparklesIcon as React.ElementType, permission: PERMISSIONS.apiHubMenu },
     { path: '/admin/slider', label: 'Slider Hero', icon: PhotoIcon as React.ElementType, permission: PERMISSIONS.sliderMenu },
     { path: '/admin/direktori', label: 'Aplikasi Non-SSO', icon: GlobeAltIcon as React.ElementType, permission: PERMISSIONS.nonSsoMenu },
     // Manajemen Pengguna, Peran, dan Izin selalu diletakkan PALING BAWAH
@@ -157,7 +173,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: UsersIcon as React.ElementType, permission: PERMISSIONS.userMenu },
     { path: '/admin/peran', label: 'Peran', icon: ShieldCheckIcon as React.ElementType, permission: PERMISSIONS.roleMenu },
     { path: '/admin/izin', label: 'Izin', icon: KeyIcon as React.ElementType, permission: PERMISSIONS.permissionMenu },
-  ].filter((item) => hasPermission(user, item.permission));
+  ].filter((item) => hasPermission(user, item.permission) && canOpenAdminPanel(user));
 
   const breadcrumbLabels: Record<string, string> = {
     '/dashboard': 'Dashboard Layanan SSO',
@@ -167,7 +183,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     '/riwayat-login': 'Riwayat Masuk SSO',
     '/daftar-aplikasi': 'Katalog Daftar Aplikasi',
     '/profil': 'Biodata Pengguna',
+    '/berkas-dosen': 'Berkas Dosen Saya',
     '/admin': 'Registrasi SSO',
+    '/admin/berkas-dosen': 'Berkas Dosen',
+    '/admin/api-hub': 'Integrasi & API Hub',
     '/admin/slider': 'Slider Hero',
     '/admin/direktori': 'Aplikasi Non-SSO',
     '/admin/pengguna': 'Manajemen Pengguna',
@@ -204,7 +223,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
       />
 
       <div className="flex flex-col relative z-10">
-        {/* Brand Header — solid light-green, tinggi sama dengan headbar utama */}
+        {/* Brand Header */}
         <div
           className={`h-[88px] flex items-center border-b border-[#9BD4AF] bg-[#C2ECD0] ${
             isCollapsed ? 'justify-center px-0' : 'justify-between px-5'
@@ -369,10 +388,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Headbar — desktop 88px (sejajar brand sidebar), mobile lebih ringkas
-         *  agar tidak memakan ruang layar kecil. Breadcrumb disederhanakan:
-         *  "ONE UNUSU / <halaman>" disembunyikan di bawah `sm` karena nama
-         *  halaman sudah jelas dari menu; menyisakan tombol menu + tombol aksi. */}
+        {/* Headbar */}
         <header className="sticky top-0 z-20 bg-white border-b border-[#D8E5DC] px-3 sm:px-6 flex h-16 lg:h-[88px] items-center justify-between gap-2 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Mobile drawer toggle */}
@@ -401,7 +417,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
               )}
             </button>
 
-            {/* Breadcrumb — di mobile hanya menampilkan halaman aktif */}
+            {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
               <Link
                 to="/dashboard"

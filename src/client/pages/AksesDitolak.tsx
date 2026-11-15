@@ -3,18 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
   LockClosedIcon,
   Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { fetchPanelAccess, logoutSession, PanelAccess, UserProfile } from '../services/api';
-import {
-  canOpenAdminPanel,
-  DASHBOARD_PATH,
-  MANAGED_APP_BY_ROLE,
-  ROLE_LABELS,
-} from '../lib/landing';
+import { PanelPageTemplate } from '../components/templates/PanelPageTemplate';
+import { canOpenAdminPanel, DASHBOARD_PATH, ROLE_LABELS } from '../lib/landing';
 
 const USER_STORAGE_KEY = 'one_unusu_user';
 
@@ -30,10 +24,11 @@ function readCachedUser(): UserProfile | null {
 /**
  * Halaman 403 terpusat.
  *
- * Sebelumnya pengguna yang mencoba membuka panel yang bukan haknya
- * diarahkan diam-diam ke /dashboard sehingga terkesan "tidak terjadi apa-apa".
- * Halaman ini menjelaskan pemisahan peran (admin SSO, admin aplikasi cabang,
- * civitas) sekaligus menawarkan jalur navigasi yang sah.
+ * Ditampilkan saat akun membuka halaman di luar kewenangannya. Isinya SENGAJA
+ * minim: satu pernyataan singkat, dua fakta (peran + tujuan), dan satu tombol
+ * utama. Daftar aplikasi yang boleh diakses dan penjelasan panjang tentang
+ * pemisahan peran dihapus — pengguna yang salah masuk hanya perlu tahu bahwa
+ * halaman itu bukan untuknya, lalu kembali bekerja.
  */
 export const AksesDitolak: React.FC = () => {
   const navigate = useNavigate();
@@ -54,7 +49,7 @@ export const AksesDitolak: React.FC = () => {
         if (active && res.data.status) setAccess(res.data.data);
       })
       .catch(() => {
-        // Halaman tetap informatif tanpa data server.
+        // Halaman tetap terbaca tanpa data server.
       });
 
     return () => {
@@ -64,8 +59,6 @@ export const AksesDitolak: React.FC = () => {
 
   const role = access?.role ?? user?.role;
   const roleLabel = role ? ROLE_LABELS[role] ?? role : 'Tidak diketahui';
-  const managedApp = role ? MANAGED_APP_BY_ROLE[role] ?? null : null;
-  const allowedApps = access?.apps.filter((app) => app.isAllowed) ?? [];
   const isPanelAdmin = access ? access.canOpenAdminPanel : canOpenAdminPanel(user);
 
   const handleLogout = async () => {
@@ -82,111 +75,91 @@ export const AksesDitolak: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F5F2] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-2xl">
-        <div className="bg-white rounded-[16px] border border-[#D8E5DC] shadow-sm overflow-hidden">
-          <div className="flex items-start gap-3 p-6 border-b border-[#E8EFEA] bg-[#FEF2F2]">
-            <div className="w-12 h-12 rounded-[12px] bg-white border border-[#FECACA] text-[#B91C1C] flex items-center justify-center flex-shrink-0">
-              <LockClosedIcon className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#B91C1C] text-white">
-                403 · AKSES DITOLAK
-              </span>
-              <h1 className="mt-2 text-lg font-bold text-[#1E293B]">Anda tidak berhak membuka halaman ini</h1>
-              <p className="mt-1 text-xs text-[#475569] leading-relaxed">
-                Setiap admin di ONE UNUSU hanya mengelola panel dan aplikasi yang menjadi
-                kewenangannya. Akun Anda tidak memiliki izin untuk tujuan tersebut.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-4 rounded-[12px] bg-[#F9FDFB] border border-[#D8E5DC]">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#64748B]">
-                  Peran Anda
-                </span>
-                <p className="mt-1 text-sm font-bold text-[#1E293B]">{roleLabel}</p>
-                <p className="mt-0.5 text-[11px] text-[#64748B]">
-                  {managedApp ? `Mengelola: ${managedApp}` : 'Bukan pengelola panel administrasi'}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-[12px] bg-[#F9FDFB] border border-[#D8E5DC]">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#64748B]">
-                  Tujuan yang ditolak
-                </span>
-                <p className="mt-1 text-sm font-bold text-[#1E293B] break-words">
-                  {deniedApp ?? deniedPath ?? 'Panel administrasi'}
-                </p>
-                <p className="mt-0.5 text-[11px] text-[#64748B] font-mono break-all">
-                  {requiredPermission ? `butuh izin: ${requiredPermission}` : 'di luar kewenangan peran'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 p-3.5 rounded-[10px] bg-[#FFFBEB] border border-[#FDE68A] text-[11px] text-[#92400E] leading-relaxed">
-              <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>
-                Admin aplikasi cabang (mis. Admin LPPM) tidak dapat masuk ke panel atau aplikasi
-                milik unit lain (mis. LPM). Bila Anda merasa ini keliru, hubungi Administrator
-                ONE UNUSU untuk penyesuaian peran.
-              </span>
-            </div>
-
-            {allowedApps.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide mb-2">
-                  Aplikasi yang boleh Anda akses
-                </p>
-                <ul className="flex flex-wrap gap-2">
-                  {allowedApps.map((app) => (
-                    <li
-                      key={app.clientId}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]"
-                    >
-                      <CheckCircleIcon className="w-3.5 h-3.5" />
-                      {app.nameApp}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8EFEA]">
-              <Link
-                to={DASHBOARD_PATH}
-                className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
-              >
-                <ArrowLeftIcon className="w-4 h-4" />
-                Kembali ke Dashboard
-              </Link>
-
-              {isPanelAdmin && (
-                <Link
-                  to="/admin"
-                  className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs transition"
-                >
-                  <Squares2X2Icon className="w-4 h-4" />
-                  Buka Panel Admin
-                </Link>
-              )}
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-[8px] bg-white hover:bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs transition disabled:opacity-50 sm:ml-auto"
-              >
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                {isLoggingOut ? 'Keluar...' : 'Keluar'}
-              </button>
-            </div>
-          </div>
+    <PanelPageTemplate
+      badge="Akses Ditolak"
+      badgeIcon={LockClosedIcon}
+      title="Halaman ini bukan untuk akun Anda"
+      description="Akun Anda tidak memiliki izin membuka halaman tersebut."
+    >
+      {/* Panggung 403: angka besar dengan cincin dan titik yang bergerak lembut.
+          Semua animasi memakai transform/opacity saja (bukan width/height) agar
+          tetap ringan, dan dimatikan otomatis pada `prefers-reduced-motion`. */}
+      <div className="relative overflow-hidden rounded-[12px] border border-[#D8E5DC] bg-gradient-to-br from-[#F0FDF4] via-[#F9FDFB] to-[#FEF2F2] px-4 py-6 flex flex-col items-center justify-center">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <span className="absolute -top-10 -left-8 w-28 h-28 rounded-full bg-[#DCFCE7]/70 motion-safe:animate-gerakLembut" />
+          <span className="absolute -bottom-12 -right-6 w-36 h-36 rounded-full bg-[#FCE7F3]/60 motion-safe:animate-gerakLembut [animation-direction:reverse] [animation-duration:12s]" />
+          <span className="absolute top-6 right-10 w-3 h-3 rounded-full bg-[#166534]/25 motion-safe:animate-denyutLembut" />
+          <span className="absolute bottom-8 left-12 w-2 h-2 rounded-full bg-[#B91C1C]/25 motion-safe:animate-denyutLembut [animation-duration:5s] [animation-delay:1s]" />
         </div>
+
+        <div className="relative flex items-center justify-center">
+          <span
+            aria-hidden="true"
+            className="absolute w-32 h-32 sm:w-36 sm:h-36 rounded-full border border-[#BBF7D0] motion-safe:animate-denyutCincin"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute w-32 h-32 sm:w-36 sm:h-36 rounded-full border border-[#BBF7D0] motion-safe:animate-denyutCincin [animation-delay:1.75s]"
+          />
+          <span className="relative text-[64px] sm:text-[76px] font-black leading-none tracking-tighter text-[#166534] [text-shadow:0_4px_16px_rgba(22,101,52,0.18)]">
+            403
+          </span>
+        </div>
+
+        <p className="relative mt-2 text-[11px] font-semibold uppercase tracking-widest text-[#64748B]">
+          Akses Ditolak
+        </p>
       </div>
-    </div>
+
+      <dl className="rounded-[12px] border border-[#D8E5DC] bg-white px-4 py-3 text-xs">
+        <div className="flex items-center justify-between gap-3 py-1">
+          <dt className="text-[#64748B]">Tujuan</dt>
+          <dd className="font-semibold text-[#1E293B] truncate font-mono text-[11px]">
+            {deniedApp ?? deniedPath ?? 'Panel administrasi'}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 py-1 border-t border-[#E8F0EB] mt-1 pt-2">
+          <dt className="text-[#64748B]">Peran Anda</dt>
+          <dd className="font-bold text-[#1E293B] truncate">{roleLabel}</dd>
+        </div>
+        {requiredPermission && (
+          <div className="flex items-center justify-between gap-3 py-1 border-t border-[#E8F0EB] mt-1 pt-2">
+            <dt className="text-[#64748B]">Izin dibutuhkan</dt>
+            <dd className="font-mono text-[11px] text-[#475569] truncate">{requiredPermission}</dd>
+          </div>
+        )}
+      </dl>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <Link
+          to={DASHBOARD_PATH}
+          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          Kembali ke Dashboard
+        </Link>
+
+        {isPanelAdmin && (
+          <Link
+            to="/admin"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs transition"
+          >
+            <Squares2X2Icon className="w-4 h-4" />
+            Buka Panel Admin
+          </Link>
+        )}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 rounded-[8px] text-[#64748B] hover:text-[#B91C1C] hover:bg-[#FEF2F2] font-semibold text-xs transition disabled:opacity-50 sm:ml-auto"
+        >
+          <ArrowRightOnRectangleIcon className="w-4 h-4" />
+          {isLoggingOut ? 'Keluar...' : 'Keluar'}
+        </button>
+      </div>
+    </PanelPageTemplate>
   );
 };
 

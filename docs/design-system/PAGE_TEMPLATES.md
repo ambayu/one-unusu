@@ -52,21 +52,35 @@ Setiap halaman di ONE UNUSU wajib mengadopsi template yang sesuai dengan jenis h
 ---
 
 ### Template C: Admin & Master Data Table Template (`AdminPanelTemplate`)
-- **Digunakan oleh**: seluruh halaman `/admin/*` - `/admin` (Registrasi SSO), `/admin/pengguna`, `/admin/izin`, `/admin/peran`, `/admin/slider`, `/admin/direktori`.
+- **Digunakan oleh**: seluruh halaman `/admin/*` - `/admin` (Registrasi SSO), `/admin/pengguna`, `/admin/izin`, `/admin/peran`, `/admin/slider`, `/admin/direktori`, `/admin/berkas-dosen`.
+- **Basis**: `PanelPageTemplate` (`src/client/components/templates/PanelPageTemplate.tsx`). `AdminPanelTemplate` hanya menetapkan label "Panel Administrasi ONE UNUSU" + nama peran; kerangka visual, padding, dan tombol segarkan berasal dari `PanelPageTemplate`.
 - **Tanggung Jawab**:
-  - Menyajikan kerangka tata kelola SSO: registrasi layanan, manajemen akun civitas, matriks izin, pengelolaan peran, slider hero, dan direktori publik.
+  - Menyajikan kerangka tata kelola SSO: registrasi layanan, manajemen akun civitas, matriks izin, pengelolaan peran, slider hero, direktori publik, dan verifikasi berkas dosen.
   - Membungkus header halaman (judul, deskripsi, tombol muat ulang) dan slot konten. Sidebar **tidak** dipasang di sini, melainkan oleh `PanelLayout` di `App.tsx`.
 - **Komposisi Layout**:
   1. `PanelLayout` (induk rute) yang menyediakan `SidebarLayout`.
-  2. Header halaman: judul `#1E293B`, deskripsi `#64748B`, tombol "Muat Ulang" bergaya sekunder.
-  3. Slot konten bebas: stats grid, tabel data, kartu peran, atau matriks izin.
+  2. Header halaman: judul `#1E293B`, deskripsi `#64748B`, tombol "Segarkan" bergaya sekunder.
+  3. Slot konten bebas: stats grid, tabel data, kartu peran, matriks izin, atau panel dua kolom.
   4. 4-Card Operational Stats Grid (khusus halaman yang menampilkan agregat).
-  5. Filter & Toolbar (Search input + dropdown peran + tombol aksi "Tambah").
+  5. Filter & Toolbar (Search input + dropdown peran + tombol aksi utama).
   6. Wadah tabel memakai `DataTable` (`bg-white rounded-[14px] border border-[#D8E5DC]`, `thead` `#F0FDF4`, teks kepala `12.5px` bold, isi sel `text-xs`).
   7. Modal form pendaftaran aplikasi / penambahan pengguna / peran baru / item slider / direktori.
 - **Penyimpangan yang disetujui** (wajib dicatat di `docs/routes/admin/RULES.md`):
   - `/admin/izin` memakai `<table>` manual - matriks peran dinamis dengan kolom sticky; tidak dapat dinyatakan sebagai kolom `DataTable`.
   - `/admin/peran` dan `/admin/slider` memakai kartu/grid, bukan tabel.
+
+---
+
+### Template E: Panel Sivitas Template (`PanelPageTemplate`)
+- **Digunakan oleh**: `/berkas-dosen` (halaman dosen mengelola berkas pribadi).
+- **Tanggung Jawab**:
+  - Menyajikan kerangka panel yang sama dengan area admin, **tanpa** mengklaim diri sebagai panel administrasi.
+  - Menerima `badge`, `badgeIcon`, dan `badgeSuffix` sebagai prop sehingga label panel dapat berbeda per audiens ("Panel Administrasi ONE UNUSU" vs "Panel Dosen ONE UNUSU").
+- **Komposisi Layout**: identik dengan `AdminPanelTemplate` (satu kartu `bg-white rounded-[16px] border border-[#D8E5DC] shadow-sm`, header `p-5` berisi label + judul + deskripsi + tombol "Segarkan", body `p-5 sm:p-6 space-y-5`).
+- **Aturan pemakaian**:
+  - Halaman panel non-admin (dosen, mahasiswa) **wajib** memakai `PanelPageTemplate` dengan label audiensnya sendiri. Dilarang memakai `AdminPanelTemplate` untuk halaman yang bukan tata kelola.
+  - Halaman `/admin/*` **wajib** memakai `AdminPanelTemplate`, bukan `PanelPageTemplate` secara langsung, agar label administrasi tidak hilang.
+- **Aturan form di dalam template ini**: alur create/edit memakai **kartu form di dalam halaman** (bukan modal) sesuai `PROJECT_RULES.md` §2. Modal hanya untuk konfirmasi (`NotificationModal`).
 
 ---
 

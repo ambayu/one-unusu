@@ -36,13 +36,15 @@ export interface SsoAppRegistryOptions {
 
 /** Pemetaan URL callback untuk mode pengembangan lokal (port tiap aplikasi) */
 export const LOCAL_DEV_CALLBACKS: Record<string, string> = {
-  "50e3ed28134b379d": "http://localhost:5181/sso/callback",
-  "223ea0752e7619e2": "http://localhost:5178/sso/callback",
-  "014813db6bffb39f": "http://localhost:5177/sso/callback",
-  "e538eac90fb83578": "http://localhost:5175/sso/callback",
-  "38cf6306cea79458": "http://localhost:5179/sso/callback",
-  "a5776434492cb44a": "http://localhost:5176/sso/callback",
-  "70c76ea9b5d5d3a8": "http://localhost:5180/sso/callback",
+  "50e3ed28134b379d": "http://localhost:5174/sso/callback", // LMS UNUSU (Port 5174)
+  "014813db6bffb39f": "http://localhost:5177/sso/callback", // LPM UNUSU (Port 5177)
+  "223ea0752e7619e2": "http://localhost:5176/sso/callback", // LPPM UNUSU (Port 5176)
+  "e538eac90fb83578": "http://localhost:5175/sso/callback", // E-SURAT UNUSU (Port 5175)
+  "38cf6306cea79458": "http://localhost:5178/sso/callback", // SARPRAS UNUSU (Port 5178)
+  "a5776434492cb44a": "http://localhost:5179/sso/callback", // AKREDITASI UNUSU (Port 5179)
+  "70c76ea9b5d5d3a8": "http://localhost:5180/sso/callback", // PRODI UNUSU (Port 5180)
+  "e18b6c47291a03df": "http://localhost:5181/sso/callback", // BAKSA UNUSU (Port 5181)
+  "f29c7d58302b14ea": "http://localhost:5182/sso/callback", // BAKSI UNUSU (Port 5182)
 };
 
 export function buildSsoAppDefinitions(
@@ -149,6 +151,30 @@ export function buildSsoAppDefinitions(
       urlRedirect: resolveCallback("70c76ea9b5d5d3a8", `${prodi}/sso/callback`),
       targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
       order: 7,
+      isActive: true,
+    },
+    {
+      clientId: "e18b6c47291a03df",
+      clientKey: kunci("SSO_CLIENT_KEY_BAKSA_UNUSU") || "baksa_client_key_unusu_development_2026",
+      nameApp: "BAKSA UNUSU",
+      description: "Biro Administrasi Keuangan, Sarana & Aset: arsip naskah dinas, dokumen keuangan, dan inventaris.",
+      icon: "Building2",
+      badge: "Keuangan & Aset",
+      urlRedirect: resolveCallback("e18b6c47291a03df", isLocalMode ? `${cabang}/baksa/sso/callback` : `${cabang}/baksa/sso/callback`),
+      targetRoles: JSON.stringify(["ADMIN_BAKSA", "DOSEN", "SUPERADMIN"]),
+      order: 8,
+      isActive: true,
+    },
+    {
+      clientId: "f29c7d58302b14ea",
+      clientKey: kunci("SSO_CLIENT_KEY_BAKSI_UNUSU") || "baksi_client_key_unusu_development_2026",
+      nameApp: "BAKSI UNUSU",
+      description: "Biro Administrasi Kemahasiswaan & Sistem Informasi: arsip ormawa, beasiswa, dan kebijakan TI.",
+      icon: "ComputerDesktop",
+      badge: "Kemahasiswaan & SI",
+      urlRedirect: resolveCallback("f29c7d58302b14ea", isLocalMode ? `${cabang}/baksi/sso/callback` : `${cabang}/baksi/sso/callback`),
+      targetRoles: JSON.stringify(["ADMIN_BAKSI", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
+      order: 9,
       isActive: true,
     },
   ];

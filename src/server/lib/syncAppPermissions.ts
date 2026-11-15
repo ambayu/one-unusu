@@ -6,6 +6,7 @@ export async function syncAppLoginPermissions(prisma: PrismaClient): Promise<voi
 
   const labelByTingkat: Record<TingkatMasuk, string> = {
     admin: "Masuk sebagai Administrator",
+    fakultas: "Masuk sebagai Admin Fakultas",
     dosen: "Masuk sebagai Dosen",
     mahasiswa: "Masuk sebagai Mahasiswa",
   };

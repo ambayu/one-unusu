@@ -27,6 +27,7 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 | Izin | `/admin/izin` | `AdminPanelTemplate` | `<table>` manual | Disetujui: matriks peran dinamis, checkbox per sel, kolom pertama `sticky left-0` |
 | Peran | `/admin/peran` | `AdminPanelTemplate` | Grid kartu | Disetujui: satu peran = satu kartu berisi daftar izin ringkas |
 | Slider Hero | `/admin/slider` | `AdminPanelTemplate` | Grid kartu | Disetujui: pratinjau gambar lebih penting daripada baris tabel |
+| Berkas Dosen (monitoring) | `/admin/berkas-dosen` | `AdminPanelTemplate` | Daftar akordeon per dosen | Disetujui: kolom tabel berbeda per baris saat dibuka (satu tabel semua jenis), sehingga akordeon lebih tepat daripada `DataTable` |
 
 Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menyatakan kolom yang jumlahnya berubah mengikuti data (matriks izin) maupun isi berbentuk gambar besar (slider). Penyimpangan baru **wajib** dicatat di tabel ini sebelum dikerjakan.
 
@@ -63,3 +64,48 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
   - Mode **Local**: Menunjuk port frontend Vite lokal (`5175` s.d. `5181`).
   - Mode **VPS**: Menunjuk sub-path reverse-proxy (`https://unusu.ac.id/{app}/sso/callback`).
   - Dikelola melalui perintah `npm run db:sso-dev-urls` dan `npm run db:sso-vps-urls`.
+
+---
+
+## 6. Modul Berkas Dosen
+
+### 6.1 Pembagian Peran
+- **Dosen** mengelola berkasnya sendiri di `/berkas-dosen` (izin `berkas_dosen:menu`, `berkas_dosen:view`, `berkas_dosen:upload`, `berkas_dosen:delete`).
+- **Pengelola** (pemegang `berkas_dosen:delete`) dapat melihat dokumen seluruh dosen. Tidak ada peran "verifikator": modul ini **memantau kelengkapan**, bukan menyetujui/menolak.
+- Pembeda peran ditentukan **di server** oleh `peranBerkasPengguna()`, bukan hanya oleh izin antarmuka. Parameter `userId` pada `GET /api/berkas-dosen/list` hanya dihormati untuk peran pengelola; permintaan dosen selalu dipaksa ke id dirinya sendiri.
+
+> **Izin `berkas_dosen:verify` sudah dihapus.** Jangan menambahkannya kembali tanpa keputusan baru: status verifikasi (`isVerified`, `verifiedAt`, `verifiedBy`, `verificationNote`) tetap ada di kolom database untuk kompatibilitas skema, tetapi **tidak lagi dibaca, ditampilkan, atau diubah** oleh antarmuka maupun endpoint mana pun.
+
+### 6.2 Panel Monitoring Admin (`/admin/berkas-dosen`)
+- Sumber data adalah **tabel pengguna berperan `DOSEN`**, bukan tabel berkas. Alasannya: dosen yang belum mengunggah apa pun harus tetap terlihat, karena justru merekalah yang perlu ditindaklanjuti.
+- Endpoint: `GET /api/admin/berkas-dosen/monitoring` (izin `berkas_dosen:view`). Mengembalikan seluruh dosen aktif beserta `berkas[]`, `jenisBelumDiunggah[]`, `totalBerkasTerunggah`, `totalJenisBerkas`, dan `wajibLengkap`.
+- **Kelengkapan dihitung per JENIS, bukan per baris.** Satu jenis berkas dapat diunggah lebih dari sekali (mis. perpanjangan SK); menghitung baris akan membuat angka melebihi 14.
+- Kategori baris: **Belum** (`sudahMengunggah = false`), **Sebagian**, **Lengkap** (`totalBerkasTerunggah >= totalJenisBerkas`). Ketiganya dipakai sebagai saringan.
+- Setiap baris dapat dibuka menampilkan **satu tabel yang memuat seluruh jenis berkas** (selalu sepanjang master `meta.tipeBerkas`, saat ini 14 baris). Jenis yang belum diunggah tetap muncul dengan status **"Belum diunggah"** — merah bila wajib, abu-abu bila opsional. Tidak ada lagi blok chip "Belum Diunggah" terpisah, sehingga admin melihat kelengkapan dan kekurangan dalam satu pandangan.
+- Baris berstatus terunggah menampilkan nama dokumen, nomor dokumen, tahun SK, tanggal unggah, dan tombol pratinjau. Bila satu jenis punya beberapa berkas, baris pertama menjadi isi utama dan sisanya diringkas sebagai "+N berkas lain pada jenis ini" agar jumlah baris tetap sama dengan jumlah jenis.
+- **Foto profil dosen tampil di sisi kiri setiap baris** (`avatar` dari tabel `User`). Bila belum ada, ditampilkan inisial nama pada lingkaran `#DCFCE7` teks `#166534`. Cincin di sekeliling foto mengikuti status kelengkapan: merah (belum), kuning (sebagian), hijau (lengkap).
+- Tombol **Ekspor Rekap** menghasilkan CSV berpemisah `;` dengan BOM UTF-8 agar terbaca benar di Excel berbahasa Indonesia.
+
+### 6.3 Penyimpanan Berkas
+- Berkas disimpan di disk lokal (`uploads/berkas-dosen`, dapat dipindahkan lewat `BERKAS_DOSEN_DIR`).
+- Nama berkas di disk berupa 24 byte acak hex + `.pdf`; nama asli dari klien **tidak pernah** dipakai sebagai nama file, sehingga `originalname` berisi `../` tidak dapat menulis keluar direktori.
+- Berkas **tidak** disajikan sebagai file statis publik. Pengunduhan selalu melalui `GET /api/berkas-dosen/file/:nama` yang memeriksa sesi dan kepemilikan.
+- Validasi berlapis: `mimetype` (filter multer) **dan** signature `%PDF` pada 4 byte pertama. Berkas yang gagal validasi dihapus agar tidak menumpuk.
+- Batas ukuran 10 MB (`MAKS_UKURAN_BERKAS`) ditegakkan di multer; respons 413 berisi pesan batas ukuran.
+- Folder `uploads/` **wajib** tetap masuk `.gitignore`; dokumen pribadi dosen tidak boleh ter-commit.
+
+### 6.4 Penghapusan
+- `DELETE /api/berkas-dosen/:id` bersifat **arsip** (`isArchived`, `archivedAt`), bukan hapus fisik. Baris tetap tersimpan untuk jejak audit, tetapi tidak lagi tampil pada daftar.
+- Berkas fisik **tidak** ikut dihapus saat arsip. `hapusBerkasFisik()` hanya dipanggil bila unggahan gagal validasi agar tidak menumpuk.
+
+### 6.5 Antarmuka
+- Halaman dosen memakai `PanelPageTemplate` dengan label "Panel Dosen ONE UNUSU"; halaman admin tetap memakai `AdminPanelTemplate`.
+- **Struktur halaman dosen hanya dua blok**, jangan ditambah tanpa alasan kuat: (1) kartu ringkasan progres, (2) satu daftar 14 jenis berkas. Form unggah kini **modal**, jadi tidak lagi memakan ruang halaman.
+- Empat kartu statistik terpisah **dihapus**; angkanya dipadatkan ke satu kartu ringkasan berisi pecahan `terisi/total jenis`, jumlah berkas terunggah, dan bar progres.
+- **Tabel "Berkas Saya" dihapus.** Daftar dikelompokkan **per JENIS** (selalu sepanjang jumlah jenis berkas), bukan per baris berkas. Detail dokumen (nomor, tahun, ukuran, tanggal, pratinjau, hapus) dibuka di dalam baris jenis yang bersangkutan. Dengan begitu daftar hanya satu, tidak ada tabel kedua di bawah halaman.
+- Form unggah menyembunyikan kolom pelengkap (`nomorDokumen`, `tahunSK`, `keterangan`) di balik tombol "Tambah detail dokumen". `tahunSK` tetap aktif dengan nilai awal tahun berjalan sehingga form dapat langsung disimpan tanpa membuka panel tersebut.
+- Form unggah tampil sebagai **modal** (`fixed inset-0 z-50` + `bg-black/40 backdrop-blur-sm`, panel `max-w-xl rounded-2xl`), mengikuti pola modal proyek pada Manajemen Slider. Kepala `bg-[#F9FBFA]` berisi judul + keterangan + tombol tutup, isi `px-6 py-5`, kaki `px-6 py-4` berisi Batal/Simpan.
+- Modal dapat ditutup lewat tombol `×`, tombol Batal, atau **Escape**. Ketiganya diabaikan selama `unggahPersen !== null` agar progres unggahan tidak hilang di tengah jalan.
+- Modal memakai `role="dialog"`, `aria-modal="true"`, dan `aria-labelledby` yang menunjuk judulnya.
+- Input memakai pola form panel: `border-[#D8E5DC] px-4 py-3 rounded-lg`, fokus `focus:ring-1 focus:ring-[#166534]`.
+- Semua umpan balik (sukses, gagal, konfirmasi hapus) memakai `NotificationModal`; `alert()`/`confirm()` dilarang.

@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   fetchMe, 
   fetchSsoApps, 
   fetchDirectories,
@@ -8,11 +8,17 @@ import {
   UserProfile, 
   SsoAppItem,
   DirectoryItem,
+  DosenBerkasTipeItem,
+  DosenBerkasItem,
+  fetchDosenBerkasTipe,
+  fetchDosenBerkasList,
 } from '../services/api';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { Carousel } from '../components/Carousel';
+import { KartuProgres } from '../components/KartuProgres';
 import { isImageSource } from '../lib/appIcon';
-import { isBiodataComplete } from '../lib/biodata';
+import { isBiodataComplete, ringkasBiodata } from '../lib/biodata';
+import { ringkasDokumenDosen } from '../lib/kelengkapanDokumen';
 import { openTabTujuan, arahkanTab, tutupTab } from '../lib/ssoLaunch';
 import { assetUrl } from '../lib/assets';
 import {
@@ -21,12 +27,13 @@ import {
   Squares2X2Icon,
   ExclamationCircleIcon,
   GlobeAltIcon,
-  IdentificationIcon,
   UserIcon,
   LinkIcon,
   ArrowRightIcon,
   ArrowTopRightOnSquareIcon,
   LockClosedIcon,
+  ClipboardDocumentCheckIcon,
+  FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 
 export const Dashboard: React.FC = () => {
@@ -41,6 +48,11 @@ export const Dashboard: React.FC = () => {
   // seolah-olah "belum ada data" - padahal server sedang bermasalah.
   const [galatApps, setGalatApps] = useState<string | null>(null);
   const [galatDirektori, setGalatDirektori] = useState<string | null>(null);
+  // Kelengkapan dokumen hanya relevan bagi dosen. Dimuat terpisah dan kegagalan
+  // memuatnya TIDAK dianggap galat dashboard — kartu cukup disembunyikan agar
+  // satu endpoint yang bermasalah tidak merusak seluruh halaman.
+  const [tipeBerkas, setTipeBerkas] = useState<DosenBerkasTipeItem[]>([]);
+  const [berkasDosen, setBerkasDosen] = useState<DosenBerkasItem[]>([]);
   const [notify, setNotify] = useState<{
     isOpen: boolean;
     type: NotificationType;
@@ -83,6 +95,27 @@ export const Dashboard: React.FC = () => {
       if (userRes.value.data.status) {
         setUser(userRes.value.data.data);
         localStorage.setItem('one_unusu_user', JSON.stringify(userRes.value.data.data));
+
+        // Dokumen dosen dimuat SETELAH peran diketahui, karena hanya relevan
+        // bagi dosen. Kegagalannya sengaja didiamkan: kartu kelengkapan dokumen
+        // cukup tidak ditampilkan, dan dashboard tetap utuh.
+        if (userRes.value.data.data.role === 'DOSEN') {
+          const [tipeRes, berkasRes] = await Promise.allSettled([
+            fetchDosenBerkasTipe(),
+            fetchDosenBerkasList(),
+          ]);
+
+          setTipeBerkas(
+            tipeRes.status === 'fulfilled' && tipeRes.value.data.status
+              ? tipeRes.value.data.data
+              : []
+          );
+          setBerkasDosen(
+            berkasRes.status === 'fulfilled' && berkasRes.value.data.status
+              ? berkasRes.value.data.data
+              : []
+          );
+        }
       }
 
       // Daftar aplikasi dan direktori diperiksa satu per satu. Kegagalan tidak
@@ -254,7 +287,16 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const statusLabel = user ? (user.isActive ? 'Aktif' : 'Nonaktif') : 'Belum tersedia';
+  // Ringkasan progres untuk kartu ajakan pelengkapan.
+  const bio = React.useMemo(() => ringkasBiodata(user), [user]);
+  const dokumen = React.useMemo(
+    () => ringkasDokumenDosen(tipeBerkas, berkasDosen),
+    [tipeBerkas, berkasDosen]
+  );
+  const isDosen = user?.role === 'DOSEN';
+  // Civitas (dosen & mahasiswa) memiliki butir biodata akademik; admin dan
+  // pengelola hanya memiliki butir akun. Dipakai untuk memilih kalimat ajakan.
+  const isCivitas = isDosen || user?.role === 'MAHASISWA';
 
   // Filter izin masuk: akun dengan izin masuk_mahasiswa murni hanya melihat aplikasi yang diizinkan untuk mahasiswa
   const displayedApps = React.useMemo(() => {
@@ -269,13 +311,6 @@ export const Dashboard: React.FC = () => {
     }
     return apps;
   }, [apps, user]);
-
-  const identitySectionTitle =
-    user?.role === 'DOSEN'
-      ? 'Data Ketenagaan Dosen'
-      : user?.role === 'SUPERADMIN'
-        ? 'Otoritas & Unit Kerja'
-        : 'Data Akademik Mahasiswa';
 
   const renderDirectoryIcon = (iconName: string | null) => {
     if (isImageSource(iconName)) {
@@ -300,38 +335,6 @@ export const Dashboard: React.FC = () => {
         return <GlobeAltIcon className="w-5 h-5" />;
     }
   };
-
-  type IdentityMetric = {
-    label: string;
-    value: string;
-    mono?: boolean;
-  };
-
-  const identityMetrics: IdentityMetric[] =
-    user?.role === 'DOSEN'
-      ? [
-          { label: 'NIDN / NUP', value: user.nidn || 'Belum tersedia', mono: true },
-          { label: 'Homebase Prodi', value: user.prodi || 'Belum tersedia' },
-          { label: 'Fakultas Induk', value: user.fakultas || 'Belum tersedia' },
-          { label: 'Status Kepegawaian', value: statusLabel },
-        ]
-      : user?.role === 'SUPERADMIN'
-        ? [
-            { label: 'Username', value: user.username, mono: true },
-            { label: 'Unit Kerja', value: 'PUSTIK' },
-            { label: 'Hak Akses', value: 'Root SSO' },
-            { label: 'Status Akun', value: statusLabel },
-          ]
-        : [
-            {
-              label: 'Nomor Induk Mahasiswa',
-              value: user?.nim || user?.username || 'Belum tersedia',
-              mono: true,
-            },
-            { label: 'Program Studi', value: user?.prodi || 'Belum tersedia' },
-            { label: 'Fakultas', value: user?.fakultas || 'Belum tersedia' },
-            { label: 'Status Mahasiswa', value: statusLabel },
-          ];
 
   return (
     <div className="space-y-6">
@@ -370,50 +373,57 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          2. IDENTITAS CIVITAS (Daftar 2 kolom, menyesuaikan peran pengguna)
+          2. PROGRES KELENGKAPAN: BIODATA & (KHUSUS DOSEN) DOKUMEN
+          Blok identitas civitas (NIDN, homebase prodi, fakultas induk, status
+          kepegawaian) dihapus dari dashboard: datanya sudah tersedia di
+          halaman Biodata, dan pengulangannya membuat dashboard terlalu padat.
          ========================================================================= */}
-      <div className="bg-white rounded-[20px] border border-[#D8E5DC] p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 text-sm font-bold text-[#1E293B]">
-          <IdentificationIcon className="w-5 h-5 text-[#166534]" />
-          <span>{identitySectionTitle}</span>
-        </div>
+      {user && (
+        <div className={`grid grid-cols-1 gap-4 ${isDosen ? 'lg:grid-cols-2' : ''}`}>
+          <KartuProgres
+            judul="Kelengkapan Biodata"
+            keterangan={
+              isCivitas
+                ? 'Data diri yang dipakai untuk layanan kampus dan penerbitan tiket SSO.'
+                : 'Data akun yang dipakai untuk masuk dan menerbitkan tiket SSO.'
+            }
+            ikon={ClipboardDocumentCheckIcon}
+            terisi={bio.terisi}
+            total={bio.total}
+            persen={bio.persen}
+            ajakan={
+              bio.wajibKurang.length > 0
+                ? `${bio.wajibKurang.map((b) => b.label).join(' dan ')} wajib diisi sebelum Anda dapat membuka aplikasi SSO.`
+                : // Kalimat ajakan menyesuaikan peran: admin dan pengelola tidak
+                  // punya data civitas, sehingga menyebut "profil akademik"
+                  // akan terdengar keliru bagi mereka.
+                  bio.opsionalKurang.length > 0
+                  ? `Beberapa data opsional belum terisi. Lengkapi agar profil ${isCivitas ? 'akademik' : 'akun'} Anda utuh.`
+                  : 'Tidak ada data wajib yang kosong. Periksa kembali bila ada data yang perlu diperbarui.'
+            }
+            labelAksi={bio.lengkap ? 'Lihat Biodata' : 'Lengkapi Biodata'}
+            onAksi={() => navigate('/profil', { state: { requiredBio: !isBiodataComplete(user) } })}
+            lengkap={bio.lengkap}
+          />
 
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
-          {identityMetrics.map((metric) => (
-            <div key={metric.label} className="min-w-0">
-              <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">
-                {metric.label}
-              </dt>
-              <dd
-                className={`mt-1 text-sm font-semibold text-[#1E293B] break-words ${
-                  metric.mono ? 'font-mono' : ''
-                }`}
-              >
-                {metric.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      {/* Pengingat biodata: tidak memblokir dashboard, tetapi menandai bahwa
-          aplikasi SSO belum bisa dibuka sampai email & WhatsApp terisi. */}
-      {user && !isBiodataComplete(user) && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[16px] border border-[#FDE68A] bg-[#FEF3C7] px-4 py-3.5">
-          <ExclamationCircleIcon className="w-5 h-5 text-[#B45309] flex-shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#92400E]">Biodata belum lengkap</p>
-            <p className="text-xs text-[#B45309] leading-relaxed mt-0.5">
-              Email dan nomor WhatsApp wajib diisi sebelum membuka aplikasi SSO.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/profil', { state: { requiredBio: true } })}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-semibold transition flex-shrink-0"
-          >
-            Lengkapi Biodata
-          </button>
+          {isDosen && (
+            <KartuProgres
+              judul="Kelengkapan Dokumen"
+              keterangan="Berkas akademik yang Anda unggah sendiri ke ONE UNUSU."
+              ikon={FolderOpenIcon}
+              terisi={dokumen.jenisTerisi}
+              total={dokumen.totalJenis}
+              persen={dokumen.persen}
+              ajakan={
+                dokumen.wajibKurang.length > 0
+                  ? `Berkas wajib ${dokumen.wajibKurang.map((t) => t.nama).join(', ')} belum diunggah. Unggah sekarang agar berkas Anda lengkap.`
+                  : 'Beberapa jenis berkas belum diunggah. Lengkapi agar riwayat akademik Anda terdokumentasi.'
+              }
+              labelAksi={dokumen.lengkap ? 'Lihat Dokumen' : 'Lengkapi Dokumen'}
+              onAksi={() => navigate('/berkas-dosen')}
+              lengkap={dokumen.lengkap}
+            />
+          )}
         </div>
       )}
 

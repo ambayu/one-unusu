@@ -1,10 +1,10 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchMe, updateProfile, UserProfile } from '../services/api';
+import { fetchMe, updateProfile, syncProfileFromSiakad, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isBiodataComplete } from '../lib/biodata';
-import { GalatPermintaan } from '../lib/pesanGalat';
+import { GalatPermintaan, pesanGalatPermintaan } from '../lib/pesanGalat';
 import {
   ShieldCheckIcon,
   ExclamationCircleIcon,
@@ -15,6 +15,10 @@ import {
   IdentificationIcon,
   XMarkIcon,
   ClockIcon,
+  ArrowPathIcon,
+  AcademicCapIcon,
+  BookOpenIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
 
 export const Profile: React.FC = () => {
@@ -39,6 +43,26 @@ export const Profile: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Field Biodata Tambahan (Mandiri / SIAKAD)
+  const [gelarDepan, setGelarDepan] = useState('');
+  const [gelarBelakang, setGelarBelakang] = useState('');
+  const [nip, setNip] = useState('');
+  const [jabatanAkademik, setJabatanAkademik] = useState('');
+  const [bidangKeahlian, setBidangKeahlian] = useState('');
+  const [pendidikanTerakhir, setPendidikanTerakhir] = useState('');
+  const [tempatLahir, setTempatLahir] = useState('');
+  const [tanggalLahir, setTanggalLahir] = useState('');
+  const [alamat, setAlamat] = useState('');
+  const [sintaId, setSintaId] = useState('');
+  const [linkSinta, setLinkSinta] = useState('');
+  const [googleScholar, setGoogleScholar] = useState('');
+  const [orcid, setOrcid] = useState('');
+  const [scopusId, setScopusId] = useState('');
+  const [biografi, setBiografi] = useState('');
+
+  // Status Sinkronisasi SIAKAD On-Demand
+  const [syncingSiakad, setSyncingSiakad] = useState(false);
 
   // 3x4 Red Background Crop Modal State
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -66,10 +90,26 @@ export const Profile: React.FC = () => {
         setLoading(true);
         const res = await fetchMe();
         if (res.data.status) {
-          setUser(res.data.data);
-          setEmail(res.data.data.email || '');
-          setNoHp(res.data.data.noHp || '');
-          setAvatar(res.data.data.avatar || null);
+          const d = res.data.data;
+          setUser(d);
+          setEmail(d.email || '');
+          setNoHp(d.noHp || '');
+          setAvatar(d.avatar || null);
+          setGelarDepan(d.gelarDepan || '');
+          setGelarBelakang(d.gelarBelakang || '');
+          setNip(d.nip || '');
+          setJabatanAkademik(d.jabatanAkademik || '');
+          setBidangKeahlian(d.bidangKeahlian || '');
+          setPendidikanTerakhir(d.pendidikanTerakhir || '');
+          setTempatLahir(d.tempatLahir || '');
+          setTanggalLahir(d.tanggalLahir || '');
+          setAlamat(d.alamat || '');
+          setSintaId(d.sintaId || '');
+          setLinkSinta(d.linkSinta || '');
+          setGoogleScholar(d.googleScholar || '');
+          setOrcid(d.orcid || '');
+          setScopusId(d.scopusId || '');
+          setBiografi(d.biografi || '');
         }
       } catch (err) {
         console.error('Failed to load profile:', err);
@@ -249,6 +289,21 @@ export const Profile: React.FC = () => {
         avatar: avatar || undefined,
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
+        tempatLahir,
+        tanggalLahir,
+        alamat,
+        gelarDepan,
+        gelarBelakang,
+        nip,
+        jabatanAkademik,
+        bidangKeahlian,
+        pendidikanTerakhir,
+        sintaId,
+        linkSinta,
+        googleScholar,
+        orcid,
+        scopusId,
+        biografi,
       });
 
       if (res.data.status) {
@@ -262,11 +317,26 @@ export const Profile: React.FC = () => {
         setNewPassword('');
         setConfirmPassword('');
         if (res.data.data) {
-          setUser(res.data.data);
-          // Sinkronkan pratinjau dengan yang benar-benar tersimpan di server.
-          // Bila server menormalkan/mengubah foto, pratinjau tidak boleh
-          // menampilkan versi lama seolah-olah itu yang tersimpan.
-          setAvatar(res.data.data.avatar || null);
+          const d = res.data.data;
+          setUser(d);
+          setEmail(d.email || '');
+          setNoHp(d.noHp || '');
+          setAvatar(d.avatar || null);
+          setGelarDepan(d.gelarDepan || '');
+          setGelarBelakang(d.gelarBelakang || '');
+          setNip(d.nip || '');
+          setJabatanAkademik(d.jabatanAkademik || '');
+          setBidangKeahlian(d.bidangKeahlian || '');
+          setPendidikanTerakhir(d.pendidikanTerakhir || '');
+          setTempatLahir(d.tempatLahir || '');
+          setTanggalLahir(d.tanggalLahir || '');
+          setAlamat(d.alamat || '');
+          setSintaId(d.sintaId || '');
+          setLinkSinta(d.linkSinta || '');
+          setGoogleScholar(d.googleScholar || '');
+          setOrcid(d.orcid || '');
+          setScopusId(d.scopusId || '');
+          setBiografi(d.biografi || '');
         }
       } else {
         setNotify({
@@ -304,6 +374,43 @@ export const Profile: React.FC = () => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSyncSiakad = async () => {
+    try {
+      setSyncingSiakad(true);
+      const res = await syncProfileFromSiakad();
+      if (res.data.status && res.data.data) {
+        const d = res.data.data;
+        setUser(d);
+        if (d.email) setEmail(d.email);
+        if (d.noHp) setNoHp(d.noHp);
+        if (d.avatar) setAvatar(d.avatar);
+        if (d.tempatLahir) setTempatLahir(d.tempatLahir);
+        if (d.tanggalLahir) setTanggalLahir(d.tanggalLahir);
+        if (d.alamat) setAlamat(d.alamat);
+        setNotify({
+          isOpen: true,
+          type: 'success',
+          title: 'Sinkronisasi SIAKAD Berhasil',
+          message: res.data.message || 'Data biodata Anda berhasil disinkronkan langsung dari SIAKAD.',
+        });
+      }
+    } catch (err) {
+      console.error('Sync SIAKAD error:', err);
+      const galat = err !== null && typeof err === 'object' ? (err as GalatPermintaan) : {};
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Menarik Data SIAKAD',
+        message: pesanGalatPermintaan(
+          galat,
+          'Gagal menyinkronkan data profil dari server SIAKAD. Silakan isi dan lengkapi biodata secara mandiri pada formulir di bawah.'
+        ),
+      });
+    } finally {
+      setSyncingSiakad(false);
     }
   };
 
@@ -402,17 +509,32 @@ export const Profile: React.FC = () => {
                   <p className="text-xs sm:text-sm font-bold text-[#1E293B]">Pasfoto Resmi (3x4 Latar Belakang Merah)</p>
                   <p className="text-[11px] sm:text-xs text-[#64748B]">Gunakan foto formal menghadap ke depan dengan latar merah.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-shrink-0 px-4 py-2 rounded-[8px] border border-[#CBD5E1] bg-white hover:bg-[#F0FDF4] text-xs font-bold text-[#166534] shadow-xs transition"
-                >
-                  {avatar ? 'Ganti Pasfoto' : 'Pilih & Crop Pasfoto'}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-shrink-0 px-4 py-2 rounded-[8px] border border-[#CBD5E1] bg-white hover:bg-[#F0FDF4] text-xs font-bold text-[#166534] shadow-xs transition"
+                  >
+                    {avatar ? 'Ganti Pasfoto' : 'Pilih & Crop Pasfoto'}
+                  </button>
+
+                  {(user?.role === 'DOSEN' || user?.role === 'MAHASISWA') && (
+                    <button
+                      type="button"
+                      onClick={handleSyncSiakad}
+                      disabled={syncingSiakad}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+                      title="Tarik data terbaru langsung dari sistem SIAKAD"
+                    >
+                      <ArrowPathIcon className={`w-3.5 h-3.5 ${syncingSiakad ? 'animate-spin' : ''}`} />
+                      <span>{syncingSiakad ? 'Menarik...' : 'Tarik Data SIAKAD'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* CARD 1: KHUSUS BIODATA MAHASISWA */}
+            {/* KHUSUS BIODATA MAHASISWA */}
             {user?.role === 'MAHASISWA' && (
               <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
                 <p className="text-sm font-bold text-[#1E293B]">
@@ -438,104 +560,272 @@ export const Profile: React.FC = () => {
                     </p>
                   </div>
                 </div>
+
+                <div className="pt-4 border-t border-[#E8EFEA]">
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
+                    <textarea
+                      rows={3}
+                      value={biografi}
+                      onChange={(e) => setBiografi(e.target.value)}
+                      placeholder="Ceritakan sedikit tentang diri Anda, minat, kegiatan, atau pencapaian..."
+                      className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* KHUSUS BIODATA DOSEN: GABUNGAN DATA KETENAGAAN & DATA KEPENDUDUKAN KIRI KANAN */}
+            {/* KHUSUS BIODATA DOSEN: SATU FORM DENGAN 2 KOLOM SEIMBANG, PEMBATAS GARIS TENGAH */}
             {user?.role === 'DOSEN' && (
-              <div className="pt-6 border-t border-[#D8E5DC]/80 space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-                  
-                  {/* Kolom Kiri: Data Ketenagaan Dosen & Homebase */}
+              <div className="pt-6 border-t border-[#D8E5DC]/80 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                  {/* Kolom Kiri: Ketenagaan & Akademik Kampus (Semua Full Width Kebawah) */}
                   <div className="space-y-4">
-                    <p className="text-sm font-bold text-[#1E293B] flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 pb-2 border-b border-[#E2E8F0]">
                       <IdentificationIcon className="w-4 h-4 text-[#166534]" />
-                      <span>Data Ketenagaan Dosen & Homebase</span>
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="block text-sm font-bold text-[#1E293B]">NIDN / NUP</label>
-                        <p className="font-mono text-xs font-medium text-[#475569]">{user.nidn || user.username}</p>
+                      <h3 className="text-sm font-bold text-black uppercase tracking-wide">Data Ketenagaan & Homebase</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">NIDN / NUP</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={user.nidn || user.username || ''}
+                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm font-mono text-[#64748B] outline-none cursor-not-allowed shadow-xs"
+                        />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-sm font-bold text-[#1E293B]">Status Ketenagaan</label>
-                        <p className="text-xs font-medium text-[#166534]">{user.statusAkademik || 'Aktif Mengajar'}</p>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">NIP / NIK Ketenagaan</label>
+                        <input
+                          type="text"
+                          value={nip}
+                          onChange={(e) => setNip(e.target.value)}
+                          placeholder="Masukkan NIP atau nomor pegawai"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-sm font-bold text-[#1E293B]">Homebase Prodi</label>
-                        <p className="text-xs font-medium text-[#475569]">{user.prodi || '-'}</p>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Gelar Depan</label>
+                        <input
+                          type="text"
+                          value={gelarDepan}
+                          onChange={(e) => setGelarDepan(e.target.value)}
+                          placeholder="Dr., Ir., Prof."
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-sm font-bold text-[#1E293B]">Fakultas Induk</label>
-                        <p className="text-xs font-medium text-[#475569]">{user.fakultas || '-'}</p>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Gelar Belakang</label>
+                        <input
+                          type="text"
+                          value={gelarBelakang}
+                          onChange={(e) => setGelarBelakang(e.target.value)}
+                          placeholder="M.Kom., Ph.D."
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Jabatan Akademik / Fungsional</label>
+                        <input
+                          type="text"
+                          value={jabatanAkademik}
+                          onChange={(e) => setJabatanAkademik(e.target.value)}
+                          placeholder="Asisten Ahli / Lektor / Guru Besar"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Program Studi (Homebase)</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={user.prodi || '-'}
+                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm text-[#64748B] outline-none cursor-not-allowed shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Fakultas</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={user.fakultas || '-'}
+                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm text-[#64748B] outline-none cursor-not-allowed shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Pendidikan Terakhir</label>
+                        <input
+                          type="text"
+                          value={pendidikanTerakhir}
+                          onChange={(e) => setPendidikanTerakhir(e.target.value)}
+                          placeholder="Contoh: S2 Teknik Informatika"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Bidang Keahlian / Kepakaran</label>
+                        <input
+                          type="text"
+                          value={bidangKeahlian}
+                          onChange={(e) => setBidangKeahlian(e.target.value)}
+                          placeholder="Contoh: Rekayasa Perangkat Lunak, Data Science"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Garis Pembatas Vertikal di Layar Besar / Horizontal di Mobile */}
-                  <div className="hidden lg:block absolute" />
-
-                  {/* Kolom Kanan: Biodata Kependudukan & Riwayat SIAKAD */}
-                  <div className="space-y-4 lg:border-l lg:border-[#D8E5DC]/80 lg:pl-8">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-[#1E293B] flex items-center gap-1.5">
-                        <IdentificationIcon className="w-4 h-4 text-[#166534]" />
-                        <span>Biodata Kependudukan & Riwayat SIAKAD</span>
-                      </p>
+                  {/* Kolom Kanan: Kependudukan, Domisili & Riset (Semua Full Width Kebawah) */}
+                  <div className="space-y-4 lg:border-l lg:border-neutral-300 lg:pl-8">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
+                      <div className="flex items-center gap-1.5">
+                        <AcademicCapIcon className="w-4 h-4 text-[#166534]" />
+                        <h3 className="text-sm font-bold text-black uppercase tracking-wide">Biodata Pribadi & Riset</h3>
+                      </div>
                       {user.syncedAt && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-[#64748B] bg-[#F1F5F2] px-2.5 py-0.5 rounded-full border border-[#D8E5DC]">
-                          <ClockIcon className="w-3.5 h-3.5 text-[#166534]" />
+                        <span className="text-[11px] font-mono font-medium text-neutral-600">
                           Sinkron: {new Date(user.syncedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       )}
                     </div>
 
-                    {(!user.nik && !user.tempatLahir && !user.jenisKelamin && !user.alamat && !user.namaIbuKandung && !user.asalSekolah) ? (
-                      <p className="text-xs text-[#64748B] italic">
-                        Rincian data kependudukan belum tercatat pada pangkalan data SIAKAD.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {user.nik && (
-                          <div className="space-y-1">
-                            <label className="block text-sm font-bold text-[#1E293B]">Nomor Induk Kependudukan (NIK)</label>
-                            <p className="font-mono text-xs font-medium text-[#475569] tracking-wider">{user.nik}</p>
-                          </div>
-                        )}
-
-                        {(user.tempatLahir || user.tanggalLahir) && (
-                          <div className="space-y-1">
-                            <label className="block text-sm font-bold text-[#1E293B]">Tempat, Tanggal Lahir</label>
-                            <p className="text-xs font-medium text-[#475569]">
-                              {[user.tempatLahir, user.tanggalLahir].filter(Boolean).join(', ')}
-                            </p>
-                          </div>
-                        )}
-
-                        {user.jenisKelamin && (
-                          <div className="space-y-1">
-                            <label className="block text-sm font-bold text-[#1E293B]">Jenis Kelamin</label>
-                            <p className="text-xs font-medium text-[#475569]">
-                              {user.jenisKelamin === 'L' ? 'Laki-laki (L)' : user.jenisKelamin === 'P' ? 'Perempuan (P)' : user.jenisKelamin}
-                            </p>
-                          </div>
-                        )}
-
-                        {user.alamat && (
-                          <div className="space-y-1 sm:col-span-2">
-                            <label className="block text-sm font-bold text-[#1E293B]">Alamat Domisili Terdata</label>
-                            <p className="text-xs font-medium text-[#475569] leading-relaxed">{user.alamat}</p>
-                          </div>
-                        )}
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Nomor Induk Kependudukan (NIK)</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={user.nik || '-'}
+                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm font-mono text-[#64748B] outline-none cursor-not-allowed shadow-xs"
+                        />
                       </div>
-                    )}
-                  </div>
 
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Tempat Lahir</label>
+                        <input
+                          type="text"
+                          value={tempatLahir}
+                          onChange={(e) => setTempatLahir(e.target.value)}
+                          placeholder="Kota kelahiran"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Tanggal Lahir</label>
+                        <input
+                          type="text"
+                          value={tanggalLahir}
+                          onChange={(e) => setTanggalLahir(e.target.value)}
+                          placeholder="YYYY-MM-DD"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Jenis Kelamin</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={user.jenisKelamin === 'L' ? 'Laki-laki (L)' : user.jenisKelamin === 'P' ? 'Perempuan (P)' : user.jenisKelamin || '-'}
+                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm text-[#64748B] outline-none cursor-not-allowed shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Alamat Domisili</label>
+                        <input
+                          type="text"
+                          value={alamat}
+                          onChange={(e) => setAlamat(e.target.value)}
+                          placeholder="Alamat domisili lengkap"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">SINTA ID</label>
+                        <input
+                          type="text"
+                          value={sintaId}
+                          onChange={(e) => setSintaId(e.target.value)}
+                          placeholder="ID SINTA"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Link Profil SINTA</label>
+                        <input
+                          type="url"
+                          value={linkSinta}
+                          onChange={(e) => setLinkSinta(e.target.value)}
+                          placeholder="https://sinta..."
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Google Scholar</label>
+                        <input
+                          type="text"
+                          value={googleScholar}
+                          onChange={(e) => setGoogleScholar(e.target.value)}
+                          placeholder="ID / Link Google Scholar"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Scopus ID</label>
+                        <input
+                          type="text"
+                          value={scopusId}
+                          onChange={(e) => setScopusId(e.target.value)}
+                          placeholder="ID Scopus"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">ORCID ID</label>
+                        <input
+                          type="text"
+                          value={orcid}
+                          onChange={(e) => setOrcid(e.target.value)}
+                          placeholder="0000-0002-xxxx-xxxx"
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-[#1E293B]">Biografi Singkat Dosen</label>
+                        <textarea
+                          rows={3}
+                          value={biografi}
+                          onChange={(e) => setBiografi(e.target.value)}
+                          placeholder="Latar belakang riset atau ringkasan profil dosen..."
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* CARD 3: KHUSUS BIODATA SUPERADMIN */}
+            {/* SUPERADMIN PROFILE SECTION */}
             {user?.role === 'SUPERADMIN' && (
               <div className="pt-5 border-t border-[#D8E5DC]/60 space-y-3">
                 <p className="text-sm font-bold text-[#1E293B]">
@@ -553,6 +843,19 @@ export const Profile: React.FC = () => {
                   <div className="space-y-1">
                     <label className="block text-sm font-bold text-[#1E293B]">Hak Akses</label>
                     <p className="text-xs font-medium text-[#166534]">Full Root SSO & Master DB</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#E8EFEA]">
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
+                    <textarea
+                      rows={3}
+                      value={biografi}
+                      onChange={(e) => setBiografi(e.target.value)}
+                      placeholder="Profil dan informasi tambahan tentang administrator..."
+                      className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
+                    />
                   </div>
                 </div>
               </div>
@@ -631,15 +934,68 @@ export const Profile: React.FC = () => {
             )}
           </div>
 
-          {/* Form Input Kontak & Keamanan Akun */}
+          {/* Form Input Kelengkapan Biodata Mandiri (SIAKAD Fallback) & Kontak Akun */}
           <form onSubmit={handleSubmit} className="bg-white rounded-[16px] p-6 sm:p-7 border border-[#D8E5DC] shadow-sm space-y-6">
+            
+            {/* Bagian Domisili & Tanggal Lahir (Khusus Non-Dosen jika di SIAKAD belum tercatat) */}
+            {user?.role !== 'DOSEN' && (
+              <div className="space-y-4 pb-6 border-b border-[#E8EFEA]">
+                <div>
+                  <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
+                    <MapPinIcon className="w-5 h-5 text-[#166534]" />
+                    <span>Kelahiran & Tempat Tinggal</span>
+                  </h2>
+                  <p className="text-xs text-[#64748B] mt-0.5">
+                    Lengkapi data tempat tinggal dan kelahiran untuk melengkapi berkas kependudukan civitas.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[#1E293B]">Tempat Lahir</label>
+                    <input
+                      type="text"
+                      value={tempatLahir}
+                      onChange={(e) => setTempatLahir(e.target.value)}
+                      placeholder="Kota kelahiran"
+                      className="w-full px-3.5 py-2 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[#1E293B]">Tanggal Lahir</label>
+                    <input
+                      type="text"
+                      value={tanggalLahir}
+                      onChange={(e) => setTanggalLahir(e.target.value)}
+                      placeholder="YYYY-MM-DD atau DD Bulan YYYY"
+                      className="w-full px-3.5 py-2 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="block text-xs font-bold text-[#1E293B]">Alamat Domisili Lengkap</label>
+                    <input
+                      type="text"
+                      value={alamat}
+                      onChange={(e) => setAlamat(e.target.value)}
+                      placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten"
+                      className="w-full px-3.5 py-2 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <h2 className="text-base font-bold text-[#1E293B] flex items-center gap-2">
                 <EnvelopeIcon className="w-4 h-4 text-[#166534]" />
                 <span>Kontak & Keamanan Akun</span>
               </h2>
               <p className="text-xs text-[#64748B] mt-0.5">
-                Pastikan alamat email dan nomor WhatsApp Anda aktif untuk komunikasi resmi kampus.
+                {user?.role === 'DOSEN'
+                  ? 'Pengaturan alamat email, nomor kontak, serta kata sandi akun SSO Anda.'
+                  : 'Pastikan alamat email dan nomor WhatsApp Anda aktif untuk komunikasi resmi kampus.'}
               </p>
             </div>
 
@@ -656,7 +1012,7 @@ export const Profile: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nama@unusu.ac.id"
-                    className="w-full pl-11 pr-4 py-2.5 sm:py-3 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+                    className="w-full pl-11 pr-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   />
                 </div>
               </div>
@@ -673,7 +1029,7 @@ export const Profile: React.FC = () => {
                     value={noHp}
                     onChange={(e) => setNoHp(e.target.value)}
                     placeholder="0812xxxxxxxx"
-                    className="w-full pl-11 pr-4 py-2.5 sm:py-3 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+                    className="w-full pl-11 pr-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   />
                 </div>
               </div>
@@ -699,7 +1055,7 @@ export const Profile: React.FC = () => {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Masukkan kata sandi lama"
-                    className="w-full px-4 py-2.5 sm:py-3 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+                    className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   />
                 </div>
 
@@ -710,7 +1066,7 @@ export const Profile: React.FC = () => {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Minimal 6 karakter"
-                    className="w-full px-4 py-2.5 sm:py-3 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+                    className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   />
                 </div>
 
@@ -721,7 +1077,7 @@ export const Profile: React.FC = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Konfirmasi kata sandi baru"
-                    className="w-full px-4 py-2.5 sm:py-3 text-sm text-[#1E293B] bg-white border border-[#CBD5E1] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+                    className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
                   />
                 </div>
               </div>
@@ -731,7 +1087,7 @@ export const Profile: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full sm:w-auto px-7 py-3 rounded-[10px] bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-bold text-sm sm:text-base transition shadow-sm disabled:opacity-50"
+                className="w-full sm:w-auto px-7 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] active:bg-[#14532D] text-white font-bold text-sm sm:text-base transition shadow-sm disabled:opacity-50"
               >
                 {submitting ? 'Menyimpan...' : 'Simpan Pembaruan Biodata'}
               </button>

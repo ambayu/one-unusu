@@ -31,6 +31,21 @@ model User {
   alamat         String?    @db.Text
   asalSekolah    String?    @map("asal_sekolah") @db.VarChar(150)
   namaIbuKandung String?    @map("nama_ibu_kandung") @db.VarChar(120)
+  
+  // Profil Akademik & Riset Dosen Tambahan
+  gelarDepan        String?  @map("gelar_depan") @db.VarChar(50)
+  gelarBelakang     String?  @map("gelar_belakang") @db.VarChar(50)
+  nip               String?  @db.VarChar(50)
+  jabatanAkademik   String?  @map("jabatan_akademik") @db.VarChar(100) // Asisten Ahli, Lektor, dll.
+  bidangKeahlian    String?  @map("bidang_keahlian") @db.VarChar(255)
+  pendidikanTerakhir String? @map("pendidikan_terakhir") @db.VarChar(50) // S2, S3, dll.
+  sintaId           String?  @map("sinta_id") @db.VarChar(50)
+  linkSinta         String?  @map("link_sinta") @db.VarChar(255)
+  googleScholar     String?  @map("google_scholar") @db.VarChar(255)
+  orcid             String?  @db.VarChar(50)
+  scopusId          String?  @map("scopus_id") @db.VarChar(50)
+  biografi          String?  @db.Text
+
   syncedAt       DateTime?  @map("synced_at")
   isActive       Boolean    @default(true)
   lastLoginAt    DateTime? // Diisi saat login sukses (audit & kebijakan akun dorman)
@@ -39,6 +54,7 @@ model User {
 
   authTokens SsoAuthToken[]
   auditLogs  AuditLog[]
+  berkas     DosenBerkas[]
 
   // Login mencari OR(username, nim, nidn) -> nim & nidn butuh index sendiri.
   @@index([nim])
@@ -72,6 +88,7 @@ model SsoApp {
   updatedAt   DateTime @updatedAt
 
   authTokens SsoAuthToken[]
+  apiKeys    ApiKey[]
 
   // Query portal: WHERE isActive = true ORDER BY `order` ASC
   @@index([isActive, order])
@@ -288,3 +305,170 @@ model BannerSlider {
   @@index([active, urutan])
   @@map("banner_sliders")
 }
+
+// ========================================
+// 5. BERKAS DOSEN (Document Management)
+// Manajemen dokumen/berkas dosen (CV, Ijazah, SK, Sertifikat, dll)
+// ========================================
+
+model DosenBerkasTipe {
+  id          Int       @id @default(autoincrement())
+  kode        String    @unique @db.VarChar(50) // Contoh: "CV", "IJAZAH_S2_S3", "SK_DOSEN", etc
+  nama        String    @db.VarChar(150) // Contoh: "CV", "Ijazah S2 / S3", "SK Dosen"
+  deskripsi   String?   @db.Text
+  urutan      Int       @default(0)
+  isRequired  Boolean   @default(false) // Apakah berkas wajib diupload
+  isActive    Boolean   @default(true)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  berkas      DosenBerkas[]
+  
+  @@index([isActive, urutan])
+  @@map("dosen_berkas_tipe")
+}
+
+model DosenBerkas {
+  id            Int       @id @default(autoincrement())
+  
+  // Referensi dosen & jenis berkas
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tipeId        Int
+  tipe          DosenBerkasTipe @relation(fields: [tipeId], references: [id], onDelete: Cascade)
+  
+  // Metadata dokumen
+  namaFile      String    @db.VarChar(255) // Nama dokumen (contoh: "CV Lengkap - 2026")
+  nomorDokumen  String?   @db.VarChar(100) // Nomor dokumen (contoh: "SK-123/2026")
+  tahunSK       String?   @db.VarChar(4) // Tahun SK (contoh: "2026")
+  keterangan    String?   @db.Text // Catatan/deskripsi tambahan
+  
+  // File storage
+  fileUrl       String    @db.Text // URL atau path simpan PDF (S3, local storage, etc)
+  fileSize      Int // Ukuran file dalam bytes
+  mimeType      String    @default("application/pdf") @db.VarChar(50)
+  
+  // Audit
+  uploadedAt    DateTime  @default(now())
+  uploadedBy    Int // User ID yang upload
+  updatedAt     DateTime  @updatedAt
+  
+  // Status verifikasi (opsional untuk admin)
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+  verifiedBy    Int? // User ID admin yang verifikasi
+  verificationNote String? @db.Text
+  
+  // Soft delete (arsip tanpa menghapus)
+  isArchived    Boolean   @default(false)
+  archivedAt    DateTime?
+  
+  @@unique([userId, tipeId, uploadedAt]) // Hindari duplikat upload di hari sama
+  @@index([userId, isArchived])
+  @@index([tipeId, isVerified])
+  @@index([uploadedAt])
+  @@map("dosen_berkas")
+}
+
+// ========================================
+// 5. INTER-SERVICE API GATEWAY & HUB
+// Katalog endpoint lintas-aplikasi & otorisasi M2M (Machine-to-Machine)
+// ========================================
+
+model ApiEndpoint {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(150) // Contoh: "Data Induk Dosen & Homebase"
+  description String?   @db.Text // Dokumentasi lengkap, parameter, contoh respon
+  endpoint    String    @unique @db.VarChar(255) // Contoh: "/api/v1/inter-service/dosen"
+  method      String    @db.VarChar(10) // GET, POST, PUT, DELETE, PATCH
+  sourceApp   String    @db.VarChar(100) // Penyedia: "ONE_UNUSU", "LPPM", "SARPRAS", dll
+  category    String    @default("data") @db.VarChar(50) // data, report, action, etc.
+  
+  // Contoh response JSON bawaan untuk dokumentasi & testing
+  exampleRequest  String?   @db.Text // JSON stringify
+  exampleResponse String?   @db.Text // JSON stringify
+  
+  isActive    Boolean   @default(true)
+  isPublic    Boolean   @default(false) // Apakah semua app bisa akses atau perlu register dulu
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Index untuk pencarian & filter
+  @@index([sourceApp, isActive])
+  @@index([category, isActive])
+  @@index([isPublic])
+  @@map("api_endpoints")
+}
+
+model ApiKey {
+  id            Int       @id @default(autoincrement())
+  key           String    @unique @db.VarChar(255) // Format: "unusu_sec_" + random hash (40+ chars)
+  name          String    @db.VarChar(150) // Contoh: "LPPM Service Token", "LMS Sync Token"
+  description   String?   @db.Text
+  
+  // Aplikasi pemilik token (app mana yang boleh pakai token ini)
+  appId         Int
+  app           SsoApp    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  
+  // Scope endpoint yang diizinkan (JSON array: ["endpoint_id_1", "endpoint_id_2"])
+  // Jika kosong atau null = semua endpoint yang isPublic=true
+  allowedEndpoints String?  @db.Text // JSON: [id1, id2, id3] atau null untuk public all
+  
+  // Audit trail
+  isActive      Boolean   @default(true)
+  revoked       Boolean   @default(false)
+  revokedAt     DateTime?
+  revokedReason String?   @db.VarChar(255)
+  
+  lastUsedAt    DateTime?
+  lastUsedIp    String?   @db.VarChar(45)
+  usageCount    Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  createdBy     Int? // User ID yang membuat token
+  updatedAt     DateTime  @updatedAt
+  
+  // Relasi ke riwayat penggunaan
+  usageLogs     ApiUsageLog[]
+  
+  // Index untuk pencarian & validasi
+  @@index([appId, isActive])
+  @@index([revoked])
+  @@index([key]) // Validasi token cepat
+  @@map("api_keys")
+}
+
+model ApiUsageLog {
+  id        Int       @id @default(autoincrement())
+  
+  // Siapa yang memanggil
+  keyId     Int
+  key       ApiKey    @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  
+  // Endpoint apa yang dipanggil
+  endpoint  String    @db.VarChar(255)
+  method    String    @db.VarChar(10)
+  
+  // Status & metadata respon
+  statusCode Int
+  responseTime Int     @default(0) // Milliseconds
+  
+  // Request info
+  requestIp  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(255)
+  
+  // Error message jika gagal
+  errorMessage String? @db.VarChar(500)
+  
+  createdAt  DateTime @default(now())
+  
+  // Query riwayat per aplikasi & endpoint
+  @@index([keyId, createdAt])
+  @@index([endpoint, createdAt])
+  @@index([statusCode])
+  @@map("api_usage_logs")
+}
+

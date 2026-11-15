@@ -84,54 +84,51 @@ export const SsoAuthorize: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F5F2] flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-lg bg-white rounded-[20px] border border-[#D8E5DC] shadow-2xl overflow-hidden">
-        <div className="h-1.5 w-full bg-[#166534]" />
-        {/* Sampai di sini `error` pasti terisi (kasus tanpa error sudah
-            ditangani layar tunggu di atas), jadi tidak perlu ternary lagi. */}
-        <>
-            <div className="bg-[#F0FDF4] border-b border-[#D8E5DC] px-6 pt-6 pb-5 sm:px-8 sm:pt-7 sm:pb-6 flex items-center gap-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[16px] bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534] flex items-center justify-center flex-shrink-0 shadow-sm">
-                <ShieldExclamationIcon className="w-8 h-8 sm:w-9 sm:h-9" aria-hidden="true" />
-              </div>
-              <div className="space-y-1.5 text-left">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-bold bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
-                  Keamanan SSO UNUSU
-                </span>
-                <h1 className="text-lg sm:text-xl font-extrabold text-[#1E293B] tracking-tight">
-                  {isAccessDenied ? 'Akses Ditolak' : 'Tidak Bisa Masuk ke Aplikasi'}
-                </h1>
-              </div>
+    <div className="min-h-screen bg-[#F1F5F2] px-4 py-8 sm:px-6">
+      <div className="w-full">
+        <div className="w-full bg-white rounded-[16px] border border-[#D8E5DC] shadow-sm overflow-hidden">
+          <div className="flex items-start gap-3 px-5 py-4 sm:px-6 border-b border-[#E8EFEA]">
+            <div className="w-10 h-10 rounded-[10px] bg-[#F0FDF4] border border-[#BBF7D0] text-[#166534] flex items-center justify-center flex-shrink-0">
+              <ShieldExclamationIcon className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div className="px-6 py-6 sm:px-8 sm:py-7 text-left">
-              <p className="text-sm sm:text-[15px] text-[#475569] leading-relaxed font-medium">
-                {error}
-              </p>
+            <div className="min-w-0">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
+                Keamanan SSO UNUSU
+              </span>
+              <h1 className="mt-1.5 text-lg font-bold text-[#1E293B]">
+                {isAccessDenied ? 'Akses Ditolak' : 'Tidak Bisa Masuk ke Aplikasi'}
+              </h1>
             </div>
-            <div className="px-6 py-4 sm:px-8 sm:py-5 bg-[#F1F5F2]/70 border-t border-[#E8EFEA] flex flex-col sm:flex-row sm:justify-end gap-2.5">
-              <Link
-                to="/"
-                data-testid="link-kembali-beranda"
-                className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-[10px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-sm font-semibold transition"
-              >
-                Halaman Depan
-              </Link>
-              <Link
-                to="/login"
-                data-testid="link-login-ulang"
-                className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-[10px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-sm font-semibold transition"
-              >
-                Masuk dengan Akun Lain
-              </Link>
-              <Link
-                to="/dashboard"
-                data-testid="link-kembali-dashboard"
-                className="min-h-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-[10px] bg-[#166534] hover:bg-[#14532D] text-white text-sm font-bold shadow-sm transition"
-              >
-                Kembali ke Portal ONE UNUSU
-              </Link>
-            </div>
-          </>
+          </div>
+
+          <div className="px-5 py-4 sm:px-6">
+            <p className="text-sm text-[#475569] leading-relaxed">{error}</p>
+          </div>
+
+          <div className="px-5 py-4 sm:px-6 border-t border-[#E8EFEA] bg-[#F8FAF9] flex flex-col sm:flex-row sm:justify-end gap-2">
+            <Link
+              to="/"
+              data-testid="link-kembali-beranda"
+              className="inline-flex items-center justify-center min-h-[40px] px-4 rounded-[8px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-xs font-semibold transition"
+            >
+              Halaman Depan
+            </Link>
+            <Link
+              to="/login"
+              data-testid="link-login-ulang"
+              className="inline-flex items-center justify-center min-h-[40px] px-4 rounded-[8px] border border-[#D8E5DC] bg-white hover:bg-[#F0FDF4] text-[#475569] text-xs font-semibold transition"
+            >
+              Masuk dengan Akun Lain
+            </Link>
+            <Link
+              to="/dashboard"
+              data-testid="link-kembali-dashboard"
+              className="inline-flex items-center justify-center min-h-[40px] px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-semibold shadow-sm transition"
+            >
+              Kembali ke Portal ONE UNUSU
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

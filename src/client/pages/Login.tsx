@@ -120,6 +120,9 @@ export const Login: React.FC = () => {
         setRedirecting(true);
 
         // Hanya profil umum yang disimpan; token sesi berada di cookie HttpOnly.
+        if (res.data.token) {
+          localStorage.setItem('one_unusu_token', res.data.token);
+        }
         localStorage.setItem('one_unusu_user', JSON.stringify(res.data.data));
 
         // Cek apakah data profil (email & noHp) masih kosong

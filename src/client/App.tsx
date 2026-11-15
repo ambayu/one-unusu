@@ -22,8 +22,12 @@ import { Izin } from './pages/admin/Izin';
 import { Peran } from './pages/admin/Peran';
 import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { ManajemenSlider } from './pages/admin/ManajemenSlider';
+import { BerkasDosen } from './pages/admin/BerkasDosen';
+import { BerkasDosenSaya } from './pages/BerkasDosenSaya';
+import { ApiHub } from './pages/admin/ApiHub';
 import { PERMISSIONS } from './lib/permissions';
 import { AksesDitolak } from './pages/AksesDitolak';
+import { HalamanTidakDitemukan } from './pages/HalamanTidakDitemukan';
 import { PanelLayout } from './components/PanelLayout';
 import {
   ACCESS_DENIED_PATH,
@@ -290,8 +294,23 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          {/* Berkas dosen — dosen mengunggah dokumennya sendiri */}
+          <Route
+            path="/berkas-dosen"
+            element={
+              <ProtectedRoute>
+                <PermissionRoute permission={PERMISSIONS.berkasBerkaMenu}>
+                  <BerkasDosenSaya />
+                </PermissionRoute>
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Halaman penolakan akses terpusat (403) */}
+          {/* Halaman penolakan akses terpusat (403).
+              Ditempatkan DI DALAM PanelLayout agar sidebar, header, dan padding
+              utama (p-4 sm:p-6 lg:p-7) sama persis dengan halaman panel lain.
+              Sebelumnya rute ini berdiri sendiri dengan latar penuh layar,
+              sehingga kartunya mengapung di tengah dan paddingnya tidak seragam. */}
           <Route
             path={ACCESS_DENIED_PATH}
             element={
@@ -374,13 +393,52 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/berkas-dosen"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.berkasBerkaMenu}>
+                    <BerkasDosen />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/api-hub"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.apiHubMenu}>
+                    <ApiHub />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Sub-rute panel yang tidak dikenal tetap diarahkan ke beranda panel */}
           <Route path="/admin/*" element={<Navigate to={ADMIN_PANEL_PATH} replace />} />
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback: rute tak dikenal.
+            Pengguna yang sudah masuk mendapat halaman 404 bergaya panel (dengan
+            sidebar). Tamu tetap diarahkan ke beranda karena sidebar tidak
+            relevan bagi mereka. Sebelumnya semua rute tak dikenal dilempar
+            diam-diam ke beranda tanpa penjelasan. */}
+        <Route
+          path="*"
+          element={
+            readCachedUser() ? (
+              <PanelLayout />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        >
+          <Route path="*" element={<HalamanTidakDitemukan />} />
+        </Route>
       </Routes>
     </Router>
   );

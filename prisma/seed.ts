@@ -132,7 +132,13 @@ async function main() {
   console.log("Seeding foto slider hero...");
   await seedSliders(prisma);
 
-  console.log("Seeding SSO Pengguna & Aplikasi Selesai dengan sukses! 🤍");
+  // ==========================================
+  // 7. SEED MASTER JENIS BERKAS DOSEN
+  // ==========================================
+  console.log("Seeding master jenis berkas dosen...");
+  await seedDosenBerkasTipe(prisma);
+
+  console.log("Seeding SSO Pengguna & Aplikasi Selesai dengan sukses!");
 }
 
 interface SeedUser {
@@ -207,6 +213,40 @@ async function seedUsers(
       },
     });
   }
+}
+
+async function seedDosenBerkasTipe(prisma: PrismaClient): Promise<void> {
+  const tipeList = [
+    { kode: "CV",                    nama: "CV",                        urutan: 1,  isRequired: true },
+    { kode: "IJAZAH_S2_S3",          nama: "Ijazah S2 / S3",            urutan: 2,  isRequired: false },
+    { kode: "NIDN",                  nama: "NIDN",                      urutan: 3,  isRequired: false },
+    { kode: "SK_DOSEN",              nama: "SK Dosen",                   urutan: 4,  isRequired: false },
+    { kode: "JABATAN_FUNGSIONAL",    nama: "Jabatan Fungsional",         urutan: 5,  isRequired: false },
+    { kode: "SERTIFIKAT_PENDIDIK",   nama: "Sertifikat Pendidik",        urutan: 6,  isRequired: false },
+    { kode: "BKD",                   nama: "BKD",                       urutan: 7,  isRequired: false },
+    { kode: "SK_MENGAJAR",           nama: "SK Mengajar",                urutan: 8,  isRequired: false },
+    { kode: "PENELITIAN",            nama: "Penelitian",                 urutan: 9,  isRequired: false },
+    { kode: "PENGABDIAN",            nama: "Pengabdian",                 urutan: 10, isRequired: false },
+    { kode: "PUBLIKASI",             nama: "Publikasi",                  urutan: 11, isRequired: false },
+    { kode: "HKI",                   nama: "HKI",                       urutan: 12, isRequired: false },
+    { kode: "SERTIFIKAT_KOMPETENSI", nama: "Sertifikat Kompetensi",      urutan: 13, isRequired: false },
+    { kode: "REKOGNISI_PENGHARGAAN", nama: "Rekognisi & Penghargaan",    urutan: 14, isRequired: false },
+  ];
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const tipe of tipeList) {
+    const existing = await prisma.dosenBerkasTipe.findUnique({ where: { kode: tipe.kode } });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    await prisma.dosenBerkasTipe.create({ data: { ...tipe, isActive: true } });
+    created++;
+  }
+
+  console.log(`  Jenis berkas dosen: ${created} dibuat, ${skipped} sudah ada.`);
 }
 
 main()

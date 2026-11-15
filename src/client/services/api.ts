@@ -101,6 +101,18 @@ export interface UserProfile {
   alamat?: string | null;
   asalSekolah?: string | null;
   namaIbuKandung?: string | null;
+  gelarDepan?: string | null;
+  gelarBelakang?: string | null;
+  nip?: string | null;
+  jabatanAkademik?: string | null;
+  bidangKeahlian?: string | null;
+  pendidikanTerakhir?: string | null;
+  sintaId?: string | null;
+  linkSinta?: string | null;
+  googleScholar?: string | null;
+  orcid?: string | null;
+  scopusId?: string | null;
+  biografi?: string | null;
   syncedAt?: string | null;
   isActive: boolean;
   permissions?: string[];
@@ -231,8 +243,11 @@ export const fetchPanelAccess = () =>
 export const logoutSession = () =>
   api.post<{ status: boolean; message: string }>('/auth/logout');
 
-export const updateProfile = (data: { email?: string; noHp?: string; avatar?: string; currentPassword?: string; newPassword?: string }) =>
+export const updateProfile = (data: Partial<UserProfile> & { currentPassword?: string; newPassword?: string }) =>
   api.put<{ status: boolean; message: string; data: UserProfile }>('/auth/profile', data);
+
+export const syncProfileFromSiakad = () =>
+  api.post<{ status: boolean; message: string; data: UserProfile }>('/auth/sync-siakad');
 
 // ==========================================
 // SSO ENGINE API (TOKEN V2)
@@ -429,5 +444,171 @@ export interface AcademicFacultyItem {
 
 export const fetchAcademicHierarchy = () =>
   api.get<{ status: boolean; data: AcademicFacultyItem[] }>('/academic/hierarchy');
+
+// ==========================================
+// BERKAS DOSEN (unggah mandiri dosen, verifikasi admin)
+// ==========================================
+export interface DosenBerkasTipeItem {
+  id: number;
+  kode: string;
+  nama: string;
+  deskripsi: string | null;
+  urutan: number;
+  isRequired: boolean;
+  sudahDiunggah: boolean;
+}
+
+export interface DosenBerkasPemilik {
+  id: number;
+  nama: string;
+  nidn: string | null;
+  prodi: string | null;
+  fakultas: string | null;
+  avatar: string | null;
+}
+
+export interface DosenBerkasItem {
+  id: number;
+  tipeKode: string;
+  tipeNama: string;
+  namaFile: string;
+  nomorDokumen: string | null;
+  tahunSK: string | null;
+  keterangan: string | null;
+  fileUrl: string;
+  fileSize: number;
+  uploadedAt: string;
+  isArchived: boolean;
+  pemilik: DosenBerkasPemilik | null;
+}
+
+export const fetchDosenBerkasTipe = () =>
+  api.get<{ status: boolean; data: DosenBerkasTipeItem[] }>('/berkas-dosen/tipe');
+
+export const fetchDosenBerkasList = (params?: { userId?: number }) =>
+  api.get<{ status: boolean; data: DosenBerkasItem[]; meta: { peran: 'pemilik' | 'pengelola' } }>(
+    '/berkas-dosen/list',
+    { params }
+  );
+
+/**
+ * Mengunggah satu berkas PDF.
+ *
+ * Header `Content-Type` sengaja dikosongkan agar browser menuliskan sendiri
+ * `multipart/form-data` beserta boundary-nya. Nilai bawaan instance axios
+ * (`application/json`) akan membuat server gagal membaca bagian berkas.
+ */
+export const uploadDosenBerkas = (formData: FormData, onProgress?: (persen: number) => void) =>
+  api.post<{ status: boolean; message: string; data: { id: number; namaFile: string } }>(
+    '/berkas-dosen/upload',
+    formData,
+    {
+      headers: { 'Content-Type': undefined },
+      // Unggahan 10 MB pada jaringan lambat bisa melampaui batas bawaan 8 detik.
+      timeout: 120000,
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    }
+  );
+
+export const deleteDosenBerkas = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/berkas-dosen/${id}`);
+
+/**
+ * Rekap kelengkapan berkas seluruh dosen untuk panel monitoring.
+ *
+ * Berbeda dari `fetchDosenBerkasList` yang hanya mengembalikan baris berkas,
+ * endpoint ini berangkat dari daftar pengguna berperan DOSEN sehingga dosen
+ * yang belum mengunggah apa pun tetap muncul.
+ */
+export interface MonitoringBerkasDosenItem extends DosenBerkasPemilik {
+  berkas: DosenBerkasItem[];
+  totalJenisBerkas: number;
+  totalBerkasTerunggah: number;
+  totalBarisBerkas: number;
+  totalTipeWajib: number;
+  wajibTerpenuhi: number;
+  wajibLengkap: boolean;
+  sudahMengunggah: boolean;
+  jenisBelumDiunggah: { kode: string; nama: string; isRequired: boolean }[];
+}
+
+export interface MonitoringBerkasDosenMeta {
+  totalDosen: number;
+  sudahMengunggah: number;
+  belumMengunggah: number;
+  totalTipeBerkas: number;
+  totalTipeWajib: number;
+  tipeBerkas: { id: number; kode: string; nama: string; isRequired: boolean }[];
+}
+
+export const fetchMonitoringBerkasDosen = () =>
+  api.get<{
+    status: boolean;
+    data: MonitoringBerkasDosenItem[];
+    meta: MonitoringBerkasDosenMeta;
+  }>('/admin/berkas-dosen/monitoring');
+
+/**
+ * Mengambil isi berkas sebagai blob untuk dipratinjau / diunduh.
+ *
+ * Berkas tidak dapat ditautkan langsung karena endpoint-nya menuntut sesi
+ * login; tautan biasa dari tab baru tidak membawa header otorisasi.
+ */
+export const fetchDosenBerkasBlob = (fileUrl: string) =>
+  api.get<Blob>(fileUrl.replace(/^\/api/, ''), { responseType: 'blob', timeout: 60000 });
+
+// ==========================================
+// ARSIP DOKUMEN LPM & LPPM (Integrasi & API Hub)
+// ==========================================
+export interface DokumenIntegrasiItem {
+  id: number;
+  judul: string;
+  nomor?: string | null;
+  kategoriId?: number;
+  kategori?: { id: number; nama: string; deskripsi?: string | null } | null;
+  tahun: number;
+  tanggalDokumen?: string | null;
+  tanggalMulaiBerlaku?: string | null;
+  tanggalBerakhir?: string | null;
+  keterangan?: string | null;
+  filePdfUrl?: string | null;
+  fileSize?: number | null;
+  status: string;
+  tujuanPublish?: string | null;
+  prodiCode?: string | null;
+  prodiName?: string | null;
+  createdAt?: string;
+  /** Label aplikasi sumber (`LPM` / `LPPM`) — ditetapkan klien sesuai endpoint yang dipanggil. */
+  sumber: 'LPM' | 'LPPM';
+  /** Tautan panel arsip aplikasi sumber. */
+  tautanArsip?: string;
+}
+
+export interface DokumenIntegrasiParams {
+  search?: string;
+  status?: string;
+  tahun?: number;
+  tujuanPublish?: string;
+  prodiCode?: string;
+  skip?: number;
+  take?: number;
+}
+
+/** Arsip dokumen milik aplikasi LPM UNUSU. */
+export const fetchDokumenLpm = (params?: DokumenIntegrasiParams) =>
+  api.get<{ status: boolean; app: string; data: DokumenIntegrasiItem[]; message?: string }>(
+    '/inter-service/dokumen-lpm',
+    { params }
+  );
+
+/** Arsip dokumen milik aplikasi LPPM UNUSU. */
+export const fetchDokumenLppm = (params?: DokumenIntegrasiParams) =>
+  api.get<{ status: boolean; app: string; data: DokumenIntegrasiItem[]; message?: string }>(
+    '/inter-service/dokumen-lppm',
+    { params }
+  );
 
 export default api;

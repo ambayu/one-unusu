@@ -38,6 +38,16 @@ export const PERMISSIONS = {
   sliderView: 'slider:view',
   sliderEdit: 'slider:edit',
   sliderDelete: 'slider:delete',
+
+  apiHubMenu: 'api_hub:menu',
+  apiHubView: 'api_hub:view',
+  apiHubEdit: 'api_hub:edit',
+  apiHubDelete: 'api_hub:delete',
+
+  berkasBerkaMenu: 'berkas_dosen:menu',
+  berkasBerkaView: 'berkas_dosen:view',
+  berkasBerkaUpload: 'berkas_dosen:upload',
+  berkasBerkaDelete: 'berkas_dosen:delete',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

@@ -41,6 +41,7 @@ const ACTION_LABEL: Record<string, string> = {
   edit: 'Ubah',
   delete: 'Hapus',
   masuk_admin: 'Masuk Admin',
+  masuk_fakultas: 'Masuk Fakultas',
   masuk_dosen: 'Masuk Dosen',
   masuk_mahasiswa: 'Masuk Mahasiswa',
 };
@@ -63,6 +64,7 @@ const ACTION_TONE: Record<string, string> = {
   edit: 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]',
   delete: 'bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]',
   masuk_admin: 'bg-[#FAF5FF] text-[#7E22CE] border-[#E9D5FF]',
+  masuk_fakultas: 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]',
   masuk_dosen: 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]',
   masuk_mahasiswa: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
 };

@@ -1,9 +1,10 @@
-import express, { Request, Response, NextFunction } from "express";
+﻿import express, { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -15,6 +16,17 @@ import {
   tingkatMasukBawaan,
   type TingkatMasuk
 } from "./lib/accessControl.js";
+import {
+  MAKS_UKURAN_BERKAS,
+  MIME_PDF,
+  PREFIX_URL_BERKAS,
+  berkasBerisiPdf,
+  direktoriBerkasDosen,
+  hapusBerkasFisik,
+  namaBerkasDariUrl,
+  pastikanDirektoriBerkas,
+  unggahBerkasPdf,
+} from "./lib/dosenBerkas.js";
 import { buildSsoAppDefinitions, seedSsoApps } from "./lib/ssoApps.js";
 import {
   authenticateExternalSystem,
@@ -23,6 +35,7 @@ import {
   scrapeDosenDetailFromSia,
   scrapeMahasiswaFromSia,
   SIAKAD_PRODI_LIST,
+  SiakadLecturerProfile,
 } from "./lib/siakadService.js";
 
 dotenv.config();
@@ -47,6 +60,7 @@ if (JWT_SECRET.length < 32) {
  */
 const AUTH_COOKIE_NAME = "one_unusu_token";
 const AUTH_COOKIE_PATH = process.env.AUTH_COOKIE_PATH || "/";
+const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN || undefined;
 const AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 const authCookieOptions = {
@@ -54,6 +68,7 @@ const authCookieOptions = {
   secure: process.env.AUTH_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: AUTH_COOKIE_PATH,
+  domain: AUTH_COOKIE_DOMAIN,
   maxAge: AUTH_TOKEN_TTL_MS,
 };
 
@@ -102,24 +117,30 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// Port frontend ekosistem UNUSU (5173 - 5185) serta domain resmi kampus
+const isAllowedOrigin = (origin: string): boolean => {
+  if (allowedOrigins.includes(origin)) return true;
+
+  // Izinkan seluruh port dev lokal untuk ekosistem UNUSU
+  const localhostRegex = /^http:\/\/(localhost|127\.0\.0\.1):(517[0-9]|518[0-9]|500[0-9]|3000|5173)$/;
+  if (localhostRegex.test(origin)) return true;
+
+  // Izinkan domain & subdomain resmi unusu.ac.id
+  const unusuDomainRegex = /^https?:\/\/([a-z0-9-]+\.)*unusu\.ac\.id$/i;
+  if (unusuDomainRegex.test(origin)) return true;
+
+  return false;
+};
+
 app.use(
   cors({
-    // Tanpa daftar origin eksplisit, hanya origin lokal yang diizinkan.
     origin: (origin, callback) => {
       if (!origin) {
         // Request server-to-server (verify-token) tidak mengirim header Origin.
         callback(null, true);
         return;
       }
-    // Daftar origin lokal yang diizinkan. Port 5178 adalah port tetap Vite
-    // ONE UNUSU (lihat vite.config.ts).
-    const whitelist = allowedOrigins.length > 0
-      ? allowedOrigins
-      : [
-          "http://localhost:5178",
-          "http://127.0.0.1:5178",
-        ];
-      if (whitelist.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
         return;
       }
@@ -209,6 +230,15 @@ const writeLimiter = rateLimit({
 });
 
 app.use("/api", globalLimiter);
+
+// Direktori penyimpanan berkas dosen dipastikan ada saat start, sehingga
+// kegagalan konfigurasi penyimpanan muncul di log server, bukan saat dosen
+// pertama kali mengunggah berkas.
+try {
+  pastikanDirektoriBerkas();
+} catch (error) {
+  logServerError("Inisialisasi direktori berkas dosen", error);
+}
 
 // Serve static frontend build files when in production
 const clientDistPath = path.resolve(process.cwd(), "dist/client");
@@ -307,7 +337,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,40}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\-\s()]{8,20}$/;
-const MAX_IMAGE_LENGTH = 8 * 1024 * 1024; // ± 6 MB biner setelah decode base64
+const MAX_IMAGE_LENGTH = 8 * 1024 * 1024; // Â± 6 MB biner setelah decode base64
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -805,6 +835,36 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
               asalSekolahProfil = mhsData.asalSekolah || null;
               namaIbuProfil = mhsData.namaIbuKandung || null;
             }
+          } else if (roleCode === "DOSEN") {
+            // Jika dosen, cari data dosen dari SIAKAD menggunakan admin credentials
+            const adminUser = process.env.SIAKAD_ADMIN_USER?.trim();
+            const adminPass = process.env.SIAKAD_ADMIN_PASS;
+            if (adminUser && adminPass) {
+              try {
+                const dosenList = await scrapeAllDosenFromSia(adminUser, adminPass);
+                const matchedDosen = dosenList.find(
+                  (d) => d.nidn === trimmedIdentifier || d.nidn === trimmedIdentifier.replace(/^0+/, "")
+                );
+                if (matchedDosen) {
+                  namaProfil = matchedDosen.nama;
+                  prodiProfil = matchedDosen.prodi || null;
+                  fakultasProfil = matchedDosen.fakultas || null;
+                  if (matchedDosen.kodeSia) {
+                    const detailDosen = await scrapeDosenDetailFromSia(adminUser, adminPass, matchedDosen.kodeSia);
+                    if (detailDosen) {
+                      nikProfil = detailDosen.nik || null;
+                      tempatLahirProfil = detailDosen.tempatLahir || null;
+                      tanggalLahirProfil = detailDosen.tanggalLahir || null;
+                      noHpProfil = detailDosen.noHp || null;
+                      alamatProfil = detailDosen.alamat || null;
+                      jenisKelaminProfil = detailDosen.jenisKelamin || null;
+                    }
+                  }
+                }
+              } catch (err) {
+                logServerError("JIT Provisioning Dosen SIAKAD error", err);
+              }
+            }
           }
 
           // Buat akun baru di database lokal ONE UNUSU
@@ -843,7 +903,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
           });
 
           user = createdUser;
-          isProvisionedFromSiakad = true;
+          isProvisionedFromExternal = true;
         }
       }
     }
@@ -901,6 +961,37 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
     // Role utama untuk kompatibilitas ke belakang
     const primaryRole = roleCodes.includes("SUPERADMIN") ? "SUPERADMIN" : roleCodes[0];
 
+    // Jika pengguna login adalah DOSEN dan data kependudukannya masih belum lengkap,
+    // picu pengayaan data (enrichment) di latar belakang agar saat masuk profil datanya sudah tersedia
+    if (roleCodes.includes("DOSEN") && !user.nik) {
+      const adminUser = process.env.SIAKAD_ADMIN_USER?.trim();
+      const adminPass = process.env.SIAKAD_ADMIN_PASS;
+      if (adminUser && adminPass) {
+        scrapeAllDosenFromSia(adminUser, adminPass).then(async (dosenList) => {
+          const matched = dosenList.find((d) => d.nidn === user.nidn || d.nidn === user.username);
+          if (matched?.kodeSia) {
+            const detail = await scrapeDosenDetailFromSia(adminUser, adminPass, matched.kodeSia);
+            if (detail) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  nik: detail.nik || user.nik,
+                  tempatLahir: detail.tempatLahir || user.tempatLahir,
+                  tanggalLahir: detail.tanggalLahir || user.tanggalLahir,
+                  jenisKelamin: detail.jenisKelamin || user.jenisKelamin,
+                  noHp: detail.noHp || user.noHp,
+                  alamat: detail.alamat || user.alamat,
+                  syncedAt: new Date(),
+                },
+              });
+            }
+          }
+        }).catch((err) => {
+          logServerError("Login background enrichment dosen error", err);
+        });
+      }
+    }
+
     // Generate JWT Session Token (Berlaku 1 hari)
     const token = jwt.sign(
       {
@@ -952,6 +1043,80 @@ app.post("/api/auth/logout", (req: Request, res: Response) => {
   res.json({ status: true, message: "Sesi berhasil diakhiri." });
 });
 
+// GET /api/sso/session-check
+// Pengecekan status sesi ONE UNUSU untuk aplikasi cabang (LMS, E-Surat, LPM, LPPM, Sarpras, dll.)
+// Mengembalikan { authenticated: true, user } bila sesi SSO aktif, atau { authenticated: false } bila sudah logout.
+app.get("/api/sso/session-check", async (req: Request, res: Response) => {
+  const token = readSessionToken(req);
+  if (!token) {
+    return res.json({
+      status: true,
+      authenticated: false,
+      message: "Tidak ada sesi aktif di ONE UNUSU."
+    });
+  }
+
+  jwt.verify(token, JWT_SECRET as string, { algorithms: ["HS256"] }, async (err: any, decoded: any) => {
+    if (err || !decoded?.id) {
+      return res.json({
+        status: true,
+        authenticated: false,
+        message: "Sesi login ONE UNUSU telah kedaluwarsa atau tidak valid."
+      });
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: {
+          id: true,
+          username: true,
+          nama: true,
+          email: true,
+          roles: {
+            select: {
+              role: { select: { code: true } }
+            }
+          },
+          nim: true,
+          nidn: true,
+          isActive: true
+        }
+      });
+
+      if (!user || !user.isActive) {
+        return res.json({
+          status: true,
+          authenticated: false,
+          message: "Akun tidak ditemukan atau tidak aktif."
+        });
+      }
+
+      const roleCodes = user.roles.map((r) => r.role.code);
+      return res.json({
+        status: true,
+        authenticated: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          nama: user.nama,
+          email: user.email,
+          role: roleCodes[0] || "MAHASISWA",
+          roles: roleCodes,
+          nim: user.nim,
+          nidn: user.nidn
+        }
+      });
+    } catch {
+      return res.json({
+        status: true,
+        authenticated: false,
+        message: "Gagal memeriksa sesi pengguna."
+      });
+    }
+  });
+});
+
 // GET /api/auth/me (Ambil profil sesi yang sedang login)
 app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -982,6 +1147,18 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
         alamat: true,
         asalSekolah: true,
         namaIbuKandung: true,
+        gelarDepan: true,
+        gelarBelakang: true,
+        nip: true,
+        jabatanAkademik: true,
+        bidangKeahlian: true,
+        pendidikanTerakhir: true,
+        sintaId: true,
+        linkSinta: true,
+        googleScholar: true,
+        orcid: true,
+        scopusId: true,
+        biografi: true,
         syncedAt: true,
         isActive: true,
         createdAt: true,
@@ -1038,6 +1215,124 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
     });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal mengambil data profil pengguna." });
+  }
+});
+
+// POST /api/auth/sync-siakad (Tarik dan perbarui data profil sendiri dari SIAKAD on-demand)
+app.post("/api/auth/sync-siakad", authenticateToken, writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: {
+        roles: {
+          include: { role: true }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
+    }
+
+    const adminUser = process.env.SIAKAD_ADMIN_USER?.trim();
+    const adminPass = process.env.SIAKAD_ADMIN_PASS;
+
+    if (!adminUser || !adminPass) {
+      return res.status(503).json({
+        status: false,
+        message: "Kredensial SIAKAD belum dikonfigurasi pada server.",
+      });
+    }
+
+    const isDosen = user.roles.some((r) => r.role.code === "DOSEN");
+    const isMahasiswa = user.roles.some((r) => r.role.code === "MAHASISWA");
+
+    if (isDosen) {
+      const nidn = user.nidn || user.username;
+      const dosenList = await scrapeAllDosenFromSia(adminUser, adminPass);
+      const matched = dosenList.find((d) => d.nidn === nidn || d.nidn === user.username);
+
+      if (!matched) {
+        return res.status(404).json({
+          status: false,
+          message: `Data dosen dengan NIDN/Username ${nidn} tidak ditemukan di sistem SIAKAD.`,
+        });
+      }
+
+      let detail: Partial<SiakadLecturerProfile> | null = null;
+      if (matched.kodeSia) {
+        detail = await scrapeDosenDetailFromSia(adminUser, adminPass, matched.kodeSia);
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          nama: matched.nama || user.nama,
+          nidn: matched.nidn || user.nidn,
+          prodi: matched.prodi || user.prodi,
+          fakultas: matched.fakultas || user.fakultas,
+          nik: detail?.nik || user.nik,
+          tempatLahir: detail?.tempatLahir || user.tempatLahir,
+          tanggalLahir: detail?.tanggalLahir || user.tanggalLahir,
+          jenisKelamin: detail?.jenisKelamin || user.jenisKelamin,
+          noHp: detail?.noHp || user.noHp,
+          alamat: detail?.alamat || user.alamat,
+          syncedAt: new Date(),
+        },
+      });
+
+      return res.json({
+        status: true,
+        message: "Data profil dosen berhasil ditarik dan diperbarui dari SIAKAD.",
+        data: updatedUser,
+      });
+    }
+
+    if (isMahasiswa) {
+      const nim = user.nim || user.username;
+      const students = await scrapeMahasiswaFromSia(adminUser, adminPass, {
+        angkatan: user.angkatan || undefined,
+      });
+      const matched = students.find((s) => s.nim === nim || s.nim === user.username);
+
+      if (!matched) {
+        return res.status(404).json({
+          status: false,
+          message: `Data mahasiswa dengan NIM ${nim} tidak ditemukan di sistem SIAKAD.`,
+        });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          nama: matched.nama || user.nama,
+          nim: matched.nim || user.nim,
+          prodi: matched.prodi || user.prodi,
+          fakultas: matched.fakultas || user.fakultas,
+          angkatan: matched.angkatan || user.angkatan,
+          jenisKelamin: matched.jenisKelamin || user.jenisKelamin,
+          avatar: matched.fotoUrl || user.avatar,
+          syncedAt: new Date(),
+        },
+      });
+
+      return res.json({
+        status: true,
+        message: "Data profil mahasiswa berhasil ditarik dan diperbarui dari SIAKAD.",
+        data: updatedUser,
+      });
+    }
+
+    return res.status(400).json({
+      status: false,
+      message: "Sinkronisasi SIAKAD mandiri saat ini hanya tersedia untuk peran Dosen dan Mahasiswa.",
+    });
+  } catch (error: any) {
+    logServerError("POST /api/auth/sync-siakad", error);
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Gagal menyinkronkan data profil dari SIAKAD.",
+    });
   }
 });
 
@@ -1105,7 +1400,29 @@ app.get("/api/auth/panel-access", authenticateToken, async (req: AuthRequest, re
 app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const body = isPlainObject(req.body) ? req.body : {};
-    const { email, noHp, avatar, currentPassword, newPassword } = body;
+    const {
+      email,
+      noHp,
+      avatar,
+      currentPassword,
+      newPassword,
+      // Field Tambahan Biodata Mandiri
+      tempatLahir,
+      tanggalLahir,
+      alamat,
+      gelarDepan,
+      gelarBelakang,
+      nip,
+      jabatanAkademik,
+      bidangKeahlian,
+      pendidikanTerakhir,
+      sintaId,
+      linkSinta,
+      googleScholar,
+      orcid,
+      scopusId,
+      biografi,
+    } = body;
     const userId = req.user!.id;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -1118,7 +1435,49 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       noHp?: string | null;
       avatar?: string | null;
       password?: string;
+      tempatLahir?: string | null;
+      tanggalLahir?: string | null;
+      alamat?: string | null;
+      gelarDepan?: string | null;
+      gelarBelakang?: string | null;
+      nip?: string | null;
+      jabatanAkademik?: string | null;
+      bidangKeahlian?: string | null;
+      pendidikanTerakhir?: string | null;
+      sintaId?: string | null;
+      linkSinta?: string | null;
+      googleScholar?: string | null;
+      orcid?: string | null;
+      scopusId?: string | null;
+      biografi?: string | null;
     } = {};
+
+    // Helper untuk string opsional
+    const setOptStr = (key: keyof typeof updateData, val: any, maxLen = 255) => {
+      if (val !== undefined) {
+        if (val === null || val === "") {
+          (updateData as any)[key] = null;
+        } else if (typeof val === "string") {
+          (updateData as any)[key] = val.trim().slice(0, maxLen);
+        }
+      }
+    };
+
+    setOptStr("tempatLahir", tempatLahir, 100);
+    setOptStr("tanggalLahir", tanggalLahir, 30);
+    setOptStr("alamat", alamat, 1000);
+    setOptStr("gelarDepan", gelarDepan, 50);
+    setOptStr("gelarBelakang", gelarBelakang, 50);
+    setOptStr("nip", nip, 50);
+    setOptStr("jabatanAkademik", jabatanAkademik, 100);
+    setOptStr("bidangKeahlian", bidangKeahlian, 255);
+    setOptStr("pendidikanTerakhir", pendidikanTerakhir, 50);
+    setOptStr("sintaId", sintaId, 50);
+    setOptStr("linkSinta", linkSinta, 255);
+    setOptStr("googleScholar", googleScholar, 255);
+    setOptStr("orcid", orcid, 50);
+    setOptStr("scopusId", scopusId, 50);
+    setOptStr("biografi", biografi, 5000);
 
     if (email !== undefined) {
       if (email === null || email === "") {
@@ -1209,7 +1568,29 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
         nidn: true,
         fakultas: true,
         prodi: true,
-        avatar: true
+        avatar: true,
+        jenisKelamin: true,
+        tempatLahir: true,
+        tanggalLahir: true,
+        nik: true,
+        angkatan: true,
+        statusAkademik: true,
+        alamat: true,
+        asalSekolah: true,
+        namaIbuKandung: true,
+        gelarDepan: true,
+        gelarBelakang: true,
+        nip: true,
+        jabatanAkademik: true,
+        bidangKeahlian: true,
+        pendidikanTerakhir: true,
+        sintaId: true,
+        linkSinta: true,
+        googleScholar: true,
+        orcid: true,
+        scopusId: true,
+        biografi: true,
+        syncedAt: true,
       }
     });
 
@@ -1710,6 +2091,18 @@ app.get("/api/admin/users", authenticateToken, requirePermission("user:view"), a
         alamat: true,
         asalSekolah: true,
         namaIbuKandung: true,
+        gelarDepan: true,
+        gelarBelakang: true,
+        nip: true,
+        jabatanAkademik: true,
+        bidangKeahlian: true,
+        pendidikanTerakhir: true,
+        sintaId: true,
+        linkSinta: true,
+        googleScholar: true,
+        orcid: true,
+        scopusId: true,
+        biografi: true,
         syncedAt: true,
         isActive: true,
         createdAt: true
@@ -2338,7 +2731,7 @@ app.get("/api/admin/apps", authenticateToken, requirePermission("application:vie
   }
 });
 
-// POST /api/admin/apps/sync — Sinkronisasi registry aplikasi bawaan kampus & kunci admin
+// POST /api/admin/apps/sync â€” Sinkronisasi registry aplikasi bawaan kampus & kunci admin
 app.post("/api/admin/apps/sync", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const publicBaseUrl = process.env.PUBLIC_BASE_URL || "";
@@ -3376,6 +3769,449 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// BERKAS DOSEN (unggah mandiri oleh dosen, verifikasi oleh admin)
+// ═══════════════════════════════════════════════════════════════════════════
+
+type PeranBerkas = "pemilik" | "pengelola";
+/**
+ * Menentukan peran pengguna pada modul berkas dosen.
+ *
+ * "pengelola" adalah pemegang izin hapus; mereka dapat melihat dokumen seluruh
+ * dosen. "pemilik" hanya mengelola berkasnya sendiri. Pemisahan ini dilakukan
+ * di server, bukan hanya di antarmuka, agar dosen tidak dapat membuka dokumen
+ * dosen lain lewat ID baris.
+ */
+async function peranBerkasPengguna(userId: number): Promise<PeranBerkas> {
+  const keys = await getUserPermissionKeys(userId);
+  if (keys.includes("berkas_dosen:delete")) {
+    return "pengelola";
+  }
+  return "pemilik";
+}
+
+/** Profil ringkas dosen pemilik berkas, dipakai daftar monitoring admin. */
+const PILIH_PROFIL_PEMILIK = {
+  id: true,
+  nama: true,
+  nidn: true,
+  prodi: true,
+  fakultas: true,
+  avatar: true,
+} as const;
+
+/** Memetakan baris DosenBerkas ke bentuk yang dikirim ke antarmuka. */
+function bentukBerkas(
+  baris: {
+    id: number;
+    namaFile: string;
+    nomorDokumen: string | null;
+    tahunSK: string | null;
+    keterangan: string | null;
+    fileUrl: string;
+    fileSize: number;
+    uploadedAt: Date;
+    isArchived: boolean;
+  },
+  tipe: { kode: string; nama: string },
+  pemilik?: { id: number; nama: string; nidn: string | null; prodi: string | null; fakultas: string | null } | null
+) {
+  return {
+    id: baris.id,
+    tipeKode: tipe.kode,
+    tipeNama: tipe.nama,
+    namaFile: baris.namaFile,
+    nomorDokumen: baris.nomorDokumen,
+    tahunSK: baris.tahunSK,
+    keterangan: baris.keterangan,
+    fileUrl: baris.fileUrl,
+    fileSize: baris.fileSize,
+    uploadedAt: baris.uploadedAt,
+    isArchived: baris.isArchived,
+    pemilik: pemilik ?? null,
+  };
+}
+
+// GET /api/admin/berkas-dosen/monitoring — Rekap kelengkapan berkas SELURUH dosen
+//
+// Berbeda dari `GET /api/berkas-dosen/list` yang hanya mengembalikan baris
+// berkas, endpoint ini berangkat dari tabel pengguna berperan DOSEN. Dengan
+// begitu dosen yang belum mengunggah apa pun tetap muncul pada daftar, karena
+// justru merekalah yang perlu ditindaklanjuti.
+app.get(
+  "/api/admin/berkas-dosen/monitoring",
+  authenticateToken,
+  requirePermission("berkas_dosen:view"),
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      const [tipeAktif, dosenList] = await Promise.all([
+        prisma.dosenBerkasTipe.findMany({
+          where: { isActive: true },
+          orderBy: { urutan: "asc" },
+          select: { id: true, kode: true, nama: true, isRequired: true },
+        }),
+        prisma.user.findMany({
+          where: {
+            isActive: true,
+            roles: { some: { role: { code: "DOSEN" } } },
+          },
+          orderBy: { nama: "asc" },
+          select: {
+            ...PILIH_PROFIL_PEMILIK,
+            berkas: {
+              where: { isArchived: false },
+              orderBy: { uploadedAt: "desc" },
+              select: {
+                id: true,
+                namaFile: true,
+                nomorDokumen: true,
+                tahunSK: true,
+                keterangan: true,
+                fileUrl: true,
+                fileSize: true,
+                uploadedAt: true,
+                isArchived: true,
+                tipe: { select: { kode: true, nama: true } },
+              },
+            },
+          },
+        }),
+      ]);
+
+      const totalTipe = tipeAktif.length;
+      const tipeWajib = tipeAktif.filter((tipe) => tipe.isRequired);
+
+      const data = dosenList.map((dosen) => {
+        const berkas = dosen.berkas.map((baris) => bentukBerkas(baris, baris.tipe, null));
+
+        // Satu jenis berkas dapat diunggah lebih dari sekali (mis. perpanjangan
+        // SK). Kelengkapan dihitung per JENIS, bukan per baris, agar angka tidak
+        // melebihi jumlah jenis berkas yang tersedia.
+        const kodeTerisi = new Set(berkas.map((b) => b.tipeKode));
+        const jenisBelumDiunggah = tipeAktif
+          .filter((tipe) => !kodeTerisi.has(tipe.kode))
+          .map((tipe) => ({ kode: tipe.kode, nama: tipe.nama, isRequired: tipe.isRequired }));
+
+        const wajibTerpenuhi = tipeWajib.filter((tipe) => kodeTerisi.has(tipe.kode)).length;
+
+        return {
+          ...dosen,
+          berkas,
+          totalJenisBerkas: totalTipe,
+          totalBerkasTerunggah: kodeTerisi.size,
+          totalBarisBerkas: berkas.length,
+          totalTipeWajib: tipeWajib.length,
+          wajibTerpenuhi,
+          wajibLengkap: tipeWajib.every((tipe) => kodeTerisi.has(tipe.kode)),
+          sudahMengunggah: kodeTerisi.size > 0,
+          jenisBelumDiunggah,
+        };
+      });
+
+      const sudahMengunggah = data.filter((dosen) => dosen.sudahMengunggah).length;
+
+      res.json({
+        status: true,
+        data,
+        meta: {
+          totalDosen: data.length,
+          sudahMengunggah,
+          belumMengunggah: data.length - sudahMengunggah,
+          totalTipeBerkas: totalTipe,
+          totalTipeWajib: tipeWajib.length,
+          tipeBerkas: tipeAktif,
+        },
+      });
+    } catch (error: any) {
+      logServerError("GET /api/admin/berkas-dosen/monitoring", error);
+      res.status(500).json({ status: false, message: "Gagal memuat rekap berkas dosen." });
+    }
+  }
+);
+
+// GET /api/berkas-dosen/tipe — Master 14 jenis berkas + status kelengkapan milik sendiri
+app.get("/api/berkas-dosen/tipe", authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const tipeList = await prisma.dosenBerkasTipe.findMany({
+      where: { isActive: true },
+      orderBy: { urutan: "asc" },
+      select: { id: true, kode: true, nama: true, deskripsi: true, urutan: true, isRequired: true },
+    });
+
+    const berkasMilik = await prisma.dosenBerkas.findMany({
+      where: { userId: req.user!.id, isArchived: false },
+      select: { tipeId: true },
+    });
+
+    const terisi = new Set(berkasMilik.map((b) => b.tipeId));
+
+    res.json({
+      status: true,
+      data: tipeList.map((tipe) => ({
+        ...tipe,
+        sudahDiunggah: terisi.has(tipe.id),
+      })),
+    });
+  } catch (error: any) {
+    logServerError("GET /api/berkas-dosen/tipe", error);
+    res.status(500).json({ status: false, message: "Gagal memuat jenis berkas." });
+  }
+});
+
+// GET /api/berkas-dosen/list — Daftar berkas (milik sendiri, atau seluruh dosen untuk pengelola)
+app.get("/api/berkas-dosen/list", authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const peran = await peranBerkasPengguna(req.user!.id);
+
+    // Parameter `userId` hanya dihormati untuk pengelola. Bila dosen mengirim
+    // userId dosen lain, filternya diabaikan dan tetap dibatasi ke id sendiri.
+    const dimintaUserId = Number.parseInt(String(req.query.userId ?? ""), 10);
+    const filterUserId =
+      peran === "pengelola" && Number.isInteger(dimintaUserId) && dimintaUserId > 0
+        ? dimintaUserId
+        : req.user!.id;
+
+    const daftar = await prisma.dosenBerkas.findMany({
+      where: {
+        userId: filterUserId,
+        isArchived: false,
+      },
+      orderBy: { uploadedAt: "desc" },
+      select: {
+        id: true,
+        namaFile: true,
+        nomorDokumen: true,
+        tahunSK: true,
+        keterangan: true,
+        fileUrl: true,
+        fileSize: true,
+        uploadedAt: true,
+        isArchived: true,
+        tipe: { select: { kode: true, nama: true } },
+        // Relasi pemilik hanya relevan bagi pengelola; dosen sudah tahu ini
+        // berkasnya sendiri sehingga namanya tidak perlu dikirim ulang.
+        ...(peran === "pengelola" ? { user: { select: PILIH_PROFIL_PEMILIK } } : {}),
+      },
+    });
+
+    res.json({
+      status: true,
+      data: daftar.map((baris) =>
+        bentukBerkas(
+          baris,
+          baris.tipe,
+          peran === "pengelola" && "user" in baris ? baris.user : null
+        )
+      ),
+      meta: { peran },
+    });
+  } catch (error: any) {
+    logServerError("GET /api/berkas-dosen/list", error);
+    res.status(500).json({ status: false, message: "Gagal memuat daftar berkas." });
+  }
+});
+
+// POST /api/berkas-dosen/upload — Unggah satu berkas PDF (multipart/form-data)
+app.post(
+  "/api/berkas-dosen/upload",
+  authenticateToken,
+  requirePermission("berkas_dosen:upload"),
+  writeLimiter,
+  (req: AuthRequest, res: Response, next: NextFunction) => {
+    unggahBerkasPdf(req, res, (err: unknown) => {
+      if (!err) {
+        next();
+        return;
+      }
+
+      const multerErr = err as { code?: string; message?: string };
+      if (multerErr.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          status: false,
+          message: `Ukuran berkas melebihi batas ${MAKS_UKURAN_BERKAS / (1024 * 1024)} MB.`,
+        });
+        return;
+      }
+      if (multerErr.code === "LIMIT_UNEXPECTED_FILE" || multerErr.code === "LIMIT_FILE_COUNT") {
+        res.status(400).json({ status: false, message: "Hanya satu berkas yang boleh diunggah." });
+        return;
+      }
+      if (multerErr.message === "Hanya berkas PDF yang diizinkan.") {
+        res.status(400).json({ status: false, message: multerErr.message });
+        return;
+      }
+
+      logServerError("POST /api/berkas-dosen/upload (multer)", err);
+      res.status(400).json({ status: false, message: "Berkas tidak dapat diproses." });
+    });
+  },
+  async (req: AuthRequest, res: Response) => {
+    const berkas = req.file;
+    const hapusBerkasBaru = () => {
+      if (berkas) hapusBerkasFisik(berkas.filename);
+    };
+
+    try {
+      if (!berkas) {
+        return res.status(400).json({ status: false, message: "Berkas PDF wajib dilampirkan." });
+      }
+
+      // Signature diperiksa dari isi berkas yang sudah tersimpan, karena
+      // `mimetype` dapat dipalsukan klien. Berkas yang gagal validasi langsung
+      // dibuang agar tidak menumpuk di disk.
+      const isi = await fs.promises.readFile(berkas.path);
+      if (!berkasBerisiPdf(isi)) {
+        hapusBerkasBaru();
+        return res.status(400).json({ status: false, message: "Berkas bukan PDF yang sah." });
+      }
+
+      const tipeId = Number.parseInt(String(req.body?.tipeId ?? ""), 10);
+      if (!Number.isInteger(tipeId) || tipeId <= 0) {
+        hapusBerkasBaru();
+        return res.status(400).json({ status: false, message: "Jenis berkas tidak valid." });
+      }
+
+      const tipe = await prisma.dosenBerkasTipe.findFirst({
+        where: { id: tipeId, isActive: true },
+        select: { id: true, nama: true },
+      });
+      if (!tipe) {
+        hapusBerkasBaru();
+        return res.status(404).json({ status: false, message: "Jenis berkas tidak ditemukan." });
+      }
+
+      const teks = (nilai: unknown, maks: number): string | null => {
+        if (typeof nilai !== "string") return null;
+        const bersih = nilai.trim();
+        return bersih === "" ? null : bersih.slice(0, maks);
+      };
+
+      const namaFile = teks(req.body?.namaFile, 255);
+      if (!namaFile) {
+        hapusBerkasBaru();
+        return res.status(400).json({ status: false, message: "Nama dokumen wajib diisi." });
+      }
+
+      const tahunSK = teks(req.body?.tahunSK, 4);
+      if (tahunSK && !/^\d{4}$/.test(tahunSK)) {
+        hapusBerkasBaru();
+        return res.status(400).json({ status: false, message: "Tahun SK harus berupa 4 angka." });
+      }
+
+      const fileUrl = `${PREFIX_URL_BERKAS}/${berkas.filename}`;
+      const userId = req.user!.id;
+
+      const tersimpan = await prisma.dosenBerkas.create({
+        data: {
+          userId,
+          tipeId: tipe.id,
+          namaFile,
+          nomorDokumen: teks(req.body?.nomorDokumen, 100),
+          tahunSK,
+          keterangan: teks(req.body?.keterangan, 5000),
+          fileUrl,
+          fileSize: berkas.size,
+          mimeType: MIME_PDF,
+          uploadedBy: userId,
+        },
+        select: { id: true, namaFile: true, uploadedAt: true },
+      });
+
+      res.status(201).json({
+        status: true,
+        message: `Berkas "${tipe.nama}" berhasil diunggah dan menunggu verifikasi.`,
+        data: tersimpan,
+      });
+    } catch (error: any) {
+      hapusBerkasBaru();
+      logServerError("POST /api/berkas-dosen/upload", error);
+      res.status(500).json({ status: false, message: "Gagal menyimpan berkas." });
+    }
+  }
+);
+
+// GET /api/berkas-dosen/file/:nama — Unduh / pratinjau berkas (pemilik atau pengelola)
+app.get("/api/berkas-dosen/file/:nama", authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const nama = String(req.params.nama ?? "");
+    const namaBerkas = namaBerkasDariUrl(`${PREFIX_URL_BERKAS}/${nama}`);
+
+    if (!namaBerkas) {
+      return res.status(400).json({ status: false, message: "Permintaan berkas tidak valid." });
+    }
+
+    const baris = await prisma.dosenBerkas.findFirst({
+      where: { fileUrl: `${PREFIX_URL_BERKAS}/${namaBerkas}` },
+      select: { userId: true, namaFile: true },
+    });
+
+    if (!baris) {
+      return res.status(404).json({ status: false, message: "Berkas tidak ditemukan." });
+    }
+
+    const peran = await peranBerkasPengguna(req.user!.id);
+    if (peran !== "pengelola" && baris.userId !== req.user!.id) {
+      return res.status(403).json({ status: false, message: "Anda tidak berhak membuka berkas ini." });
+    }
+
+    const lokasi = path.resolve(direktoriBerkasDosen(), namaBerkas);
+    if (path.dirname(lokasi) !== direktoriBerkasDosen()) {
+      return res.status(400).json({ status: false, message: "Permintaan berkas tidak valid." });
+    }
+
+    if (!fs.existsSync(lokasi)) {
+      return res.status(404).json({ status: false, message: "Berkas tidak ditemukan di penyimpanan." });
+    }
+
+    // `inline` agar bisa dipratinjau di tab baru; nama unduhan diambil dari
+    // nama dokumen yang diisi dosen, bukan nama acak di disk.
+    const namaUnduhan = baris.namaFile.replace(/[^\w\s().-]/g, "").trim() || "berkas-dosen";
+    res.setHeader("Content-Type", MIME_PDF);
+    res.setHeader("Content-Disposition", `inline; filename="${namaUnduhan}.pdf"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    fs.createReadStream(lokasi).pipe(res);
+  } catch (error: any) {
+    logServerError("GET /api/berkas-dosen/file/:nama", error);
+    res.status(500).json({ status: false, message: "Gagal membuka berkas." });
+  }
+});
+
+// DELETE /api/berkas-dosen/:id — Arsipkan berkas (pemilik atau pengelola)
+app.delete("/api/berkas-dosen/:id", authenticateToken, writeLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ status: false, message: "ID berkas tidak valid." });
+    }
+
+    const baris = await prisma.dosenBerkas.findFirst({
+      where: { id, isArchived: false },
+      select: { id: true, userId: true, namaFile: true },
+    });
+
+    if (!baris) {
+      return res.status(404).json({ status: false, message: "Berkas tidak ditemukan." });
+    }
+
+    const peran = await peranBerkasPengguna(req.user!.id);
+    if (peran !== "pengelola" && baris.userId !== req.user!.id) {
+      return res.status(403).json({ status: false, message: "Anda tidak berhak menghapus berkas ini." });
+    }
+
+    // Penghapusan bersifat arsip: baris tetap ada untuk jejak audit, sedangkan
+    // daftar dan pencarian tidak lagi menampilkannya.
+    await prisma.dosenBerkas.update({
+      where: { id: baris.id },
+      data: { isArchived: true, archivedAt: new Date() },
+    });
+
+    res.json({ status: true, message: `Berkas "${baris.namaFile}" berhasil dihapus.` });
+  } catch (error: any) {
+    logServerError("DELETE /api/berkas-dosen/:id", error);
+    res.status(500).json({ status: false, message: "Gagal menghapus berkas." });
+  }
+});
+
 // GET /api/applications/catalog (Katalog publik: hanya aplikasi yang benar-benar
 // terhubung ke registry SSO ONE UNUSU. Tidak memuat clientKey/callback internal.)
 app.get("/api/applications/catalog", async (req: Request, res: Response) => {
@@ -3443,6 +4279,7 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
     res.status(500).json({ status: false, message: "Gagal memuat katalog aplikasi SSO." });
   }
 });
+
 
 // GET /api/academic/hierarchy (Hierarki Fakultas & Prodi untuk registrasi/tambah akun)
 app.get("/api/academic/hierarchy", async (req: Request, res: Response) => {
@@ -3540,6 +4377,353 @@ app.get("/api/academic/hierarchy", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/inter-service/dosen (Katalog API Hub: Data Induk Dosen & Homebase)
+app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
+  try {
+    const prodi = typeof req.query.prodi === "string" ? req.query.prodi.trim() : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : undefined;
+
+    const where: any = {
+      isActive: true,
+      roles: {
+        some: {
+          role: {
+            code: "DOSEN",
+          },
+        },
+      },
+    };
+
+    if (prodi) {
+      where.prodi = { contains: prodi };
+    }
+
+    if (search) {
+      where.OR = [
+        { nama: { contains: search } },
+        { nidn: { contains: search } },
+        { username: { contains: search } },
+      ];
+    }
+
+    const lecturers = await prisma.user.findMany({
+      where,
+      orderBy: { nama: "asc" },
+      select: {
+        id: true,
+        nama: true,
+        nidn: true,
+        email: true,
+        prodi: true,
+        fakultas: true,
+        avatar: true,
+        gelarDepan: true,
+        gelarBelakang: true,
+        jabatanAkademik: true,
+        pendidikanTerakhir: true,
+        isActive: true,
+      },
+    });
+
+    const formatted = lecturers.map((d) => {
+      const gelarDepan = d.gelarDepan ? `${d.gelarDepan.trim()} ` : "";
+      const gelarBelakang = d.gelarBelakang ? `, ${d.gelarBelakang.trim()}` : "";
+      const namaLengkap = d.nama?.includes(",") || d.gelarDepan || d.gelarBelakang
+        ? `${gelarDepan}${d.nama ?? ""}${gelarBelakang}`.trim()
+        : d.nama;
+
+      return {
+        id: d.id,
+        name: namaLengkap || d.nama || "Tanpa Nama",
+        nidn: d.nidn || null,
+        email: d.email || null,
+        studyProgramName: d.prodi || null,
+        facultyName: d.fakultas || null,
+        academicRank: d.jabatanAkademik || null,
+        education: d.pendidikanTerakhir || null,
+        photoUrl: d.avatar || null,
+        isActive: d.isActive,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formatted,
+      total: formatted.length,
+    });
+  } catch (error: any) {
+    logServerError("GET /api/v1/inter-service/dosen", error);
+    res.status(500).json({ success: false, message: "Gagal memuat data dosen dari sistem induk." });
+  }
+});
+
+// =============================================================================
+// ARSIP DOKUMEN LPM & LPPM (proxy baca-saja untuk Integrasi & API Hub)
+// =============================================================================
+
+/**
+ * Menerbitkan token layanan untuk membaca arsip dokumen di aplikasi sumber.
+ *
+ * Endpoint `POST /api/v2/website/dokumen` dipanggil server-ke-server tanpa sesi
+ * pengguna. Aplikasi sumber tetap menuntut `Authorization: Bearer <token>`,
+ * sehingga portal menerbitkan token bertanda tangan dengan identitas aplikasi
+ * cabang pemanggil. Nilainya deterministik per `clientId` + rahasia portal agar
+ * token tidak berubah-ubah dan tidak perlu disimpan.
+ *
+ * Token TIDAK memberi hak lain: cakupannya hanya `dokumen:view` pada arsip,
+ * tidak memiliki peran administrator, dan tidak pernah dikirim ke klien.
+ */
+const terbitkanTokenLayananArsip = (clientId: string): string => {
+  const secret = process.env.ARSIP_SERVICE_TOKEN_SECRET || "";
+  if (!secret) {
+    throw new Error("ARSIP_SERVICE_TOKEN_SECRET belum dikonfigurasi di portal.");
+  }
+  const tanda = crypto
+    .createHmac("sha256", secret)
+    .update(`arsip-dokumen|${clientId}`)
+    .digest("hex");
+  return `arsip.${clientId}.${tanda}`;
+};
+
+/**
+ * Mengambil arsip dokumen dari satu aplikasi cabang (LPM atau LPPM).
+ * Token sesi pengguna diteruskan apa adanya agar aplikasi tujuan tetap
+ * menegakkan otorisasi berbasis izinnya sendiri; endpoint ini hanya membaca.
+ */
+const ambilDokumenAplikasi = async (
+  baseUrl: string,
+  label: string,
+  query: Record<string, string | undefined>,
+  token: string
+): Promise<{ ok: boolean; statusCode?: number; message?: string; data: any[] }> => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  const url = `${baseUrl.replace(/\/$/, "")}/api/dokumen${params.toString() ? `?${params}` : ""}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const upstreamRes = await fetch(url, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    clearTimeout(timeoutId);
+
+    const json = (await upstreamRes.json().catch(() => null)) as
+      | { success?: boolean; data?: any[]; message?: string }
+      | null;
+
+    if (!upstreamRes.ok || !json?.success) {
+      return {
+        ok: false,
+        statusCode: upstreamRes.status,
+        message: json?.message || `Aplikasi ${label} menolak permintaan (HTTP ${upstreamRes.status}).`,
+        data: [],
+      };
+    }
+
+    const rows = Array.isArray(json.data) ? json.data : [];
+    return {
+      ok: true,
+      statusCode: upstreamRes.status,
+      data: rows.map((row) => ({
+        ...row,
+        tautanArsip: `${baseUrl.replace(/\/$/, "")}/admin/arsip-dokumen`,
+      })),
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      statusCode: 0,
+      message: error?.name === "AbortError"
+        ? `Aplikasi ${label} tidak merespons (timeout).`
+        : `Gagal menghubungi aplikasi ${label}: ${error?.message ?? "kesalahan jaringan"}`,
+      data: [],
+    };
+  }
+};
+
+// POST /api/v2/website/dokumen
+//
+// Proxy arsip dokumen LPM/LPPM untuk aplikasi cabang (server-to-server).
+// Aplikasi cabang tidak memiliki sesi pengguna di portal ini, sehingga
+// otorisasi memakai kredensial aplikasi (`client_id` + `client_key`) yang
+// terdaftar pada tabel `sso_apps` — pola yang sama dengan `verify-token`.
+// Endpoint ini hanya membaca; tidak pernah menulis ke LPM/LPPM.
+app.post(
+  "/api/v2/website/dokumen",
+  serverToServerLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const body = isPlainObject(req.body) ? req.body : {};
+      const client_id = body.client_id;
+      const client_key = body.client_key;
+
+      if (
+        typeof client_id !== "string" ||
+        typeof client_key !== "string" ||
+        !client_id ||
+        !client_key ||
+        client_id.length > 100 ||
+        client_key.length > 200
+      ) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter tidak lengkap. client_id dan client_key wajib disertakan.",
+        });
+      }
+
+      const ssoApp = await prisma.ssoApp.findFirst({
+        where: { clientId: client_id, clientKey: client_key, isActive: true },
+      });
+
+      if (!ssoApp) {
+        return res.status(401).json({
+          status: false,
+          message: "Kredensial aplikasi cabang tidak valid atau belum terdaftar.",
+        });
+      }
+
+      const sumber = String(body.sumber ?? "").toLowerCase();
+      if (sumber !== "lpm" && sumber !== "lppm") {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter `sumber` wajib bernilai `lpm` atau `lppm`.",
+        });
+      }
+
+      const prodiCode = typeof body.prodiCode === "string" && body.prodiCode.trim()
+        ? body.prodiCode.trim().slice(0, 20)
+        : undefined;
+
+      // Arsip yang boleh dibaca aplikasi cabang hanya arsip yang memang
+      // ditujukan ke program studi. Arsip internal LPM/LPPM tidak diteruskan.
+      const tujuanPublish = body.tujuanPublish === "lpm" || body.tujuanPublish === "lppm"
+        ? String(body.tujuanPublish)
+        : "prodi";
+
+      const baseUrl = sumber === "lpm"
+        ? process.env.LPM_BASE_URL || "http://localhost:5004"
+        : process.env.LPPM_BASE_URL || "http://localhost:5005";
+
+      // Token layanan untuk membaca arsip di aplikasi sumber.
+      //
+      // Permintaan ini tidak membawa sesi pengguna, sehingga identitas yang
+      // tersedia hanyalah aplikasi cabang pemanggil. Token diturunkan dari
+      // `clientId`/`clientKey` yang SUDAH diverifikasi di atas, bukan dari
+      // masukan mentah pemanggil, dan diberi cakupan baca arsip saja.
+      const tokenLayanan = terbitkanTokenLayananArsip(ssoApp.clientId);
+
+      const hasil = await ambilDokumenAplikasi(
+        baseUrl,
+        sumber.toUpperCase(),
+        {
+          skip: body.skip !== undefined ? String(body.skip) : undefined,
+          take: body.take !== undefined ? String(body.take) : "50",
+          search: typeof body.search === "string" ? body.search.slice(0, 120) : undefined,
+          status: typeof body.status === "string" ? body.status.slice(0, 40) : undefined,
+          tahun: body.tahun !== undefined ? String(body.tahun) : undefined,
+          tujuanPublish,
+          prodiCode,
+        },
+        tokenLayanan
+      );
+
+      if (!hasil.ok) {
+        return res.status(502).json({
+          status: false,
+          message: hasil.message || `Arsip dokumen ${sumber.toUpperCase()} tidak dapat dibaca.`,
+          data: [],
+        });
+      }
+
+      return res.json({
+        status: true,
+        app: sumber,
+        data: hasil.data,
+        meta: { total: hasil.data.length },
+      });
+    } catch (error: any) {
+      logServerError("POST /api/v2/website/dokumen", error);
+      return res.status(500).json({
+        status: false,
+        message: "Gagal membaca arsip dokumen.",
+        data: [],
+      });
+    }
+  }
+);
+
+// GET /api/inter-service/dokumen-lpm
+app.get(
+  "/api/inter-service/dokumen-lpm",
+  authenticateToken,
+  requireAnyPermission(["api_hub:view", "api_hub:menu"]),
+  async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const baseUrl = process.env.LPM_BASE_URL || "http://localhost:5004";
+
+    const hasil = await ambilDokumenAplikasi(
+      baseUrl,
+      "LPM",
+      {
+        skip: req.query.skip as string | undefined,
+        take: req.query.take as string | undefined,
+        search: req.query.search as string | undefined,
+        status: req.query.status as string | undefined,
+        tahun: req.query.tahun as string | undefined,
+        tujuanPublish: req.query.tujuanPublish as string | undefined,
+        prodiCode: req.query.prodiCode as string | undefined,
+      },
+      token
+    );
+
+    if (!hasil.ok) {
+      // 401/403 dari aplikasi sumber berarti sesi pengguna tidak berlaku di
+      // sana — diteruskan apa adanya; kegagalan jaringan menjadi 502.
+      const kode = hasil.statusCode && [401, 403].includes(hasil.statusCode) ? hasil.statusCode : 502;
+      return res.status(kode).json({ status: false, app: "lpm", message: hasil.message, data: [] });
+    }
+    res.json({ status: true, app: "lpm", data: hasil.data, meta: { total: hasil.data.length } });
+  }
+);
+
+// GET /api/inter-service/dokumen-lppm
+app.get(
+  "/api/inter-service/dokumen-lppm",
+  authenticateToken,
+  requireAnyPermission(["api_hub:view", "api_hub:menu"]),
+  async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const baseUrl = process.env.LPPM_BASE_URL || "http://localhost:5005";
+
+    const hasil = await ambilDokumenAplikasi(
+      baseUrl,
+      "LPPM",
+      {
+        skip: req.query.skip as string | undefined,
+        take: req.query.take as string | undefined,
+        search: req.query.search as string | undefined,
+        status: req.query.status as string | undefined,
+        tahun: req.query.tahun as string | undefined,
+        tujuanPublish: req.query.tujuanPublish as string | undefined,
+        prodiCode: req.query.prodiCode as string | undefined,
+      },
+      token
+    );
+
+    if (!hasil.ok) {
+      const kode = hasil.statusCode && [401, 403].includes(hasil.statusCode) ? hasil.statusCode : 502;
+      return res.status(kode).json({ status: false, app: "lppm", message: hasil.message, data: [] });
+    }
+    res.json({ status: true, app: "lppm", data: hasil.data, meta: { total: hasil.data.length } });
+  }
+);
+
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });
@@ -3583,6 +4767,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 ONE UNUSU SSO Central Gateway running on http://localhost:${PORT}`);
+  console.log(`ðŸš€ ONE UNUSU SSO Central Gateway running on http://localhost:${PORT}`);
 });
 

@@ -1,5 +1,205 @@
 # Changelog - Admin Panel
 
+## [2026-11-15] - Dashboard Tanpa Chip Kekurangan & Tanpa Blok Identitas
+
+### Removed
+- **Blok "Data Ketenagaan Dosen" dihapus dari dashboard.** Blok identitas civitas (berjudul "Data Ketenagaan Dosen" untuk dosen, "Otoritas & Unit Kerja" untuk superadmin, "Data Akademik Mahasiswa" untuk mahasiswa) yang menampilkan NIDN/NUP, Homebase Prodi, Fakultas Induk, dan Status Kepegawaian kini tidak lagi dirender. Datanya sudah tersedia di halaman **Biodata**, dan pengulangannya di dashboard membuat halaman terlalu padat. Turut dihapus: `identitySectionTitle`, `identityMetrics`, tipe `IdentityMetric`, `statusLabel`, serta impor `IdentificationIcon`.
+- **Daftar "Belum terisi" beserta chip butir yang kurang dihapus dari `KartuProgres`.** Prop `kurang` dan `sisaKurang` dihapus sepenuhnya. Kartu kini hanya berisi judul, keterangan, persentase, bar progres, `terisi/total`, kalimat ajakan, dan tombol aksi. Impor `ExclamationCircleIcon` ikut dihapus.
+
+### Fixed
+- **Kartu "Kelengkapan Biodata" menuduh admin belum lengkap.** `daftarButir()` sebelumnya memasukkan foto profil, jenis kelamin, tanggal lahir, dan alamat ke **semua** peran, termasuk admin. Akibatnya admin dengan 3 dari 7 butir terisi mendapat ajakan "lengkapi profil akademik Anda" — padahal keempat butir itu adalah data civitas yang tidak dimiliki admin. Butir dasar kini hanya `nama`, `email`, `noHp`; butir civitas (foto, jenis kelamin, tanggal lahir, alamat) hanya dihitung untuk `DOSEN` dan `MAHASISWA`.
+- Kalimat ajakan dan keterangan kartu menyesuaikan peran lewat `isCivitas`: "profil akademik" untuk dosen/mahasiswa, "profil akun" untuk admin dan pengelola. Bila biodata lengkap, ajakan diganti "Tidak ada data wajib yang kosong."
+
+## [2026-11-15] - Panel Monitoring Berkas Dosen: Satu Tabel untuk Semua Jenis
+
+### Changed
+- **Blok chip "Belum Diunggah (N)" dihapus.** Sebelumnya setiap baris dosen yang dibuka menampilkan dua blok terpisah: tabel "Berkas Terunggah" dan kumpulan chip jenis yang belum diunggah. Keduanya digabung menjadi **satu tabel** yang memuat seluruh jenis berkas (mengikuti master `meta.tipeBerkas`, saat ini 14 baris).
+- Jenis yang belum diunggah kini tampil sebagai **baris** dengan status `Belum diunggah` — merah (`#FEE2E2`) bila wajib, abu-abu (`#F1F5F2`) bila opsional. Jenis wajib juga ditandai `wajib` di bawah namanya. Jenis yang sudah ada diberi status `Terunggah` hijau (`#DCFCE7`).
+- Kolom tabel berubah dari `Jenis / Nama Dokumen / Tahun / Ukuran / Diunggah / Aksi` menjadi `Jenis / Status / Dokumen / Tahun / Diunggah / Aksi`. Kolom **Ukuran dihapus** agar tabel muat tanpa gulir mendatar pada layar laptop; nama dokumen dan nomor dokumen kini berbagi satu sel.
+- Judul blok menjadi "Daftar Jenis Berkas" dengan ringkasan di kanan: `N jenis terunggah dari 14 jenis` (dan `· M berkas` bila ada jenis yang diunggah lebih dari sekali).
+
+### Catatan Teknis
+- Fungsi `barisJenisDosen()` menggabungkan master jenis dari `meta.tipeBerkas` dengan `dosen.berkas` (dicocokkan lewat `tipeKode`). Master dipakai sebagai sumber kebenaran daftar jenis, bukan `dosen.berkas` — dosen yang belum mengunggah apa pun tetap melihat ke-14 jenis.
+- Bila `meta` belum termuat tetapi baris berkas sudah ada, jenis yang hanya diketahui dari data berkas tetap ditampilkan agar tidak hilang.
+- Baris dihitung hanya saat akordeon terbuka (`isOpen ? barisJenisDosen(dosen) : []`) supaya tidak menyaring ulang seluruh berkas setiap dosen pada setiap render.
+- Tabel dibungkus `overflow-x-auto` dengan `min-w-[640px]` agar tetap terbaca pada layar sempit.
+- Ikon `CheckIcon` ditambahkan pada impor `@heroicons/react/24/outline`.
+
+## [2026-11-15] - Kartu Progres Kelengkapan pada Dashboard ONE UNUSU
+
+### Added
+- **Kartu "Kelengkapan Biodata"** di `/dashboard`, tampil untuk semua peran. Menampilkan persentase, bar progres, `terisi/total`, chip butir yang masih kosong (maksimal 3 + "+N lainnya"), dan tombol "Lengkapi Biodata".
+- **Kartu "Kelengkapan Dokumen"** khusus peran `DOSEN`, ditampilkan bersebelahan pada layar `lg`. Menghitung jenis berkas yang sudah diunggah dari 14 jenis yang tersedia, menyebut berkas wajib yang belum diunggah, dan menautkan ke `/berkas-dosen`.
+- Ajakan bersifat **kontekstual**, bukan kalimat tetap: bila email atau WhatsApp kosong, kartu menyebut keduanya sebagai penghalang pembukaan aplikasi SSO; bila yang kosong hanya butir opsional, ajakannya berubah menjadi saran pelengkapan. Kartu berubah hijau dan berganti tombol menjadi "Lihat Biodata"/"Lihat Dokumen" ketika sudah lengkap.
+
+### Changed
+- **Pengingat biodata lama digantikan kartu progres.** Blok kuning yang hanya muncul saat biodata belum lengkap kini tidak lagi dipakai: progres selalu terlihat agar pengguna tahu posisinya, tidak hanya ketika ada yang salah.
+- `navigate('/profil')` dari kartu membawa `state.requiredBio` hanya bila butir WAJIB (email/WhatsApp) memang kosong, sehingga penanda "wajib" di halaman profil tidak menyala hanya karena alamat atau foto belum diisi.
+
+### Catatan Teknis
+- `src/client/lib/biodata.ts` diperluas dengan `ringkasBiodata()`. Fungsi lama `isBiodataComplete()` **tetap dipertahankan** karena dipakai sebagai gerbang tiket SSO di 5 berkas (Sidebar, AplikasiSsoPage, DaftarAplikasi, Dashboard, Profile). Keduanya sengaja dibedakan: `ringkasBiodata().lengkap` menghitung semua butir sehingga tidak boleh dipakai sebagai gerbang — pengguna akan terblokir hanya karena alamat kosong.
+- `src/client/lib/kelengkapanDokumen.ts` menambahkan `ringkasDokumenDosen()`. Kelengkapan dihitung per JENIS, bukan per baris, konsisten dengan panel monitoring admin.
+- `src/client/components/KartuProgres.tsx` menjadi komponen bersama kedua kartu agar tampilannya seragam.
+- Data dokumen diambil **setelah** peran diketahui (`fetchMe` selesai), dan kegagalannya didiamkan — kartu cukup tidak tampil, dashboard tetap utuh. Ini mencegah satu endpoint bermasalah merusak seluruh halaman.
+
+## [2026-11-15] - Form Unggah Berkas Dosen Menjadi Modal & Menu Tata Kelola Disaring
+
+### Fixed
+- **Menu "Berkas Dosen" masih muncul pada sidebar dosen.** Entri `/admin/berkas-dosen` di grup TATA KELOLA dijaga izin `berkas_dosen:menu` — izin yang memang dipegang peran `DOSEN` untuk halaman `/berkas-dosen` miliknya. Akibatnya dosen melihat menu panel pemantauan yang bukan haknya. Seluruh grup TATA KELOLA kini disaring ganda: `hasPermission(user, item.permission) && canOpenAdminPanel(user)`, sejalan dengan penjagaan rute `AdminPanelRoute`.
+
+### Changed
+- **Form unggah berkas dipindah dari kartu seksi di dalam halaman menjadi modal**, mengikuti pola modal proyek (Manajemen Slider): latar `bg-black/40 backdrop-blur-sm`, panel `max-w-xl rounded-2xl`, kepala `bg-[#F9FBFA]` berisi judul + keterangan + tombol tutup, isi `px-6 py-5`, kaki `px-6 py-4` berisi Batal dan Simpan.
+- Tombol "Unggah Berkas" pada kartu ringkasan tidak lagi berganti menjadi "Tutup Form"; ia selalu membuka modal. Menutup dilakukan dari dalam modal.
+- Modal dapat ditutup lewat tombol `×`, tombol Batal, atau **Escape**. Ketiganya dinonaktifkan selama `unggahPersen !== null` agar progres unggahan tidak hilang di tengah jalan.
+- Modal diberi `role="dialog"`, `aria-modal="true"`, dan `aria-labelledby` yang menunjuk judulnya; latar memakai `overflow-y-auto` agar tetap dapat digulir pada layar pendek.
+- Keterangan "PDF, maksimal 10 MB" dipindah ke subjudul modal, dan `PDF` dihapus dari label field karena sudah jelas dari konteks.
+- Struktur halaman dosen turun dari tiga blok menjadi **dua**: kartu ringkasan progres dan satu daftar 14 jenis berkas.
+
+## [2026-11-15] - Halaman 403 Diberi Panggung Visual Animasi
+
+### Added
+- **Panggung "403"**: angka besar `64px → 76px` berwarna `#166534` dengan `text-shadow` lembut, diapit dua cincin `#BBF7D0` yang memancar bergantian (`animate-denyutCincin`) dan latar gradien `#F0FDF4 → #F9FDFB → #FEF2F2`.
+- **Tiga keyframe baru di `tailwind.config.js`**: `gerakLembut` (blob mengapung), `denyutLembut` (titik berkedip), `denyutCincin` (cincin memancar). Ketiganya didaftarkan sekaligus pada `theme.extend.animation` sebagai `animate-gerakLembut`, `animate-denyutLembut`, dan `animate-denyutCincin`.
+- Blob dekoratif dan titik kecil di latar panggung memberi kesan hidup tanpa mengganggu teks.
+
+### A11y & Performa
+- Seluruh elemen dekoratif diberi `aria-hidden="true"` sehingga pembaca layar tidak membacanya.
+- Semua animasi memakai prefiks `motion-safe:` — otomatis diam total pada pengguna dengan `prefers-reduced-motion`.
+- Keyframe hanya menggerakkan `transform` dan `opacity` (bukan `width`/`height`/`top`/`left`) agar tidak memicu reflow; blob memakai `translate3d` untuk lapisan compositor.
+- Varian durasi/delay memakai utilitas arbitrer (`[animation-duration:12s]`, `[animation-delay:1.75s]`) sehingga tidak perlu menambah entri config untuk setiap variasi.
+
+### Changed
+- Blok `dl` ringkasan ditata ulang: baris "Tujuan" ditempatkan paling atas dengan tipografi mono, latar kartu diubah ke `bg-white` agar gradien panggung di atasnya tetap menonjol.
+
+## [2026-11-15] - Halaman 403 Diringkas Jadi Minim Info
+
+### Changed
+- **Konten dikurangi menjadi satu layar ringkas.** Halaman 403 sebelumnya memuat empat blok penjelasan: paragraf panjang tentang pemisahan peran, dua kartu fakta, kotak peringatan kuning tentang admin aplikasi cabang, dan daftar semua aplikasi yang boleh diakses. Bagi dosen yang sekadar salah membuka `/admin`, semua itu hanya menambah kebisingan.
+- **Yang disisakan:** satu baris status `403` + tujuan yang ditolak, satu blok dua baris berisi peran dan izin yang dibutuhkan (hanya muncul bila server menyertakan `?need=`), lalu baris tombol.
+- **Dihapus:** kotak peringatan `#FFFBEB` tentang admin aplikasi cabang, daftar chip "Aplikasi yang boleh Anda akses", baris "Mengelola: ..." / "Bukan pengelola panel administrasi", dan label "di luar kewenangan peran" yang menduplikasi pesan judul.
+- **Judul dan deskripsi dipersingkat**: "Halaman ini bukan untuk akun Anda" / "Akun Anda tidak memiliki izin membuka halaman tersebut."
+- Peran dan tujuan ditata sebagai `dl` bergaris pemisah, menggantikan dua kartu terpisah — jumlah kotak di halaman turun dari lima menjadi tiga.
+- Tombol "Keluar" diubah menjadi gaya teks tanpa bingkar agar tidak bersaing dengan tombol utama, tetap di kanan pada layar lebar.
+- `MANAGED_APP_BY_ROLE` dan `CheckCircleIcon` tidak lagi diimpor pada halaman ini.
+
+## [2026-11-15] - Menu "Berkas Saya" Dikembalikan ke Sidebar Dosen
+
+### Fixed
+- **Menu `/berkas-dosen` tidak pernah tampil untuk akun dosen.** Izin `berkas_dosen:menu` memang sudah ada pada peran `DOSEN`, tetapi satu-satunya menu yang mendaftar rute itu adalah `/admin/berkas-dosen` pada grup **TATA KELOLA** — rute panel pemantauan yang hanya dapat dibuka pengelola. Akibatnya dosen tidak punya jalan masuk ke halaman unggah miliknya sendiri.
+- **Menu "Berkas Saya" ditambahkan ke MENU UTAMA** di `SidebarLayout.tsx`, mengarah ke `/berkas-dosen` dengan ikon `DocumentTextIcon`. Diletakkan sebelum "Biodata" karena merupakan pekerjaan harian dosen, bukan tata kelola.
+- Kedua menu memakai izin berbeda sehingga tidak pernah muncul bersamaan pada satu akun: `berkas_dosen:menu` untuk halaman dosen, dan `/admin/berkas-dosen` hanya untuk pengelola yang juga memiliki izin panel admin.
+- Rute `/berkas-dosen` sudah terdaftar di `allNavPaths` sehingga penanda menu aktif dan breadcrumb "Berkas Dosen Saya" bekerja tanpa perubahan tambahan.
+
+## [2026-11-15] - Halaman 403 Dipindah ke Dalam Layout Panel
+
+### Changed
+- **Akar masalah padding tidak seragam:** rute `/akses-ditolak` sebelumnya berdiri **di luar `PanelLayout`**. Halaman dirender sebagai layar penuh sendiri (`min-h-screen bg-[#F1F5F2] flex items-center justify-center`) sehingga tidak memakai padding `<main>` panel (`p-4 sm:p-6 lg:p-7`), tidak menyisakan ruang sidebar, dan kartunya mengapung di tengah dengan latar abu-abu — berbeda dari halaman panel lain yang kartunya menempel pada satu kolom konten.
+- **Rute dipindahkan ke dalam `<Route element={<PanelLayout />}>`** di `App.tsx`. Kini halaman 403 otomatis mewarisi sidebar, header, footer, dan padding utama yang sama persis dengan halaman panel lain.
+- **Halaman ditulis ulang memakai `PanelPageTemplate`**, sama seperti `/admin/berkas-dosen`. Bingkai kartu putih `rounded-[16px] border-[#D8E5DC]`, kepala `p-5`, dan isi `p-5 sm:p-6 space-y-5` kini berasal dari template — bukan ditulis ulang per halaman, sehingga tidak bisa lagi menyimpang.
+- Judul dan penjelasan dipindah ke slot `title`/`description` template. Badge 403 menjadi kartu merah tipis `rounded-[12px] border-[#FECACA] bg-[#FEF2F2] px-4 py-3` di dalam isi.
+- Kartu "Peran Anda" dan "Tujuan yang ditolak" memakai padding seragam `px-4 py-3` dan kembali ke grid dua kolom (sebelumnya sempat 4 kolom saat halaman masih layar penuh).
+- Baris tombol tidak lagi memakai `pt-4 border-t` karena jarak sudah diatur `space-y-5` dari template.
+
+
+## [2026-11-15] - Penyeragaman Padding Halaman 403 (`/akses-ditolak`)
+
+### Changed
+- **Padding dan jarak dibuat seragam.** Sebelumnya halaman mencampur tiga ukuran berbeda: kepala `p-6`, isi `p-6`, kartu info `p-4`, tombol `min-h-[44px]`, dan `space-y-5` — hasilnya terasa renggang dan tidak konsisten dengan panel lain.
+- Sekarang mengikuti skala panel: kepala dan isi sama-sama `px-5 py-4`, jarak antar blok `space-y-4`, kartu info `p-3`, kotak peringatan `p-3`, dan chip aplikasi `py-1` (sebelumnya `py-1.5`).
+- Ikon kepala diperkecil dari `w-12 h-12` + `w-6 h-6` menjadi `w-10 h-10` + `w-5 h-5` dengan radius `10px`, sejalan dengan wadah ikon pada panel.
+- Tombol aksi `min-h-[44px]` menjadi `min-h-[40px]` agar setinggi tombol pada panel lain.
+- Jarak vertikal halaman dari `py-10` menjadi `py-8`, dan jarak label ke judul `mt-2` menjadi `mt-1.5`.
+
+## [2026-11-15] - Penyederhanaan Desain Halaman `/berkas-dosen`
+
+### Changed
+- **Empat kartu statistik digabung menjadi satu kartu ringkasan** berisi `N dari 14 jenis berkas terisi`, jumlah berkas terunggah, status berkas wajib, bar progres, dan peringatan jenis wajib yang masih kosong. Empat kartu sebelumnya memakan ruang vertikal tanpa menambah informasi baru.
+- **Tabel "Berkas Saya" dihapus dan digabung ke grid jenis berkas.** Sekarang satu daftar 14 baris — satu baris per JENIS berkas — dengan status terisi/belum, jumlah berkas, tanggal unggah terakhir, dan aksi unggah. Detail dokumen (nomor, tahun, ukuran, tanggal, pratinjau, hapus) dibuka di dalam baris tersebut. Halaman tidak lagi punya dua daftar yang menampilkan data yang sama dari sudut berbeda.
+- **Tombol "Unggah Berkas" dipindah ke kartu ringkasan** dan berganti menjadi "Tutup Form" saat form terbuka, sehingga satu tombol mengendalikan form dan tidak ada tombol mengambang terpisah.
+- **Form unggah diringkas**: hanya jenis berkas, nama dokumen, dan berkas PDF yang tampil. Nomor dokumen, tahun SK, dan keterangan disembunyikan di balik tombol "Tambah detail dokumen (opsional)". Tahun SK tetap terisi tahun berjalan sehingga form dapat langsung disimpan.
+- Nama dokumen terisi otomatis saat jenis berkas dipilih, dan ikut berubah bila jenis diganti sebelum dosen mengetik sendiri.
+
+### Removed
+- Blok "Kelengkapan Jenis Berkas" bertombol seluruh jenis dan blok "Berkas Saya" berupa `DataTable` — keduanya digantikan satu daftar terpadu.
+- Import `DataTable`/`KolomTabel` serta ikon `ArrowUturnLeftIcon` dan `ClockIcon` yang tidak lagi dipakai pada halaman ini.
+
+## [2026-11-15] - Foto Dosen pada Panel Monitoring Berkas
+
+### Added
+- **Foto profil dosen di sisi kiri setiap baris** `/admin/berkas-dosen`. Bila dosen belum mengunggah foto, ditampilkan inisial nama pada lingkaran `#DCFCE7` dengan teks `#166534` — pola sama dengan kolom avatar pada halaman Manajemen Pengguna.
+- Cincin (ring) warna di sekeliling foto menandai status kelengkapan: merah (belum), kuning (sebagian), hijau (lengkap), sehingga status tetap terbaca tanpa membaca badge.
+
+### Changed
+- `PILIH_PROFIL_PEMILIK` di `src/server/index.ts` kini ikut menyertakan kolom `avatar`, sehingga endpoint `GET /api/admin/berkas-dosen/monitoring` mengirim foto dosen.
+- Ikon `DocumentTextIcon` yang sebelumnya menjadi penanda baris digantikan avatar; ikon tersebut tetap dipakai pada kartu statistik dan keadaan kosong.
+
+## [2026-11-15] - Panel Berkas Dosen Menjadi Monitoring Kelengkapan
+
+### Changed
+- **`/admin/berkas-dosen` berubah dari verifikasi menjadi monitoring.** Admin kini melihat **seluruh dosen aktif** (163 akun pada data saat ini), bukan hanya dosen yang sudah mengunggah. Setiap baris menampilkan progres `N/14 jenis`, status (Belum / Sebagian / Lengkap), dan dapat dibuka untuk melihat daftar berkas terunggah, jenis yang belum diunggah, serta progres berkas wajib.
+- **Sumber data panel admin** berpindah dari tabel berkas ke tabel pengguna berperan `DOSEN`, agar dosen tanpa berkas tetap muncul — merekalah yang perlu ditindaklanjuti.
+- **Endpoint baru** `GET /api/admin/berkas-dosen/monitoring` (izin `berkas_dosen:view`).
+- **Ekspor Rekap** menghasilkan CSV berpemisah `;` ber-BOM UTF-8 untuk seluruh dosen yang sedang tersaring.
+- **Saringan dan pencarian** ditambahkan: filter kategori kelengkapan, serta pencarian nama/NIDN/prodi/fakultas.
+
+### Removed
+- **Alur verifikasi dihapus sepenuhnya**: tombol setujui/tolak, form alasan penolakan, dan endpoint `PATCH /api/berkas-dosen/:id/verify`.
+- **Izin `berkas_dosen:verify`** dihapus dari `PERMISSION_CATALOG` serta database (melalui `db:seed`). Katalog berkas dosen kembali menjadi `menu`, `view`, `upload`, `delete`.
+- **Status verifikasi tidak lagi ditampilkan** pada halaman dosen maupun admin: badge "Terverifikasi/Menunggu", panel "Catatan Penolakan", dan field `isVerified`/`sudahDiverifikasi` pada respons `GET /api/berkas-dosen/tipe` dan `GET /api/berkas-dosen/list`.
+- Kolom `isVerified`, `verifiedAt`, `verifiedBy`, `verificationNote` **tetap ada di skema database** demi kompatibilitas, tetapi tidak dibaca atau diubah kode mana pun.
+
+
+## [2026-11-15] - Arsip Dokumen LPM & LPPM pada Integrasi & API Hub
+
+### Added
+- **Tab "Arsip Dokumen"** (`src/client/pages/admin/ApiHub.tsx`): tab baru dengan pemilih sumber **Arsip Dokumen LPM** / **Arsip Dokumen LPPM** (data diambil terpisah per aplikasi, tidak digabung), pencarian judul/nomor/kategori/prodi, kolom kategori, tujuan publikasi (`LPM/LPPM Internal` atau `Program Studi` beserta nama prodi), status, tautan "Buka arsip", dan tautan berkas PDF.
+- **Endpoint proxy baca-saja per aplikasi** di `src/server/index.ts`, dilindungi `authenticateToken` + `requireAnyPermission(['api_hub:view', 'api_hub:menu'])`:
+  - `GET /api/inter-service/dokumen-lpm`
+  - `GET /api/inter-service/dokumen-lppm`
+- **Katalog endpoint** pada tab *Katalog Endpoint* memuat kedua endpoint di atas dengan deskripsi parameter filternya (`search`, `status`, `tahun`, `tujuanPublish`, `prodiCode`, `skip`, `take`).
+- **Fungsi klien** `fetchDokumenLpm` dan `fetchDokumenLppm` beserta tipe `DokumenIntegrasiItem` pada `src/client/services/api.ts`.
+- **Konfigurasi baru** `LPM_BASE_URL` (default `http://localhost:5004`) dan `LPPM_BASE_URL` (default `http://localhost:5005`) pada `.env` / `.env.example`.
+
+### Changed
+- **`ApiHub.tsx` disesuaikan dengan `AdminPanelTemplate` terkini**: prop `pageTitle` diganti `user`, `title`, dan `description` sehingga pemeriksaan tipe lolos dan halaman tidak lagi memakai props yang tidak ada.
+- **Modul bersifat hanya-baca**: perubahan dokumen tetap dilakukan pada panel aplikasi LPM/LPPM masing-masing; API Hub hanya menampilkan dan menautkan ke arsip sumber.
+
+### Notes
+- Token sesi pengguna diteruskan apa adanya ke aplikasi tujuan sehingga otorisasi per-aplikasi tetap ditegakkan. Penolakan `401`/`403` dari aplikasi sumber diteruskan dengan kode yang sama; hanya kegagalan jaringan/timeout yang dipetakan menjadi `502`.
+- Endpoint gabungan (`GET /api/inter-service/dokumen`) sengaja **tidak** disediakan — arsip LPM dan LPPM dibaca terpisah agar batas kepemilikan data antar lembaga tetap jelas.
+
+## [2026-11-15] - Modul Berkas Dosen End-to-End
+
+### Added
+- **Halaman dosen `/berkas-dosen`** (`src/client/pages/BerkasDosenSaya.tsx`): dosen mengunggah dan mengelola berkas pribadinya (CV, ijazah, SK, sertifikat, dll.). Memuat 14 jenis berkas dari database, menampilkan ringkasan kelengkapan, status verifikasi, dan catatan penolakan dari pengelola.
+- **Endpoint berkas dosen** di `src/server/index.ts`: `GET /api/berkas-dosen/tipe`, `GET /api/berkas-dosen/list`, `POST /api/berkas-dosen/upload` (multipart), `GET /api/berkas-dosen/file/:nama`, `DELETE /api/berkas-dosen/:id`, `PATCH /api/berkas-dosen/:id/verify`.
+- **Modul penyimpanan** `src/server/lib/dosenBerkas.ts`: multer disk storage dengan nama file acak, batas 10 MB, validasi `mimetype` dan signature `%PDF`.
+- **Izin `berkas_dosen:verify`**: ditambahkan ke `PERMISSION_CATALOG` dan `PERMISSIONS` klien. Peran `DOSEN` kini memegang `berkas_dosen:menu`, `berkas_dosen:view`, `berkas_dosen:upload`, dan `berkas_dosen:delete`.
+- **Template `PanelPageTemplate`** (`src/client/components/templates/PanelPageTemplate.tsx`): generalisasi `AdminPanelTemplate` dengan label dan icon yang dapat diatur, sehingga halaman dosen memakai kerangka visual sama tanpa mengklaim sebagai panel administrasi.
+
+### Changed
+- **`/admin/berkas-dosen` ditulis ulang** dari data contoh menjadi panel verifikasi nyata: pemilih dosen dengan pencarian, daftar berkas dosen terpilih, serta aksi setujui/tolak dengan alasan penolakan.
+- **`AdminPanelTemplate`** kini menjadi pembungkus tipis di atas `PanelPageTemplate`; perilaku dan tampilannya tidak berubah.
+- **Menu sidebar** menambahkan "Berkas Saya" pada navigasi utama (terlihat oleh pemegang `berkas_dosen:menu`).
+- **Dependency baru**: `multer` dan `@types/multer`.
+
+### Fixed
+- `ApiHub.tsx` memakai prop `pageTitle` yang tidak ada pada `AdminPanelTemplate`, sehingga typecheck client gagal. Kini memakai prop `user`, `title`, dan `description`.
+- `Profile.tsx` memberi `message` bertipe `unknown` pada `NotificationModal`. Kini memakai helper `pesanGalatPermintaan()` yang sudah tersedia.
+
+### Removed
+- Data contoh (`mock`) pada halaman Berkas Dosen, termasuk penggunaan `alert()`/`confirm()` bawaan browser.
+
+
+## [2026-11-15]
+
+### Changed
+- Katalog API Hub menampilkan `GET /api/academic/hierarchy` sebagai endpoint publik ONE UNUSU yang mem-proxy daftar fakultas dan program studi aktif dari API Prodi UNUSU.
+
+### Removed
+- Halaman `/admin/master-akademik` beserta menu sidebar, breadcrumb, dan route-nya dihapus. Data akademik kembali sepenuhnya bergantung pada API Prodi UNUSU melalui `GET /api/academic/hierarchy`.
+- Endpoint `GET /api/admin/academic/list` dan `POST /api/admin/academic/sync` dihapus. Tabel `fakultas` dan `prodi` tetap ada di database (tidak ada mutasi data).
+
 ## [2026-11-14] - `DataTable` Bersama, Kolom Nomor Urut, dan Kolom Avatar Pengguna
 
 ### Added
