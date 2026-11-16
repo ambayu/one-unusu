@@ -697,4 +697,156 @@ export const fetchDokumenLppm = (params?: DokumenIntegrasiParams) =>
     { params }
   );
 
+// ==========================================
+// INTEGRASI & API HUB
+// ==========================================
+
+/** Entri katalog endpoint lintas-aplikasi. */
+export interface ApiEndpointItem {
+  id: number;
+  name: string;
+  description: string | null;
+  endpoint: string;
+  method: string;
+  sourceApp: string;
+  category: string;
+  exampleRequest: string | null;
+  exampleResponse: string | null;
+  isActive: boolean;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * API key seperti yang tampil di daftar.
+ *
+ * `key` sudah dipotong oleh server. Nilai utuh hanya diterima sekali pada
+ * respons pembuatan key (`ApiKeyBaru`).
+ */
+export interface ApiKeyItem {
+  id: number;
+  name: string;
+  description: string | null;
+  key: string;
+  appId: number;
+  appName: string;
+  allowedEndpoints: number[] | null;
+  isActive: boolean;
+  revoked: boolean;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  lastUsedAt: string | null;
+  lastUsedIp: string | null;
+  usageCount: number;
+  createdAt: string;
+}
+
+/** Hasil pembuatan key — satu-satunya respons berisi nilai key utuh. */
+export interface ApiKeyBaru {
+  id: number;
+  name: string;
+  description: string | null;
+  key: string;
+  appId: number;
+  appName: string;
+  allowedEndpoints: number[] | null;
+  isActive: boolean;
+  revoked: boolean;
+  usageCount: number;
+  createdAt: string;
+}
+
+/** Satu baris riwayat pemakaian API key. */
+export interface ApiUsageLogItem {
+  id: number;
+  keyId: number;
+  keyName: string;
+  appName: string;
+  endpoint: string;
+  method: string;
+  statusCode: number;
+  responseTime: number;
+  requestIp: string | null;
+  userAgent: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+/** Aplikasi yang boleh memiliki API key. */
+export interface ApiHubAppItem {
+  id: number;
+  nameApp: string;
+  isActive: boolean;
+}
+
+/** Bentuk data yang dikirim saat menyimpan endpoint. */
+export interface ApiEndpointKiriman {
+  name: string;
+  endpoint: string;
+  method: string;
+  sourceApp: string;
+  category?: string;
+  description?: string | null;
+  exampleRequest?: string | null;
+  exampleResponse?: string | null;
+  isActive?: boolean;
+  isPublic?: boolean;
+}
+
+export const fetchApiEndpoints = (params?: { search?: string; sourceApp?: string }) =>
+  api.get<{ status: boolean; data: ApiEndpointItem[]; meta: { total: number } }>(
+    '/admin/api-hub/endpoints',
+    { params }
+  );
+
+export const createApiEndpoint = (data: ApiEndpointKiriman) =>
+  api.post<{ status: boolean; message: string; data: ApiEndpointItem }>(
+    '/admin/api-hub/endpoints',
+    data
+  );
+
+export const updateApiEndpoint = (id: number, data: Partial<ApiEndpointKiriman>) =>
+  api.put<{ status: boolean; message: string; data: ApiEndpointItem }>(
+    `/admin/api-hub/endpoints/${id}`,
+    data
+  );
+
+export const deleteApiEndpoint = (id: number) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/api-hub/endpoints/${id}`);
+
+export const fetchApiHubApps = () =>
+  api.get<{ status: boolean; data: ApiHubAppItem[] }>('/admin/api-hub/apps');
+
+export const fetchApiKeys = (params?: { search?: string }) =>
+  api.get<{ status: boolean; data: ApiKeyItem[]; meta: { total: number } }>('/admin/api-hub/keys', {
+    params,
+  });
+
+export const createApiKey = (data: {
+  name: string;
+  appId: number;
+  description?: string | null;
+  allowedEndpoints?: number[] | null;
+}) =>
+  api.post<{ status: boolean; message: string; data: ApiKeyBaru }>('/admin/api-hub/keys', data);
+
+export const updateApiKey = (
+  id: number,
+  data: { name?: string; description?: string | null; allowedEndpoints?: number[] | null; isActive?: boolean }
+) =>
+  api.put<{ status: boolean; message: string; data: ApiKeyItem }>(`/admin/api-hub/keys/${id}`, data);
+
+/** Mencabut key. Baris tidak dihapus; `revoked` diisi dan key langsung mati. */
+export const revokeApiKey = (id: number, reason?: string) =>
+  api.delete<{ status: boolean; message: string }>(`/admin/api-hub/keys/${id}`, {
+    data: { reason },
+  });
+
+export const fetchApiUsageLogs = (params?: { take?: number; endpoint?: string; statusCode?: number }) =>
+  api.get<{ status: boolean; data: ApiUsageLogItem[]; meta: { total: number; take: number } }>(
+    '/admin/api-hub/logs',
+    { params }
+  );
+
 export default api;

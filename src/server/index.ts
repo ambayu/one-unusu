@@ -3949,6 +3949,656 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// INTEGRASI & API HUB — katalog endpoint, API key, dan riwayat penggunaan
+//
+// Tiga tabel di balik panel ini sebelumnya hanya menampilkan data contoh yang
+// ditulis langsung di komponen klien. Endpoint di bawah ini menjadikannya
+// CRUD sungguhan di atas model `ApiEndpoint`, `ApiKey`, dan `ApiUsageLog`.
+//
+// Catatan keamanan untuk API key:
+//   - Key dibuat server, tidak pernah diterima dari klien.
+//   - Key hanya ditampilkan utuh SEKALI saat dibuat. Sesudah itu daftar hanya
+//     mengembalikan potongan (8 karakter awal + 4 akhir) supaya nilai rahasia
+//     tidak terus-menerus berpindah lewat jaringan setiap kali halaman dibuka.
+//   - Key tidak pernah dihapus fisik: pencabutan mengisi `revoked`, `revokedAt`,
+//     dan `revokedReason`, sehingga riwayat pemakaiannya tetap utuh.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Metode HTTP yang boleh disimpan pada katalog endpoint. */
+const METODE_ENDPOINT = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+
+/**
+ * Menyaring teks masukan menjadi nilai kolom yang aman.
+ *
+ * Mengembalikan `null` untuk teks kosong agar kolom opsional benar-benar
+ * kosong di database, bukan berisi string kosong.
+ */
+function teksOpsional(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const bersih = value.trim();
+  if (!bersih) return null;
+  return bersih.slice(0, maxLength);
+}
+
+function teksWajib(value: unknown, maxLength: number): string | null {
+  const bersih = teksOpsional(value, maxLength);
+  return bersih && bersih.length > 0 ? bersih : null;
+}
+
+/**
+ * Memvalidasi JSON contoh request/response.
+ *
+ * Disimpan sebagai teks di database, tetapi harus berupa JSON yang sah supaya
+ * halaman dokumentasi tidak menampilkan teks rusak. String kosong menjadi null.
+ */
+function jsonContoh(value: unknown, maxLength: number): { ok: boolean; nilai: string | null } {
+  const bersih = teksOpsional(value, maxLength);
+  if (bersih === null) return { ok: true, nilai: null };
+  try {
+    JSON.parse(bersih);
+    return { ok: true, nilai: bersih };
+  } catch {
+    return { ok: false, nilai: null };
+  }
+}
+
+/** Potongan key yang aman ditampilkan berulang kali. */
+function potongKeyApi(key: string): string {
+  if (key.length <= 16) return key;
+  return `${key.slice(0, 12)}${"•".repeat(6)}${key.slice(-4)}`;
+}
+
+/** Membuat API key baru: `unusu_sec_` + 40 karakter heksadesimal acak. */
+function buatKeyApi(): string {
+  return `unusu_sec_${crypto.randomBytes(20).toString("hex")}`;
+}
+
+/**
+ * Menerjemahkan `allowedEndpoints` dari body menjadi JSON array id endpoint.
+ *
+ * `null` berarti key boleh memanggil semua endpoint publik. Array kosong
+ * diperlakukan sama dengan `null` karena tidak ada endpoint yang diizinkan
+ * akan membuat key tidak berguna sama sekali.
+ */
+async function normalisasiEndpointDiizinkan(
+  value: unknown
+): Promise<{ ok: boolean; nilai: string | null; pesan?: string }> {
+  if (value === undefined || value === null) return { ok: true, nilai: null };
+
+  const daftar = Array.isArray(value) ? value : [];
+  const id = Array.from(
+    new Set(
+      daftar
+        .map((item) => Number(item))
+        .filter((n) => Number.isInteger(n) && n > 0)
+    )
+  );
+
+  if (id.length === 0) return { ok: true, nilai: null };
+
+  const ada = await prisma.apiEndpoint.count({ where: { id: { in: id } } });
+  if (ada !== id.length) {
+    return { ok: false, nilai: null, pesan: "Sebagian endpoint yang dipilih tidak ditemukan." };
+  }
+
+  return { ok: true, nilai: JSON.stringify(id.sort((a, b) => a - b)) };
+}
+
+/** GET /api/admin/api-hub/endpoints — daftar katalog endpoint. */
+app.get(
+  "/api/admin/api-hub/endpoints",
+  authenticateToken,
+  requirePermission("api_hub:view"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const cari = teksOpsional(req.query.search, 150);
+      const sumber = teksOpsional(req.query.sourceApp, 100);
+
+      const data = await prisma.apiEndpoint.findMany({
+        where: {
+          ...(sumber ? { sourceApp: sumber } : {}),
+          ...(cari
+            ? {
+                OR: [
+                  { name: { contains: cari } },
+                  { endpoint: { contains: cari } },
+                  { description: { contains: cari } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ sourceApp: "asc" }, { name: "asc" }],
+      });
+
+      res.json({ status: true, data, meta: { total: data.length } });
+    } catch (error: any) {
+      logServerError("GET /api/admin/api-hub/endpoints", error);
+      res.status(500).json({ status: false, message: "Gagal memuat katalog endpoint." });
+    }
+  }
+);
+
+/** POST /api/admin/api-hub/endpoints — menambah endpoint baru. */
+app.post(
+  "/api/admin/api-hub/endpoints",
+  authenticateToken,
+  requirePermission("api_hub:edit"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { name, endpoint, method, sourceApp, category, description } = req.body;
+
+      const nama = teksWajib(name, 150);
+      const alamat = teksWajib(endpoint, 255);
+      const metode = teksWajib(method, 10)?.toUpperCase();
+      const penyedia = teksWajib(sourceApp, 100);
+
+      if (!nama || !alamat || !metode || !penyedia) {
+        return res.status(400).json({
+          status: false,
+          message: "Nama, endpoint, metode, dan penyedia wajib diisi.",
+        });
+      }
+
+      if (!METODE_ENDPOINT.includes(metode as (typeof METODE_ENDPOINT)[number])) {
+        return res.status(400).json({
+          status: false,
+          message: `Metode harus salah satu dari: ${METODE_ENDPOINT.join(", ")}.`,
+        });
+      }
+
+      if (!alamat.startsWith("/")) {
+        return res.status(400).json({
+          status: false,
+          message: "Alamat endpoint harus dimulai dengan garis miring (/).",
+        });
+      }
+
+      const contohReq = jsonContoh(req.body.exampleRequest, 20000);
+      const contohRes = jsonContoh(req.body.exampleResponse, 20000);
+      if (!contohReq.ok || !contohRes.ok) {
+        return res.status(400).json({
+          status: false,
+          message: "Contoh request/response harus berupa JSON yang sah.",
+        });
+      }
+
+      const sudahAda = await prisma.apiEndpoint.findUnique({ where: { endpoint: alamat } });
+      if (sudahAda) {
+        return res.status(409).json({
+          status: false,
+          message: `Endpoint ${alamat} sudah terdaftar dengan nama "${sudahAda.name}".`,
+        });
+      }
+
+      const dibuat = await prisma.apiEndpoint.create({
+        data: {
+          name: nama,
+          endpoint: alamat,
+          method: metode,
+          sourceApp: penyedia,
+          category: teksOpsional(category, 50) ?? "data",
+          description: teksOpsional(description, 65535),
+          exampleRequest: contohReq.nilai,
+          exampleResponse: contohRes.nilai,
+          isActive: req.body.isActive !== false,
+          isPublic: req.body.isPublic === true,
+        },
+      });
+
+      res.status(201).json({
+        status: true,
+        message: "Endpoint berhasil ditambahkan.",
+        data: dibuat,
+      });
+    } catch (error: any) {
+      logServerError("POST /api/admin/api-hub/endpoints", error);
+      res.status(500).json({ status: false, message: "Gagal menambah endpoint." });
+    }
+  }
+);
+
+/** PUT /api/admin/api-hub/endpoints/:id — memperbarui endpoint. */
+app.put(
+  "/api/admin/api-hub/endpoints/:id",
+  authenticateToken,
+  requirePermission("api_hub:edit"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ status: false, message: "ID endpoint tidak valid." });
+      }
+
+      const lama = await prisma.apiEndpoint.findUnique({ where: { id } });
+      if (!lama) {
+        return res.status(404).json({ status: false, message: "Endpoint tidak ditemukan." });
+      }
+
+      const data: Record<string, unknown> = {};
+
+      if (req.body.name !== undefined) {
+        const nama = teksWajib(req.body.name, 150);
+        if (!nama) return res.status(400).json({ status: false, message: "Nama tidak boleh kosong." });
+        data.name = nama;
+      }
+
+      if (req.body.endpoint !== undefined) {
+        const alamat = teksWajib(req.body.endpoint, 255);
+        if (!alamat || !alamat.startsWith("/")) {
+          return res.status(400).json({
+            status: false,
+            message: "Alamat endpoint wajib diisi dan dimulai dengan garis miring (/).",
+          });
+        }
+        if (alamat !== lama.endpoint) {
+          const bentrok = await prisma.apiEndpoint.findUnique({ where: { endpoint: alamat } });
+          if (bentrok) {
+            return res.status(409).json({
+              status: false,
+              message: `Endpoint ${alamat} sudah dipakai oleh "${bentrok.name}".`,
+            });
+          }
+        }
+        data.endpoint = alamat;
+      }
+
+      if (req.body.method !== undefined) {
+        const metode = teksWajib(req.body.method, 10)?.toUpperCase();
+        if (!metode || !METODE_ENDPOINT.includes(metode as (typeof METODE_ENDPOINT)[number])) {
+          return res.status(400).json({
+            status: false,
+            message: `Metode harus salah satu dari: ${METODE_ENDPOINT.join(", ")}.`,
+          });
+        }
+        data.method = metode;
+      }
+
+      if (req.body.sourceApp !== undefined) {
+        const penyedia = teksWajib(req.body.sourceApp, 100);
+        if (!penyedia) {
+          return res.status(400).json({ status: false, message: "Penyedia tidak boleh kosong." });
+        }
+        data.sourceApp = penyedia;
+      }
+
+      if (req.body.category !== undefined) data.category = teksOpsional(req.body.category, 50) ?? "data";
+      if (req.body.description !== undefined) {
+        data.description = teksOpsional(req.body.description, 65535);
+      }
+
+      if (req.body.exampleRequest !== undefined) {
+        const hasil = jsonContoh(req.body.exampleRequest, 20000);
+        if (!hasil.ok) {
+          return res.status(400).json({ status: false, message: "Contoh request harus JSON yang sah." });
+        }
+        data.exampleRequest = hasil.nilai;
+      }
+
+      if (req.body.exampleResponse !== undefined) {
+        const hasil = jsonContoh(req.body.exampleResponse, 20000);
+        if (!hasil.ok) {
+          return res.status(400).json({ status: false, message: "Contoh response harus JSON yang sah." });
+        }
+        data.exampleResponse = hasil.nilai;
+      }
+
+      if (req.body.isActive !== undefined) data.isActive = req.body.isActive === true;
+      if (req.body.isPublic !== undefined) data.isPublic = req.body.isPublic === true;
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ status: false, message: "Tidak ada perubahan yang dikirim." });
+      }
+
+      const diperbarui = await prisma.apiEndpoint.update({ where: { id }, data });
+
+      res.json({ status: true, message: "Endpoint berhasil diperbarui.", data: diperbarui });
+    } catch (error: any) {
+      logServerError("PUT /api/admin/api-hub/endpoints/:id", error);
+      res.status(500).json({ status: false, message: "Gagal memperbarui endpoint." });
+    }
+  }
+);
+
+/** DELETE /api/admin/api-hub/endpoints/:id — menghapus endpoint dari katalog. */
+app.delete(
+  "/api/admin/api-hub/endpoints/:id",
+  authenticateToken,
+  requirePermission("api_hub:delete"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ status: false, message: "ID endpoint tidak valid." });
+      }
+
+      const ada = await prisma.apiEndpoint.findUnique({ where: { id } });
+      if (!ada) {
+        return res.status(404).json({ status: false, message: "Endpoint tidak ditemukan." });
+      }
+
+      await prisma.apiEndpoint.delete({ where: { id } });
+
+      res.json({ status: true, message: `Endpoint "${ada.name}" berhasil dihapus.` });
+    } catch (error: any) {
+      logServerError("DELETE /api/admin/api-hub/endpoints/:id", error);
+      res.status(500).json({ status: false, message: "Gagal menghapus endpoint." });
+    }
+  }
+);
+
+/** GET /api/admin/api-hub/apps — pilihan aplikasi pemilik key. */
+app.get(
+  "/api/admin/api-hub/apps",
+  authenticateToken,
+  requirePermission("api_hub:view"),
+  async (_req: AuthRequest, res: Response) => {
+    try {
+      const data = await prisma.ssoApp.findMany({
+        select: { id: true, nameApp: true, isActive: true },
+        orderBy: { nameApp: "asc" },
+      });
+      res.json({ status: true, data });
+    } catch (error: any) {
+      logServerError("GET /api/admin/api-hub/apps", error);
+      res.status(500).json({ status: false, message: "Gagal memuat daftar aplikasi." });
+    }
+  }
+);
+
+/**
+ * GET /api/admin/api-hub/keys — daftar API key.
+ *
+ * Nilai `key` yang dikirim ke klien sudah dipotong. Nilai utuh hanya keluar
+ * sekali pada respons pembuatan key.
+ */
+app.get(
+  "/api/admin/api-hub/keys",
+  authenticateToken,
+  requirePermission("api_hub:view"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const cari = teksOpsional(req.query.search, 150);
+
+      const rows = await prisma.apiKey.findMany({
+        where: cari
+          ? {
+              OR: [
+                { name: { contains: cari } },
+                { description: { contains: cari } },
+                { app: { nameApp: { contains: cari } } },
+              ],
+            }
+          : undefined,
+        include: { app: { select: { id: true, nameApp: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const data = rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        key: potongKeyApi(row.key),
+        appId: row.appId,
+        appName: row.app.nameApp,
+        allowedEndpoints: row.allowedEndpoints
+          ? (JSON.parse(row.allowedEndpoints) as number[])
+          : null,
+        isActive: row.isActive,
+        revoked: row.revoked,
+        revokedAt: row.revokedAt,
+        revokedReason: row.revokedReason,
+        lastUsedAt: row.lastUsedAt,
+        lastUsedIp: row.lastUsedIp,
+        usageCount: row.usageCount,
+        createdAt: row.createdAt,
+      }));
+
+      res.json({ status: true, data, meta: { total: data.length } });
+    } catch (error: any) {
+      logServerError("GET /api/admin/api-hub/keys", error);
+      res.status(500).json({ status: false, message: "Gagal memuat daftar API key." });
+    }
+  }
+);
+
+/**
+ * POST /api/admin/api-hub/keys — membuat API key baru.
+ *
+ * Respons ini satu-satunya tempat nilai key utuh dikirim ke klien.
+ */
+app.post(
+  "/api/admin/api-hub/keys",
+  authenticateToken,
+  requirePermission("api_hub:edit"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const nama = teksWajib(req.body.name, 150);
+      const appId = Number(req.body.appId);
+
+      if (!nama) {
+        return res.status(400).json({ status: false, message: "Nama key wajib diisi." });
+      }
+
+      if (!Number.isInteger(appId) || appId <= 0) {
+        return res.status(400).json({ status: false, message: "Aplikasi pemilik key wajib dipilih." });
+      }
+
+      const app = await prisma.ssoApp.findUnique({ where: { id: appId } });
+      if (!app) {
+        return res.status(404).json({ status: false, message: "Aplikasi pemilik key tidak ditemukan." });
+      }
+
+      const diizinkan = await normalisasiEndpointDiizinkan(req.body.allowedEndpoints);
+      if (!diizinkan.ok) {
+        return res.status(400).json({ status: false, message: diizinkan.pesan });
+      }
+
+      const dibuat = await prisma.apiKey.create({
+        data: {
+          key: buatKeyApi(),
+          name: nama,
+          description: teksOpsional(req.body.description, 65535),
+          appId,
+          allowedEndpoints: diizinkan.nilai,
+          createdBy: req.user?.id ?? null,
+        },
+        include: { app: { select: { nameApp: true } } },
+      });
+
+      res.status(201).json({
+        status: true,
+        message: `API key untuk "${app.nameApp}" berhasil dibuat. Simpan nilainya sekarang — tidak akan ditampilkan lagi.`,
+        // Nilai utuh, hanya sekali.
+        data: {
+          id: dibuat.id,
+          name: dibuat.name,
+          description: dibuat.description,
+          key: dibuat.key,
+          appId: dibuat.appId,
+          appName: dibuat.app.nameApp,
+          allowedEndpoints: diizinkan.nilai ? (JSON.parse(diizinkan.nilai) as number[]) : null,
+          isActive: dibuat.isActive,
+          revoked: dibuat.revoked,
+          usageCount: dibuat.usageCount,
+          createdAt: dibuat.createdAt,
+        },
+      });
+    } catch (error: any) {
+      logServerError("POST /api/admin/api-hub/keys", error);
+      res.status(500).json({ status: false, message: "Gagal membuat API key." });
+    }
+  }
+);
+
+/** PUT /api/admin/api-hub/keys/:id — memperbarui nama, deskripsi, atau izin endpoint. */
+app.put(
+  "/api/admin/api-hub/keys/:id",
+  authenticateToken,
+  requirePermission("api_hub:edit"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ status: false, message: "ID key tidak valid." });
+      }
+
+      const lama = await prisma.apiKey.findUnique({ where: { id } });
+      if (!lama) {
+        return res.status(404).json({ status: false, message: "API key tidak ditemukan." });
+      }
+
+      const data: Record<string, unknown> = {};
+
+      if (req.body.name !== undefined) {
+        const nama = teksWajib(req.body.name, 150);
+        if (!nama) return res.status(400).json({ status: false, message: "Nama key tidak boleh kosong." });
+        data.name = nama;
+      }
+
+      if (req.body.description !== undefined) {
+        data.description = teksOpsional(req.body.description, 65535);
+      }
+
+      if (req.body.allowedEndpoints !== undefined) {
+        const diizinkan = await normalisasiEndpointDiizinkan(req.body.allowedEndpoints);
+        if (!diizinkan.ok) {
+          return res.status(400).json({ status: false, message: diizinkan.pesan });
+        }
+        data.allowedEndpoints = diizinkan.nilai;
+      }
+
+      // Key yang sudah dicabut tidak boleh diaktifkan lagi lewat jalur ini;
+      // pencabutan bersifat final supaya audit trail tidak bisa dihapus jejaknya.
+      if (req.body.isActive !== undefined) {
+        if (lama.revoked) {
+          return res.status(409).json({
+            status: false,
+            message: "Key yang sudah dicabut tidak dapat diaktifkan kembali. Buat key baru bila diperlukan.",
+          });
+        }
+        data.isActive = req.body.isActive === true;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ status: false, message: "Tidak ada perubahan yang dikirim." });
+      }
+
+      const diperbarui = await prisma.apiKey.update({ where: { id }, data });
+
+      res.json({
+        status: true,
+        message: "API key berhasil diperbarui.",
+        data: { ...diperbarui, key: potongKeyApi(diperbarui.key) },
+      });
+    } catch (error: any) {
+      logServerError("PUT /api/admin/api-hub/keys/:id", error);
+      res.status(500).json({ status: false, message: "Gagal memperbarui API key." });
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/api-hub/keys/:id — mencabut API key.
+ *
+ * Baris tidak dihapus. Pencabutan menandai `revoked` agar riwayat pemakaian
+ * tetap bisa ditelusuri dan aplikasi pemakai langsung ditolak.
+ */
+app.delete(
+  "/api/admin/api-hub/keys/:id",
+  authenticateToken,
+  requirePermission("api_hub:delete"),
+  writeLimiter,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ status: false, message: "ID key tidak valid." });
+      }
+
+      const lama = await prisma.apiKey.findUnique({ where: { id } });
+      if (!lama) {
+        return res.status(404).json({ status: false, message: "API key tidak ditemukan." });
+      }
+
+      if (lama.revoked) {
+        return res.status(409).json({ status: false, message: "API key ini sudah dicabut sebelumnya." });
+      }
+
+      const dicabut = await prisma.apiKey.update({
+        where: { id },
+        data: {
+          revoked: true,
+          revokedAt: new Date(),
+          revokedReason: teksOpsional(req.body?.reason, 255) ?? "Dicabut oleh administrator.",
+          isActive: false,
+        },
+      });
+
+      res.json({
+        status: true,
+        message: `API key "${dicabut.name}" berhasil dicabut.`,
+      });
+    } catch (error: any) {
+      logServerError("DELETE /api/admin/api-hub/keys/:id", error);
+      res.status(500).json({ status: false, message: "Gagal mencabut API key." });
+    }
+  }
+);
+
+/** GET /api/admin/api-hub/logs — riwayat pemakaian key. */
+app.get(
+  "/api/admin/api-hub/logs",
+  authenticateToken,
+  requirePermission("api_hub:view"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const take = Math.min(Math.max(Number(req.query.take) || 100, 1), 500);
+      const endpointFilter = teksOpsional(req.query.endpoint, 255);
+      const statusFilter = Number(req.query.statusCode);
+
+      const data = await prisma.apiUsageLog.findMany({
+        where: {
+          ...(endpointFilter ? { endpoint: { contains: endpointFilter } } : {}),
+          ...(Number.isInteger(statusFilter) && statusFilter > 0 ? { statusCode: statusFilter } : {}),
+        },
+        include: {
+          key: { select: { id: true, name: true, app: { select: { nameApp: true } } } },
+        },
+        orderBy: { createdAt: "desc" },
+        take,
+      });
+
+      res.json({
+        status: true,
+        data: data.map((log) => ({
+          id: log.id,
+          keyId: log.keyId,
+          keyName: log.key.name,
+          appName: log.key.app.nameApp,
+          endpoint: log.endpoint,
+          method: log.method,
+          statusCode: log.statusCode,
+          responseTime: log.responseTime,
+          requestIp: log.requestIp,
+          userAgent: log.userAgent,
+          errorMessage: log.errorMessage,
+          createdAt: log.createdAt,
+        })),
+        meta: { total: data.length, take },
+      });
+    } catch (error: any) {
+      logServerError("GET /api/admin/api-hub/logs", error);
+      res.status(500).json({ status: false, message: "Gagal memuat riwayat penggunaan." });
+    }
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // BERKAS DOSEN (unggah mandiri oleh dosen, verifikasi oleh admin)
 // ═══════════════════════════════════════════════════════════════════════════
 

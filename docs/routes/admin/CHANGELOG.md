@@ -1,5 +1,61 @@
 # Changelog - Admin Panel
 
+## [2026-11-20] - API Hub Berbasis Data Sungguhan (CRUD Endpoint, Key, dan Riwayat)
+
+### Added
+- **CRUD katalog endpoint** di `/admin/api-hub`:
+  - `GET /api/admin/api-hub/endpoints` — daftar dengan pencarian `search` dan saringan `sourceApp`.
+  - `POST /api/admin/api-hub/endpoints` — tambah endpoint.
+  - `PUT /api/admin/api-hub/endpoints/:id` — ubah endpoint.
+  - `DELETE /api/admin/api-hub/endpoints/:id` — hapus endpoint.
+- **Manajemen API key**:
+  - `GET /api/admin/api-hub/keys` — daftar key dalam bentuk terpotong.
+  - `POST /api/admin/api-hub/keys` — membuat key; satu-satunya respons berisi nilai utuh.
+  - `PUT /api/admin/api-hub/keys/:id` — ubah nama, keterangan, dan izin endpoint.
+  - `DELETE /api/admin/api-hub/keys/:id` — mencabut key.
+- **Riwayat pemakaian** `GET /api/admin/api-hub/logs` — 200 catatan terbaru, menyertakan nama key dan aplikasi pemiliknya.
+- **`GET /api/admin/api-hub/apps`** — daftar aplikasi untuk dropdown pemilik key.
+- **Panel nilai key sekali-tampil**: kotak kuning berisi nilai utuh setelah key dibuat, dengan tombol salin dan peringatan bahwa nilai tidak akan tampil lagi.
+- **Fungsi klien** di `services/api.ts`: `fetchApiEndpoints`, `createApiEndpoint`, `updateApiEndpoint`, `deleteApiEndpoint`, `fetchApiHubApps`, `fetchApiKeys`, `createApiKey`, `updateApiKey`, `revokeApiKey`, `fetchApiUsageLogs`, beserta tipe `ApiEndpointItem`, `ApiKeyItem`, `ApiKeyBaru`, `ApiUsageLogItem`, `ApiHubAppItem`, `ApiEndpointKiriman`.
+
+### Removed
+- **Seluruh data contoh di `ApiHub.tsx`** dihapus: `mockEndpoints` (5 entri), `mockKeys` (2 entri), `mockLogs` (3 entri), beserta `supportedFilters` yang hanya ada di data palsu.
+- **Semua tombol yang tidak melakukan apa pun** — tombol pensil dan tempat sampah pada kedua tabel kini terhubung ke modal dan konfirmasi sungguhan.
+
+### Changed
+- **Ketiga tabel API Hub memakai `DataTable`**, bukan `<table>` manual. Efeknya: nomor urut otomatis melanjutkan antar halaman, paginasi, dan kerangka kolom seragam dengan tabel admin lain.
+- **Tombol "Cabut" menggantikan ikon hapus pada API key**, karena barisnya tidak dihapus melainkan ditandai `revoked`.
+- **`confirm()` bawaan peramban dihapus**; konfirmasi memakai `NotificationModal` bertipe `confirm`.
+- Pemuatan data dibuat per tab (lazy), dilengkapi tombol muat ulang dan blok galat dengan tombol "Coba Lagi".
+
+### Catatan Teknis
+- **Nilai API key tidak pernah dikirim utuh lagi setelah pembuatan.** `GET /keys` memakai `potongKeyApi()` yang menghasilkan `unusu_sec_12••••••ab34`. Karena itu tombol salin pada baris lama menyalin potongan, dan itu memang disengaja — bukan bug.
+- **Pencabutan key tidak menghapus baris.** `DELETE /keys/:id` mengisi `revoked`, `revokedAt`, `revokedReason`, dan `isActive = false`. Alasannya: `ApiUsageLog` berelasi `onDelete: Cascade` ke `ApiKey`, sehingga menghapus baris key akan melenyapkan seluruh riwayat pemakaiannya. Hal yang sama berlaku bila `SsoApp` dihapus — key miliknya ikut terhapus.
+- **Key yang sudah dicabut tidak dapat diaktifkan kembali**; `PUT` mengembalikan 409. Penggantian dilakukan dengan membuat key baru.
+- **Validasi masukan**: metode dibatasi `GET|POST|PUT|PATCH|DELETE`, alamat endpoint wajib berawalan `/` dan unik (409 bila bentrok), contoh request/response harus JSON sah, dan `allowedEndpoints` diverifikasi ke tabel `api_endpoints` sebelum disimpan.
+- Tidak ada perubahan skema. Ketiga model (`ApiEndpoint`, `ApiKey`, `ApiUsageLog`) sudah ada di `schema.prisma` tetapi belum pernah dipakai.
+- Diuji langsung terhadap server: pembuatan endpoint (201), metode tidak sah (400), endpoint ganda (409), JSON rusak (400), pembaruan (200), pembuatan key (201, nilai utuh 50 karakter), daftar key mengembalikan bentuk terpotong (bukan nilai utuh), pencabutan (200), pencabutan ulang (409), pengaktifan key tercabut (409), dan penghapusan endpoint (200). Data uji sudah dibersihkan; ketiga tabel kembali kosong.
+
+## [2026-11-19] - Filter Fakultas & Prodi serta Kolom Fakultas pada Manajemen Pengguna
+
+### Added
+- **Dua dropdown filter baru di `/admin/pengguna`**: **Fakultas** dan **Program Studi**, sebaris dengan kolom pencarian dan dropdown peran. Masing-masing opsi menampilkan jumlah akun dalam kurung, contoh `Fakultas Ilmu Komputer (15)`.
+- **Kolom "Fakultas" pada tabel pengguna**, diletakkan sebelum kolom "Program Studi".
+- **Chip filter aktif** untuk fakultas dan prodi di bar ringkasan di atas tabel, masing-masing bisa dilepas sendiri tanpa mereset filter lain.
+
+### Changed
+- **Opsi filter diturunkan dari data pengguna yang termuat, bukan dari tabel master.** Tabel `fakultas` dan `prodi` di database masih kosong, sehingga membaca pilihan dari sana akan menghasilkan dropdown kosong. Dengan menurunkannya dari `users`, yang muncul hanya nilai yang benar-benar ada pada akun.
+- **Daftar prodi menyempit mengikuti fakultas terpilih.** Memilih `Fakultas Agama Islam` mempersempit pilihan prodi menjadi `Hukum Keluarga Islam (Akhwal Syakhshiyyah)` dan `S1 Studi Islam (Dirasah Islamiyah)` saja. Mengganti fakultas otomatis mengosongkan filter prodi agar tidak menghasilkan tabel kosong tanpa penjelasan.
+- **`lebarMinimal` tabel dinaikkan dari `720px` ke `1040px`** karena bertambah satu kolom.
+- **Bar ringkasan di atas tabel kini juga muncul saat filter fakultas atau prodi aktif.** Sebelumnya kondisinya hanya memeriksa peran, status, dan kata kunci, sehingga memilih fakultas tidak memunculkan bar tersebut.
+- **Pesan "tidak ada akun yang sesuai"** ikut menyebut fakultas dan prodi yang sedang disaring.
+
+### Catatan Teknis
+- Nilai kosong atau `"-"` pada `fakultas`/`prodi` dinormalkan ke satu kunci `__KOSONG__` dan tampil sebagai pilihan "Belum diisi", selalu diurutkan paling bawah agar tidak menutupi fakultas nyata.
+- Filter fakultas, prodi, peran, dan status semuanya tercermin di URL (`?fakultas=`, `?prodi=`) memakai `setSearchParams(..., { replace: true })`, sehingga tautan hasil saringan bisa dibagikan dan bertahan saat halaman dimuat ulang.
+- Pencarian teks kini juga mencocokkan kolom `fakultas`, bukan hanya `prodi`.
+- Tidak ada perubahan skema maupun endpoint server: `GET /api/admin/users` sudah mengirim `fakultas` sejak sebelumnya.
+
 ## [2026-11-18] - Slider Hero Berbasis Berkas dengan Dukungan Video
 
 ### Added

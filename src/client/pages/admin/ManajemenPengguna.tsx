@@ -1038,7 +1038,11 @@ export const ManajemenPengguna: React.FC = () => {
         {/* Bar hanya dirender bila ada filter aktif. Tanpa penjagaan ini,
             bar menghilang isinya tetapi tetap tampil sebagai pita abu kosong
             setinggi ~44px di atas tabel. */}
-        {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
+        {(filterRole !== 'ALL' ||
+          filterStatus !== 'ALL' ||
+          filterFakultas !== 'ALL' ||
+          filterProdi !== 'ALL' ||
+          search.trim() !== '') && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[#E8EFEA] bg-[#F9FDFB]">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Judul "Daftar Pengguna" tidak dipakai: konteks halaman sudah
@@ -1071,6 +1075,32 @@ export const ManajemenPengguna: React.FC = () => {
                 </button>
               </span>
             )}
+            {filterFakultas !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]">
+                Fakultas: {labelWilayah(filterFakultas)}
+                <button
+                  type="button"
+                  onClick={() => updateFakultasFilter('ALL')}
+                  aria-label="Hapus filter fakultas"
+                  className="hover:text-[#B91C1C]"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filterProdi !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F5F3FF] text-[#6D28D9] border border-[#DDD6FE]">
+                Prodi: {labelWilayah(filterProdi)}
+                <button
+                  type="button"
+                  onClick={() => updateProdiFilter('ALL')}
+                  aria-label="Hapus filter program studi"
+                  className="hover:text-[#B91C1C]"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </span>
+            )}
           </div>
           {/* Bar hanya muncul saat ada filter aktif, jadi tombol ini selalu
               relevan tanpa perlu penjagaan tambahan. */}
@@ -1087,7 +1117,7 @@ export const ManajemenPengguna: React.FC = () => {
         <DataTable<UserProfile>
           data={filteredUsers}
           kunciBaris={(user) => user.id}
-          lebarMinimal="720px"
+          lebarMinimal="1040px"
           labelRingkasan={(dari, sampai, total) =>
             `Menampilkan ${dari}-${sampai} dari ${total} akun`
           }
@@ -1099,6 +1129,8 @@ export const ManajemenPengguna: React.FC = () => {
                 {filterStatus !== 'ALL'
                   ? ` dengan status ${filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}`
                   : ''}
+                {filterFakultas !== 'ALL' ? ` di ${labelWilayah(filterFakultas)}` : ''}
+                {filterProdi !== 'ALL' ? ` prodi ${labelWilayah(filterProdi)}` : ''}
                 {search.trim() ? ` dan kata kunci "${search.trim()}"` : ''}.
               </p>
               <button
@@ -1168,6 +1200,16 @@ export const ManajemenPengguna: React.FC = () => {
                   )}
                 </div>
               ),
+            },
+            {
+              key: 'fakultas',
+              judul: 'Fakultas',
+              kelas: 'text-[#475569]',
+              /*
+               * Nilai kosong atau "-" ditampilkan sebagai "-" biasa, bukan chip,
+               * supaya tinggi baris tidak berubah dan kolom tetap rata.
+               */
+              sel: (user) => (user.fakultas && user.fakultas.trim() !== '-' ? user.fakultas : '-'),
             },
             {
               key: 'prodi',

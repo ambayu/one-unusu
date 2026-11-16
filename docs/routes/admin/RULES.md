@@ -22,7 +22,7 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 | Halaman | Rute | Template | Wadah data | Penyimpangan |
 | --- | --- | --- | --- | --- |
 | Registrasi SSO | `/admin` | `AdminPanelTemplate` | `DataTable` | - |
-| Manajemen Pengguna | `/admin/pengguna` | `AdminPanelTemplate` | `DataTable` (kolom avatar + nomor urut) | - |
+| Manajemen Pengguna | `/admin/pengguna` | `AdminPanelTemplate` | `DataTable` (kolom avatar + nomor urut + fakultas + prodi) | Filter peran, status, fakultas, prodi |
 | Aplikasi Non-SSO | `/admin/direktori` | `AdminPanelTemplate` | `DataTable` | - |
 | Izin | `/admin/izin` | `AdminPanelTemplate` | `<table>` manual | Disetujui: matriks peran dinamis, checkbox per sel, kolom pertama `sticky left-0` |
 | Peran | `/admin/peran` | `AdminPanelTemplate` | Grid kartu | Disetujui: satu peran = satu kartu berisi daftar izin ringkas |
@@ -37,10 +37,14 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
 - Stats grid menggunakan 4 kartu operasional ber-border `#D8E5DC` dengan icon container warna fungsional di kanan tengah (`w-13 h-13 rounded-[14px]` dan icon `w-8 h-8`).
 - Tabel daftar aplikasi, akun civitas, dan direktori **wajib** memakai `DataTable` (`src/client/components/DataTable.tsx`). Dilarang menulis `<table>` baru dengan `thead` `#F0FDF4` di halaman admin.
 - **Aturan nomor urut**: kolom "No." tampil secara bawaan (`tampilkanNomor` default `true`) dan nomornya **melanjutkan antar halaman** (`paginasi.dari + indeks`). Halaman 2 dimulai dari 11, bukan 1.
-- **Seluruh tabel wajib bernomor urut**, termasuk yang ditulis manual di luar `DataTable` (matriks Izin, daftar jenis berkas pada akordeon Berkas Dosen, ketiga tabel API Hub). Kolom "No." selalu diletakkan **paling kiri**, rata tengah, `tabular-nums`, warna `#94A3B8`, lebar `w-[56px]` (di dalam akordeon `w-[48px]` karena selnya lebih rapat). Nomor melanjutkan dari baris pertama data yang tampil — jangan mengulang dari 1 pada kelompok berikutnya.
+- **Seluruh tabel wajib bernomor urut**, termasuk yang ditulis manual di luar `DataTable` (matriks Izin, daftar jenis berkas pada akordeon Berkas Dosen). Kolom "No." selalu diletakkan **paling kiri**, rata tengah, `tabular-nums`, warna `#94A3B8`, lebar `w-[56px]` (di dalam akordeon `w-[48px]` karena selnya lebih rapat). Nomor melanjutkan dari baris pertama data yang tampil — jangan mengulang dari 1 pada kelompok berikutnya. Ketiga tabel API Hub kini memakai `DataTable`, jadi tidak lagi perlu penomoran manual.
 - Tabel manual yang menggeser horizontal dengan kolom sticky (matriks Izin) menempatkan **dua** kolom sticky: "No." pada `left-0` dan kolom isi pada `left-[56px]`, agar nomor tidak tertinggal saat digeser. `colSpan` baris judul kelompok ikut ditambah satu.
 - **Aturan ukuran huruf tabel**: judul kolom `text-[12.5px] font-bold`; isi sel mewarisi `text-xs` (12px). Judul kolom **wajib lebih besar** dari isi sel; dilarang menyeragamkan keduanya.
 - **Kolom avatar pada Manajemen Pengguna**: sel pertama setelah "No." menampilkan pasfoto pengguna bila `avatar` terisi; bila kosong, tampilkan inisial nama lewat `inisialNama(nama)` di dalam lingkaran `#DCFCE7` bertulisan `#166534`. Inisial diambil dari maksimal dua kata pertama dan selalu huruf besar; nama kosong menghasilkan `?`. Dilarang memakai gambar placeholder eksternal atau mengosongkan sel.
+- **Kolom Fakultas & Program Studi pada Manajemen Pengguna**: tabel menampilkan kolom `fakultas` sebelum `prodi`, keduanya teks biasa warna `#475569`. Nilai kosong atau `"-"` ditampilkan sebagai `-`, bukan chip dan bukan sel kosong. Kolom ini bertambah sehingga `lebarMinimal` tabel dinaikkan ke `1040px` agar tidak berdesakan.
+- **Filter Fakultas & Prodi**: dua dropdown di samping kolom pencarian. Pilihannya **diturunkan dari data pengguna yang termuat**, bukan dari tabel master `fakultas`/`prodi` — kedua tabel itu masih kosong sehingga daftar dari master akan selalu kosong. Setiap opsi menampilkan jumlah akun dalam kurung. Nilai kosong dinormalkan ke satu pilihan "Belum diisi" (kunci `__KOSONG__`) yang selalu diletakkan paling bawah.
+- **Prodi menyempit mengikuti Fakultas**: bila fakultas dipilih, opsi prodi hanya berisi prodi yang benar-benar ada di fakultas tersebut. Mengganti fakultas **mengosongkan** filter prodi, karena kombinasi lama belum tentu ada di fakultas baru. Aturan yang sama berlaku pada `resetFilters`.
+- **Filter aktif tercermin di URL** (`?role=`, `?status=`, `?fakultas=`, `?prodi=`) memakai `setSearchParams(..., { replace: true })`, dan tampil sebagai chip yang bisa dilepas satu per satu di bar ringkasan di atas tabel.
 - Modal pendaftaran aplikasi baru dan penambahan akun menggunakan backdrop transparan gelap dan card ber-radius 16px.
 - Matriks izin pada halaman Izin memakai baris izin dan kolom peran; kolom pertama bersifat sticky agar tetap terbaca saat tabel digeser horizontal.
 
@@ -111,3 +115,35 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
 - Modal memakai `role="dialog"`, `aria-modal="true"`, dan `aria-labelledby` yang menunjuk judulnya.
 - Input memakai pola form panel: `border-[#D8E5DC] px-4 py-3 rounded-lg`, fokus `focus:ring-1 focus:ring-[#166534]`.
 - Semua umpan balik (sukses, gagal, konfirmasi hapus) memakai `NotificationModal`; `alert()`/`confirm()` dilarang.
+
+---
+
+## 7. Modul Integrasi & API Hub (`/admin/api-hub`)
+
+### 7.1 Sumber Data
+- Seluruh isi halaman dibaca dari tabel sungguhan: `api_endpoints`, `api_keys`, dan `api_usage_logs`. **Dilarang** menulis ulang data contoh (`mockEndpoints`, `mockKeys`, `mockLogs`) ke dalam komponen.
+- Endpoint server berada di bawah `/api/admin/api-hub/*`, dijaga `api_hub:view` untuk baca, `api_hub:edit` untuk tulis, dan `api_hub:delete` untuk hapus/cabut.
+
+### 7.2 Kerahasiaan API Key
+- Nilai key **dibuat server** (`unusu_sec_` + 40 heksadesimal acak). Klien tidak pernah mengirim nilai key.
+- Nilai utuh **hanya** dikirim sekali pada respons `POST /api/admin/api-hub/keys`. Daftar (`GET .../keys`) mengembalikan bentuk terpotong `unusu_sec_12••••••ab34` lewat `potongKeyApi()`.
+- Klien menampilkan nilai utuh di panel kuning khusus tepat setelah pembuatan, beserta peringatan bahwa nilai tidak akan tampil lagi. Setelah panel ditutup, nilainya tidak bisa dipulihkan — harus buat key baru.
+- Karena daftar hanya berisi potongan, tombol salin pada baris lama menyalin **potongan**, bukan rahasianya. Tombol itu sengaja diberi judul "Salin potongan key".
+
+### 7.3 Pencabutan Key Bersifat Final
+- `DELETE /api/admin/api-hub/keys/:id` **tidak menghapus baris**. Yang diisi: `revoked = true`, `revokedAt`, `revokedReason`, dan `isActive = false`.
+- Alasan: `api_usage_logs` memakai relasi `onDelete: Cascade`. Menghapus baris key akan ikut menghapus seluruh riwayat pemakaiannya, sehingga jejak audit hilang.
+- Key yang sudah `revoked` **tidak dapat diaktifkan kembali** — `PUT` mengembalikan 409. Untuk mengganti, buat key baru.
+- Label tombolnya "Cabut", bukan "Hapus", agar sesuai dengan yang sebenarnya terjadi.
+
+### 7.4 Validasi Masukan
+- Metode endpoint dibatasi pada `GET`, `POST`, `PUT`, `PATCH`, `DELETE` (konstanta `METODE_ENDPOINT`), dinormalkan ke huruf besar.
+- Alamat endpoint **wajib** diawali `/` dan unik; bentrok mengembalikan 409 beserta nama endpoint yang sudah memakai alamat itu.
+- `exampleRequest`/`exampleResponse` harus JSON yang sah bila diisi; selain itu 400.
+- `allowedEndpoints` disimpan sebagai JSON array id. `null` berarti "semua endpoint publik". Id yang tidak ada di katalog ditolak 400.
+
+### 7.5 Antarmuka
+- Ketiga tabel memakai `DataTable` sehingga otomatis bernomor urut, berpaginasi, dan melanjutkan nomor antar halaman. Tabel manual tidak dipakai di halaman ini lagi.
+- Tab aktif dimuat sesuai kebutuhan (lazy per tab), bukan ketiganya sekaligus. Ada tombol muat ulang per tab dan blok galat dengan tombol "Coba Lagi".
+- Modal endpoint dan modal key memakai pola yang sama dengan modal Berkas Dosen: `fixed inset-0 z-50 bg-[#1E293B]/60`, panel `max-w-lg rounded-2xl`, input `border-[#D8E5DC] px-4 py-3 rounded-[8px]` dengan fokus `focus:ring-1 focus:ring-[#166534]`.
+- Semua aksi destruktif (hapus endpoint, cabut key) memakai `NotificationModal` bertipe `confirm`, bukan `confirm()` bawaan peramban.
