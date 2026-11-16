@@ -54,7 +54,7 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
    - `MAHASISWA`: Menampilkan data NIM, Program Studi, Fakultas, dan link perkuliahan.
    - `DOSEN`: Menampilkan data NIDN/NUP, Homebase Prodi, dan Fakultas Induk.
    - `SUPERADMIN`: Menampilkan Username, Unit Kerja PUSTIK, hak akses Root SSO, dan tab Registry SSO Apps & Civitas User Management.
-4. **SSO Ticket Protocol**: Otorisasi ke aplikasi turunan (LMS, SIAKAD, dsb) wajib menggunakan `GET /api/sso/app-client/:clientId/v2/redirect`. Endpoint ini menerbitkan token acak 64 karakter, single-use, berlaku 5 menit, dan disimpan di tabel `sso_auth_tokens`. Verifikasi dilakukan server-ke-server melalui `POST /api/v2/website/verify-token` dengan `client_id`, `client_key`, dan `token`.
+4. **SSO Ticket Protocol**: Otorisasi ke aplikasi turunan (LMS, SIAKAD, dsb) wajib menggunakan `GET /api/sso/app-client/:clientId/v2/redirect`. Endpoint ini menerbitkan token acak 64 karakter, single-use, berlaku 5 menit, dan disimpan di tabel `sso_auth_tokens`. Seluruh URL callback terdaftar menerima `token` saja tanpa `client_id`. Verifikasi server-ke-server tetap mengirim `client_id` dari env server cabang, `client_key`, dan `token` ke `POST /api/v2/website/verify-token`.
 
 5. **Sinkronisasi SIAKAD (Hybrid Sync & JIT Provisioning)**:
    - **JIT Provisioning On-Demand**: Jika pengguna mencoba login dengan kredensial SIAKAD namun belum terdaftar di `one-unusu`, sistem backend wajib memvalidasi ke API SIAKAD (`POST /auth/index.php`), menyedot data profil mahasiswa/dosen dari portal SIAKAD, menyimpannya ke database lokal secara otomatis, dan langsung meloloskan sesi pengguna.

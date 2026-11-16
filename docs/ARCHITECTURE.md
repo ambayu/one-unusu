@@ -53,10 +53,10 @@ Setiap aplikasi internal UNUSU (LMS, E-Surat, dsb.) melakukan autentikasi terpus
   4. Bersihkan `SsoAuthToken` yang kedaluwarsa lebih dari 24 jam.
   5. Terbitkan token acak 64 karakter hex (`crypto.randomBytes(32)`).
   6. Simpan ke tabel `sso_auth_tokens`: token, userId, appId, clientId, expiresAt (+5 menit), isUsed.
-  7. Susun `redirectUrl = urlRedirect + "?client_id=...&token=..."`.
+  7. Tambahkan tiket ke callback terdaftar dengan pola token-only (`?token=...`). Identitas aplikasi cabang diambil dari env server masing-masing saat verifikasi server-ke-server.
         |
         v
-[Browser Redirect] ---> Callback aplikasi cabang, mis. https://lms.unusu.ac.id/sso/callback?client_id=...&token=...
+[Browser Redirect] ---> Callback aplikasi cabang, mis. https://lms.unusu.ac.id/sso/callback?token=...
         |
         v
 [Aplikasi Cabang (LMS)] ---> POST {API_BASE}/api/v2/website/verify-token
@@ -64,7 +64,7 @@ Setiap aplikasi internal UNUSU (LMS, E-Surat, dsb.) melakukan autentikasi terpus
         |
         v
 [ONE UNUSU Backend]
-  1. Validasi kelengkapan parameter (422 jika kurang).
+  1. Validasi kelengkapan parameter `client_id`, `client_key`, dan `token` (422 jika kurang). `client_id` berasal dari environment server aplikasi cabang, bukan URL browser.
   2. Cocokkan `client_id` + `client_key` pada `SsoApp` yang aktif (401 jika gagal).
   3. Cari token pada `SsoAuthToken` berdasarkan token + clientId.
   4. Tolak jika `isUsed = true` atau `expiresAt` sudah lewat.

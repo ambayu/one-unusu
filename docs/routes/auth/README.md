@@ -10,6 +10,7 @@ Rute `/login` adalah pintu masuk tunggal ke panel SSO. Halaman ini memakai layar
 - **Penyimpanan sesi**: token sesi disimpan pada cookie `HttpOnly` yang dipasang server; hanya profil umum (`one_unusu_user`) yang disimpan di `localStorage`.
 - **Cakupan cookie SSO**: pada produksi, `AUTH_COOKIE_DOMAIN=.unusu.ac.id` membuat cookie sesi ONE dikirim ke subdomain kampus agar aplikasi cabang dapat memeriksa sesi lewat endpoint perantara. Cookie tetap `HttpOnly`, `Secure`, dan `SameSite=Lax`; jangan memperluas cakupan ke domain di luar `unusu.ac.id`.
 - **Redirect**: setelah login berhasil, `SUPERADMIN` diarahkan ke `/admin` dan peran lain ke `/dashboard`. Kelengkapan biodata diperiksa saat membuka aplikasi SSO, bukan pada langkah login.
+- **Callback aplikasi cabang**: Seluruh URL callback aplikasi cabang menerima tiket sekali pakai melalui parameter `token` saja. Identitas aplikasi diturunkan dari kredensial server-ke-server saat verifikasi tiket; `client_id` tidak lagi disertakan pada URL redirect browser.
 - **Tanpa akun demo**: form login tidak menyediakan pintasan akun uji, dan seeder tidak lagi membuat akun dosen/mahasiswa contoh.
 
 ---

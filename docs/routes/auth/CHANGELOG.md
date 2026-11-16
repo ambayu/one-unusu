@@ -3,6 +3,7 @@
 ## [2026-11-16]
 
 ### Changed
+- Callback SSO seragam ke seluruh aplikasi cabang: URL redirect hanya membawa `token`. Parameter `client_id` dihilangkan dari URL browser; verifikasi identitas cabang dilakukan server-to-server.
 - Cakupan cookie sesi ONE UNUSU pada produksi ditetapkan melalui `AUTH_COOKIE_DOMAIN=.unusu.ac.id` agar subdomain aplikasi cabang dapat mengirim cookie ke endpoint pemeriksaan sesi SSO. Atribut `HttpOnly`, `Secure`, dan `SameSite=Lax` tetap dipertahankan.
 
 ## [2026-11-14] - Pesan Galat Login yang Jujur & Type Safety

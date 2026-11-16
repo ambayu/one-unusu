@@ -1884,9 +1884,11 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
         logServerError("Pencatatan kunjungan sso_apps", err);
       });
 
-    // 5. Bangun URL redirect ke callback cabang
-    const separator = ssoApp.urlRedirect.includes("?") ? "&" : "?";
-    const redirectUrl = `${ssoApp.urlRedirect}${separator}client_id=${encodeURIComponent(ssoApp.clientId)}&token=${encodeURIComponent(token)}`;
+    // 5. Bangun URL redirect ke callback cabang (pola seragam: token-only)
+    const callbackUrl = new URL(ssoApp.urlRedirect);
+    callbackUrl.searchParams.delete("client_id");
+    callbackUrl.searchParams.set("token", token);
+    const redirectUrl = callbackUrl.toString();
 
     res.json({
       status: true,
