@@ -1,5 +1,10 @@
 # Changelog - Autentikasi SSO
 
+## [2026-11-16]
+
+### Changed
+- Cakupan cookie sesi ONE UNUSU pada produksi ditetapkan melalui `AUTH_COOKIE_DOMAIN=.unusu.ac.id` agar subdomain aplikasi cabang dapat mengirim cookie ke endpoint pemeriksaan sesi SSO. Atribut `HttpOnly`, `Secure`, dan `SameSite=Lax` tetap dipertahankan.
+
 ## [2026-11-14] - Pesan Galat Login yang Jujur & Type Safety
 
 ### Added

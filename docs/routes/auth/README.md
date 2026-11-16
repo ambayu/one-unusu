@@ -8,6 +8,7 @@ Rute `/login` adalah pintu masuk tunggal ke panel SSO. Halaman ini memakai layar
 
 - **Login terpusat**: mengirim `identifier` (NIM, NIDN, atau username) dan password ke `POST {API_BASE}/auth/login` melalui `loginSso`. `API_BASE` diambil dari `VITE_API_URL`, dengan default `http://localhost:5000/api`.
 - **Penyimpanan sesi**: token sesi disimpan pada cookie `HttpOnly` yang dipasang server; hanya profil umum (`one_unusu_user`) yang disimpan di `localStorage`.
+- **Cakupan cookie SSO**: pada produksi, `AUTH_COOKIE_DOMAIN=.unusu.ac.id` membuat cookie sesi ONE dikirim ke subdomain kampus agar aplikasi cabang dapat memeriksa sesi lewat endpoint perantara. Cookie tetap `HttpOnly`, `Secure`, dan `SameSite=Lax`; jangan memperluas cakupan ke domain di luar `unusu.ac.id`.
 - **Redirect**: setelah login berhasil, `SUPERADMIN` diarahkan ke `/admin` dan peran lain ke `/dashboard`. Kelengkapan biodata diperiksa saat membuka aplikasi SSO, bukan pada langkah login.
 - **Tanpa akun demo**: form login tidak menyediakan pintasan akun uji, dan seeder tidak lagi membuat akun dosen/mahasiswa contoh.
 
