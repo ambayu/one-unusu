@@ -167,6 +167,82 @@ export const ManajemenPengguna: React.FC = () => {
     statusParam === 'aktif' ? 'AKTIF' : statusParam === 'nonaktif' ? 'NONAKTIF' : 'ALL';
   const [filterStatus, setFilterStatusState] = useState<StatusFilter>(validStatusFilter);
 
+  /*
+   * Filter fakultas & program studi.
+   *
+   * Pilihannya diturunkan dari data pengguna yang sedang dimuat, bukan dari
+   * tabel master `fakultas`/`prodi` — kedua tabel itu masih kosong, dan
+   * menampilkan daftar kosong akan membuat filter tidak berguna. Dengan cara
+   * ini yang muncul hanya nilai yang benar-benar ada pada akun.
+   *
+   * Nilai kosong dinormalkan: kolom `prodi` berisi "-" atau null pada akun yang
+   * belum punya homebase, dan keduanya digabung ke satu pilihan "Belum diisi".
+   */
+  const [filterFakultas, setFilterFakultas] = useState('ALL');
+  const [filterProdi, setFilterProdi] = useState('ALL');
+
+  const KOSONG = '__KOSONG__';
+
+  /** Nilai fakultas yang dipakai untuk penyaringan; kosong dinormalkan. */
+  const fakultasKunci = (user: UserProfile): string => {
+    const nilai = (user.fakultas ?? '').trim();
+    if (!nilai || nilai === '-') return KOSONG;
+    return nilai;
+  };
+
+  /** Nilai prodi yang dipakai untuk penyaringan; kosong dinormalkan. */
+  const prodiKunci = (user: UserProfile): string => {
+    const nilai = (user.prodi ?? '').trim();
+    if (!nilai || nilai === '-') return KOSONG;
+    return nilai;
+  };
+
+  const opsiFakultas = useMemo(() => {
+    const hitung = new Map<string, number>();
+    users.forEach((user) => {
+      const kunci = fakultasKunci(user);
+      hitung.set(kunci, (hitung.get(kunci) ?? 0) + 1);
+    });
+    return Array.from(hitung.entries())
+      .sort(([a], [b]) => {
+        // "Belum diisi" selalu paling bawah agar tidak menutupi fakultas nyata.
+        if (a === KOSONG) return 1;
+        if (b === KOSONG) return -1;
+        return a.localeCompare(b, 'id');
+      })
+      .map(([nilai, jumlah]) => ({ nilai, jumlah }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users]);
+
+  /*
+   * Pilihan prodi menyempit mengikuti fakultas terpilih. Tanpa ini, memilih
+   * "Fakultas Ekonomi" tetap menampilkan prodi fakultas lain dan pengguna bisa
+   * memilih kombinasi yang tidak pernah ada.
+   */
+  const opsiProdi = useMemo(() => {
+    const sumber =
+      filterFakultas === 'ALL'
+        ? users
+        : users.filter((user) => fakultasKunci(user) === filterFakultas);
+
+    const hitung = new Map<string, number>();
+    sumber.forEach((user) => {
+      const kunci = prodiKunci(user);
+      hitung.set(kunci, (hitung.get(kunci) ?? 0) + 1);
+    });
+    return Array.from(hitung.entries())
+      .sort(([a], [b]) => {
+        if (a === KOSONG) return 1;
+        if (b === KOSONG) return -1;
+        return a.localeCompare(b, 'id');
+      })
+      .map(([nilai, jumlah]) => ({ nilai, jumlah }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, filterFakultas]);
+
+  /** Label yang tampil pada dropdown. */
+  const labelWilayah = (nilai: string) => (nilai === KOSONG ? 'Belum diisi' : nilai);
+
   // Sinkronisasi jika query param URL berubah dari luar
   React.useEffect(() => {
     setFilterRoleState(validRoleFilter);
@@ -190,10 +266,47 @@ export const ManajemenPengguna: React.FC = () => {
   const resetFilters = () => {
     setFilterRoleState('ALL');
     setFilterStatusState('ALL');
+    setFilterFakultas('ALL');
+    setFilterProdi('ALL');
     setSearch('');
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('role');
     newParams.delete('status');
+    newParams.delete('fakultas');
+    newParams.delete('prodi');
+    setSearchParams(newParams, { replace: true });
+  };
+
+  /**
+   * Mengubah fakultas yang disaring.
+   *
+   * Prodi ikut direset bila sudah tidak ada di fakultas yang baru. Tanpa ini,
+   * memilih "Teknik Informatika" lalu berganti ke "Fakultas Ekonomi" akan
+   * menghasilkan tabel kosong tanpa penjelasan.
+   */
+  const updateFakultasFilter = (nilai: string) => {
+    setFilterFakultas(nilai);
+    setFilterProdi('ALL');
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('prodi');
+    if (nilai === 'ALL') {
+      newParams.delete('fakultas');
+    } else {
+      newParams.set('fakultas', nilai);
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const updateProdiFilter = (nilai: string) => {
+    setFilterProdi(nilai);
+
+    const newParams = new URLSearchParams(searchParams);
+    if (nilai === 'ALL') {
+      newParams.delete('prodi');
+    } else {
+      newParams.set('prodi', nilai);
+    }
     setSearchParams(newParams, { replace: true });
   };
 
@@ -280,11 +393,16 @@ export const ManajemenPengguna: React.FC = () => {
         user.username.toLowerCase().includes(term) ||
         user.nama.toLowerCase().includes(term) ||
         (user.prodi ?? '').toLowerCase().includes(term) ||
+        (user.fakultas ?? '').toLowerCase().includes(term) ||
         (user.email ?? '').toLowerCase().includes(term);
 
-      return matchRole && matchStatus && matchSearch;
+      const matchFakultas =
+        filterFakultas === 'ALL' || fakultasKunci(user) === filterFakultas;
+      const matchProdi = filterProdi === 'ALL' || prodiKunci(user) === filterProdi;
+
+      return matchRole && matchStatus && matchSearch && matchFakultas && matchProdi;
     });
-  }, [users, search, filterRole, filterStatus]);
+  }, [users, search, filterRole, filterStatus, filterFakultas, filterProdi]);
 
   const openModal = () => {
     const defaultRole = roles.find((r) => r.code === 'MAHASISWA') || roles[0];
@@ -849,6 +967,39 @@ export const ManajemenPengguna: React.FC = () => {
                 <span className="hidden sm:inline">Reset</span>
               </button>
             )}
+          </div>
+
+          {/* Filter wilayah akademik. Diletakkan sebaris dengan pencarian dan
+              peran karena ketiganya sama-sama mempersempit daftar yang sama;
+              memisahkannya ke baris lain hanya menambah tinggi halaman. */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={filterFakultas}
+              onChange={(event) => updateFakultasFilter(event.target.value)}
+              aria-label="Saring menurut fakultas"
+              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+            >
+              <option value="ALL">Semua Fakultas</option>
+              {opsiFakultas.map((opsi) => (
+                <option key={opsi.nilai} value={opsi.nilai}>
+                  {labelWilayah(opsi.nilai)} ({opsi.jumlah})
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterProdi}
+              onChange={(event) => updateProdiFilter(event.target.value)}
+              aria-label="Saring menurut program studi"
+              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+            >
+              <option value="ALL">Semua Prodi</option>
+              {opsiProdi.map((opsi) => (
+                <option key={opsi.nilai} value={opsi.nilai}>
+                  {labelWilayah(opsi.nilai)} ({opsi.jumlah})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

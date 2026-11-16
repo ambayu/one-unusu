@@ -208,7 +208,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
     }`;
 
   const renderSidebar = (isCollapsed: boolean) => (
-    <div className="h-full flex flex-col justify-between bg-[#EEF7EF] text-[#1E293B] border-r border-[#C8DDD0] relative overflow-hidden">
+    <div className="h-full flex flex-col justify-between bg-[#EEF7EF] text-[#1E293B] border-r border-[#C8DDD0] relative">
 
       {/* Bottom-left botanical leaf ornament */}
       <div
@@ -222,7 +222,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
         }}
       />
 
-      <div className="flex flex-col relative z-10">
+      <div className="flex flex-col relative z-10 min-h-0 flex-1">
         {/* Brand Header */}
         <div
           className={`h-[88px] flex items-center border-b border-[#9BD4AF] bg-[#C2ECD0] ${
@@ -267,7 +267,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
         </div>
 
         {/* Navigation */}
-        <div className={`${isCollapsed ? 'px-2' : 'px-3'} pt-5 space-y-5`}>
+        <div className={`${isCollapsed ? 'px-2' : 'px-3'} pt-5 pb-4 space-y-5 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]`}>
           {/* MENU UTAMA */}
           <div className="space-y-1.5">
             {!isCollapsed && (
@@ -380,7 +380,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({ user, children }) 
             className="fixed inset-0 bg-[#1E293B]/40 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 overflow-y-auto shadow-2xl">
+          <div className="fixed inset-y-0 left-0 w-[min(18rem,85vw)] z-50 overflow-y-auto overflow-x-hidden overscroll-contain shadow-2xl [-webkit-overflow-scrolling:touch]">
             {renderSidebar(false)}
           </div>
         </div>
