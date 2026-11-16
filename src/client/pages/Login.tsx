@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { loginSso } from '../services/api';
+import { loginSso, fetchMe } from '../services/api';
 import { resolveLandingPath } from '../lib/landing';
 import { pesanGalatPermintaan, GalatPermintaan } from '../lib/pesanGalat';
 import { assetUrl } from '../lib/assets';
@@ -68,18 +68,57 @@ export const Login: React.FC = () => {
   useEffect(() => {
     generateCaptcha();
 
-    // Sesi aktif ditandai oleh cookie HttpOnly. Bila cache pengguna tersedia,
-    // arahkan langsung ke panel; server tetap memvalidasi sesi pada request
-    // berikutnya dan mengembalikan pengguna ke halaman ini bila sudah berakhir.
-    const existingUserStr = localStorage.getItem('one_unusu_user');
-    if (existingUserStr) {
+    /*
+     * Sesi aktif ditandai oleh cookie HttpOnly, BUKAN oleh cache localStorage.
+     *
+     * Sebelumnya halaman ini langsung mengalihkan pengguna ke panel begitu
+     * `one_unusu_user` ada di localStorage. Cache itu adalah sisa sesi akun
+     * yang pernah masuk di browser yang sama, dan tidak pernah dicocokkan
+     * dengan sesi server. Akibatnya: pengguna yang mengetik akun lain (mis.
+     * dosen) tetap dilempar ke panel memakai identitas lama (mis. Super Admin)
+     * — login yang diketik tidak pernah dieksekusi sama sekali.
+     *
+     * Sekarang sesi diverifikasi ke server lebih dulu. Hanya bila server
+     * mengonfirmasi sesi masih berlaku, pengguna diarahkan ke panel. Bila
+     * tidak, cache dibersihkan dan pengguna tetap di halaman masuk.
+     */
+    let dibatalkan = false;
+
+    const periksaSesi = async () => {
+      const adaCache = Boolean(localStorage.getItem('one_unusu_user'));
+      if (!adaCache) return;
+
       try {
-        const u = JSON.parse(existingUserStr);
-        navigate(nextPath ?? resolveLandingPath(u), { replace: true });
-      } catch (e) {
-        // Abaikan parse error
+        const res = await fetchMe();
+        if (dibatalkan) return;
+
+        if (res.data?.status && res.data.data) {
+          // Server mengonfirmasi sesi: segarkan cache dengan data terkini lalu
+          // arahkan ke panel sesuai peran yang SEBENARNYA berlaku.
+          const profil = res.data.data;
+          localStorage.setItem('one_unusu_user', JSON.stringify(profil));
+          navigate(nextPath ?? resolveLandingPath(profil), { replace: true });
+          return;
+        }
+      } catch {
+        // 401/403 atau jaringan gagal: sesi tidak sah, lanjut ke pembersihan.
       }
-    }
+
+      if (dibatalkan) return;
+
+      /*
+       * Sesi tidak sah. Cache profil dibuang agar tidak menempel pada akun
+       * berikutnya yang masuk di browser ini.
+       */
+      localStorage.removeItem('one_unusu_user');
+      localStorage.removeItem('one_unusu_token');
+    };
+
+    void periksaSesi();
+
+    return () => {
+      dibatalkan = true;
+    };
   }, [navigate, nextPath]);
 
   const handleLogin = async (e: React.FormEvent) => {

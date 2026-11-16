@@ -1586,6 +1586,14 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       orcid?: string | null;
       scopusId?: string | null;
       biografi?: string | null;
+      /*
+       * Penanda kewajiban ganti kata sandi. Diisi ketika pengguna mengganti
+       * kata sandinya sendiri lewat menu Keamanan: kewajiban dianggap selesai
+       * dan waktunya dicatat. Tanpa kedua kolom ini di tipe, penulisan ke
+       * database ditolak pemeriksa tipe.
+       */
+      harusGantiPassword?: boolean;
+      passwordDiubahAt?: Date | null;
     } = {};
 
     // Helper untuk string opsional
