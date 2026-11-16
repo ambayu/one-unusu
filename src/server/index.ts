@@ -1023,6 +1023,29 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       const cocokLokal = await bcrypt.compare(password, user.password).catch(() => false);
 
       if (!cocokLokal) {
+        /*
+         * Kata sandi lokal tidak cocok. Sebelum menyerah, tentukan dulu apakah
+         * akun ini memang MASIH boleh memakai kata sandi SIAKAD.
+         *
+         * Aturannya: begitu pengguna mengganti kata sandinya sendiri di portal
+         * (`passwordDiubahAt` terisi), kata sandi portal menjadi SATU-SATUNYA
+         * kunci yang sah. Tanpa aturan ini, `Unusu123!` yang masih berlaku di
+         * SIAKAD tetap bisa dipakai masuk ke portal meski pengguna sudah
+         * menggantinya — sehingga kewajiban ganti kata sandi menjadi sia-sia,
+         * dan siapa pun yang tahu NIDN dosen tetap bisa masuk.
+         *
+         * Akun yang belum pernah mengganti kata sandi tetap memakai fallback
+         * ini, sehingga dosen/mahasiswa yang baru mengubah kata sandi di SIAKAD
+         * tidak terkunci di luar portal.
+         */
+        if (user.passwordDiubahAt) {
+          await bcrypt.compare(password, DUMMY_PASSWORD_HASH).catch(() => false);
+          return res.status(401).json({
+            status: false,
+            message: "NIM / NIDN / username atau password salah."
+          });
+        }
+
         const extAuth = await authenticateExternalSystem(user.username, password);
 
         if (!extAuth.success) {
@@ -1570,6 +1593,7 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       currentPassword,
       newPassword,
       // Field Tambahan Biodata Mandiri
+      jenisKelamin,
       tempatLahir,
       tanggalLahir,
       alamat,
@@ -1598,6 +1622,7 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       noHp?: string | null;
       avatar?: string | null;
       password?: string;
+      jenisKelamin?: string | null;
       tempatLahir?: string | null;
       tanggalLahir?: string | null;
       alamat?: string | null;
@@ -1649,6 +1674,27 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
     setOptStr("orcid", orcid, 50);
     setOptStr("scopusId", scopusId, 50);
     setOptStr("biografi", biografi, 5000);
+
+    // ---------------------------------------------------------------
+    // Jenis kelamin — boleh diisi sendiri pemilik akun.
+    //
+    // Kolom ini sebelumnya hanya bisa diubah admin. Nilainya dibatasi
+    // `L`/`P` mengikuti satu-satunya bentuk yang dipakai seluruh aplikasi
+    // (badge, biodata, dan formulir admin). String kosong mengosongkan
+    // kolom, bukan menyimpan teks kosong.
+    // ---------------------------------------------------------------
+    if (jenisKelamin !== undefined) {
+      if (jenisKelamin === null || jenisKelamin === "") {
+        updateData.jenisKelamin = null;
+      } else if (typeof jenisKelamin !== "string" || !["L", "P"].includes(jenisKelamin.trim())) {
+        return res.status(400).json({
+          status: false,
+          message: "Jenis kelamin harus L (laki-laki) atau P (perempuan).",
+        });
+      } else {
+        updateData.jenisKelamin = jenisKelamin.trim();
+      }
+    }
 
     if (email !== undefined) {
       if (email === null || email === "") {

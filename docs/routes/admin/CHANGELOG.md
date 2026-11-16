@@ -1,5 +1,16 @@
 # Changelog - Admin Panel
 
+## [2026-11-20] - Dosen Dapat Mengubah Jenis Kelamin di Biodata Sendiri
+
+### Changed
+- **`PUT /api/auth/profile`** kini menerima `jenisKelamin`. Nilai dibatasi `L`/`P`; nilai lain ditolak `400`, string kosong mengosongkan kolom (`null`).
+- **`/profile`**: input "Jenis Kelamin" yang semula `readOnly` diganti dropdown tiga pilihan (Belum diisi / Laki-laki / Perempuan) dengan gaya `border-[#D8E5DC] px-4 py-3` + focus ring `#166534`. Nilai tersimpan ditampilkan sebagai teks kecil di bawah dropdown.
+- State `jenisKelamin` dimuat dari `GET /api/auth/me`, dikirim pada `updateProfile`, dan disinkronkan ulang setelah simpan berhasil.
+
+### Verified
+- Uji langsung sebagai akun non-admin: simpan `P` → `L` → kosong semuanya `200` dan terbaca ulang benar; `X` dan `laki-laki` ditolak `400`; penyimpanan bersama `tempatLahir`/`alamat` tidak saling menimpa. Data akun uji dipulihkan persis seperti semula.
+
+
 ## [2026-11-20] - Seluruh Kolom Pengguna Dapat Disunting
 
 ### Changed

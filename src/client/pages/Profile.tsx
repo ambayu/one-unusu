@@ -52,6 +52,9 @@ export const Profile: React.FC = () => {
   const [bidangKeahlian, setBidangKeahlian] = useState('');
   const [pendidikanTerakhir, setPendidikanTerakhir] = useState('');
   const [tempatLahir, setTempatLahir] = useState('');
+  /* Jenis kelamin boleh diisi sendiri oleh pemilik akun. Nilainya
+     `L` / `P` / kosong, sama seperti formulir admin. */
+  const [jenisKelamin, setJenisKelamin] = useState('');
   const [tanggalLahir, setTanggalLahir] = useState('');
   const [alamat, setAlamat] = useState('');
   const [sintaId, setSintaId] = useState('');
@@ -102,6 +105,7 @@ export const Profile: React.FC = () => {
           setBidangKeahlian(d.bidangKeahlian || '');
           setPendidikanTerakhir(d.pendidikanTerakhir || '');
           setTempatLahir(d.tempatLahir || '');
+          setJenisKelamin(d.jenisKelamin || '');
           setTanggalLahir(d.tanggalLahir || '');
           setAlamat(d.alamat || '');
           setSintaId(d.sintaId || '');
@@ -290,6 +294,7 @@ export const Profile: React.FC = () => {
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
         tempatLahir,
+        jenisKelamin,
         tanggalLahir,
         alamat,
         gelarDepan,
@@ -329,6 +334,7 @@ export const Profile: React.FC = () => {
           setBidangKeahlian(d.bidangKeahlian || '');
           setPendidikanTerakhir(d.pendidikanTerakhir || '');
           setTempatLahir(d.tempatLahir || '');
+          setJenisKelamin(d.jenisKelamin || '');
           setTanggalLahir(d.tanggalLahir || '');
           setAlamat(d.alamat || '');
           setSintaId(d.sintaId || '');
@@ -735,12 +741,20 @@ export const Profile: React.FC = () => {
 
                       <div className="space-y-1.5">
                         <label className="block text-sm font-semibold text-[#1E293B]">Jenis Kelamin</label>
-                        <input
-                          type="text"
-                          readOnly
-                          value={user.jenisKelamin === 'L' ? 'Laki-laki (L)' : user.jenisKelamin === 'P' ? 'Perempuan (P)' : user.jenisKelamin || '-'}
-                          className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#D8E5DC] rounded-[8px] text-sm text-[#64748B] outline-none cursor-not-allowed shadow-xs"
-                        />
+                        <select
+                          value={jenisKelamin}
+                          onChange={(e) => setJenisKelamin(e.target.value)}
+                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs"
+                        >
+                          <option value="">-- Belum diisi --</option>
+                          <option value="L">Laki-laki (L)</option>
+                          <option value="P">Perempuan (P)</option>
+                        </select>
+                        {user.jenisKelamin && (
+                          <p className="text-[11px] text-[#94A3B8]">
+                            Tersimpan saat ini: {user.jenisKelamin === 'L' ? 'Laki-laki (L)' : user.jenisKelamin === 'P' ? 'Perempuan (P)' : user.jenisKelamin}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-1.5">
