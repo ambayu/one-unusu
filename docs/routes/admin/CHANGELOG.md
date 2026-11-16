@@ -1,5 +1,19 @@
 # Changelog - Admin Panel
 
+## [2026-11-20] - Seluruh Kolom Pengguna Dapat Disunting
+
+### Changed
+- **Modal edit `/admin/pengguna` tidak lagi readonly.** Seluruh 25 kolom profil kini dapat diubah admin, terbagi dalam lima bagian: Identitas, Data Pribadi, Data Akademik, Ketenagaan, dan Tautan Akademik. Modal melebar ke `max-w-3xl` dan isinya digulir.
+- **`PUT /api/admin/users/:id`** menerima kolom baru: `username`, `jenisKelamin`, `tempatLahir`, `tanggalLahir`, `nik`, `angkatan`, `statusAkademik`, `alamat`, `asalSekolah`, `namaIbuKandung`, `gelarDepan`, `gelarBelakang`, `nip`, `jabatanAkademik`, `bidangKeahlian`, `pendidikanTerakhir`, `sintaId`, `linkSinta`, `googleScholar`, `orcid`, `scopusId`, `biografi`, dan `nim` (sebelumnya tidak tampil di formulir). Respons `PUT` mengembalikan seluruh kolom tersebut.
+- **Validasi username**: kosong, mengandung spasi (>60 karakter), atau bentrok dengan akun lain ditolak (`400`/`409`). Mengganti username **akun sendiri** ditolak `400` agar admin tidak terkunci.
+- **Validasi ringan kolom profil** lewat daftar `kolomTeksMaksimal`; string kosong disimpan sebagai `null`. `jenisKelamin` hanya `L`/`P`.
+
+### Fixed
+- **`tanggalLahir` gagal simpan (`500`)**: kolom di Prisma bertipe `String? @db.VarChar(30)`, bukan `DateTime`. Server sempat mengirim objek `Date`; kini hanya menerima `YYYY-MM-DD` dan menyimpannya sebagai teks.
+
+### Verified
+- Uji langsung: seluruh 25 kolom tersimpan dan terbaca kembali; validasi username kosong/berspasi/bentrok, jenis kelamin tidak sah, dan tanggal rusak semuanya ditolak sesuai kode yang diharapkan. Data akun uji dipulihkan persis seperti semula. Tangkapan layar modal: 37 isian, 0 nonaktif.
+
 ## [2026-11-20] - API Hub Berbasis Data Sungguhan (CRUD Endpoint, Key, dan Riwayat)
 
 ### Added

@@ -132,6 +132,12 @@ export interface UserProfile {
   syncedAt?: string | null;
   isActive: boolean;
   permissions?: string[];
+  /**
+   * `true` selama akun masih memakai kata sandi bawaan hasil provisioning
+   * SIAKAD. Portal menampilkan modal ganti kata sandi yang tidak dapat ditutup
+   * sampai nilainya menjadi `false`.
+   */
+  harusGantiPassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -1,5 +1,48 @@
 # Changelog - Autentikasi SSO
 
+## [2026-11-17] — Kewajiban Ganti Kata Sandi Bawaan & Penutupan Celah Pengambilalihan Akun
+
+### Added
+- **`ForcePasswordChangeModal`** (`src/client/components/ForcePasswordChangeModal.tsx`):
+  modal ganti kata sandi yang **tidak dapat ditutup** — tanpa tombol batal, klik
+  latar diabaikan, dan `Escape` diblokir. Menampilkan username aktif, tombol
+  lihat/sembunyikan per kolom, daftar persyaratan kata sandi yang diperbarui
+  langsung, serta tombol "Keluar dari Akun" sebagai satu-satunya alternatif.
+- **`PenjagaKataSandiBawaan`** di `App.tsx`: dirender di dalam `Router` namun di
+  luar `<Routes>`, sehingga modal tampil di seluruh halaman sampai kata sandi
+  diganti.
+- **Kolom `User.harusGantiPassword`** dan **`User.passwordDiubahAt`** pada
+  `schema.prisma` (kolom DB: `harus_ganti_password`, `password_diubah_at`).
+- **Konstanta `KATA_SANDI_BAWAAN`** di server, dapat ditimpa lewat environment
+  `DEFAULT_PASSWORD`.
+- 162 akun yang masih memakai kata sandi bawaan telah ditandai
+  `harusGantiPassword = true` di database.
+
+### Changed
+- Login (`POST /api/auth/login`) kini mengirim `harusGantiPassword`. Status
+  dihitung ulang setiap login dengan membandingkan hash tersimpan terhadap kata
+  sandi bawaan, sehingga akun lama tidak lolos dari kewajiban ini.
+- `GET /api/auth/me` ikut mengirim `harusGantiPassword` agar `PanelLayout` dapat
+  memperbarui cache profil dan memicu pengecekan ulang.
+- `PUT /api/auth/profile` menolak kata sandi baru yang sama dengan kata sandi
+  saat ini atau sama dengan kata sandi bawaan.
+
+### Fixed
+- **Pengambilalihan akun lewat fallback SIAKAD (kritis).** Sebelumnya, bila
+  `bcrypt.compare` lokal gagal, server memverifikasi ke SIAKAD dan — jika
+  berhasil — **menimpa hash kata sandi lokal** dengan kata sandi yang baru saja
+  diketik. Karena NIDN dosen bukan rahasia, siapa pun yang mengetahui NIDN dapat
+  masuk memakai kata sandi lemah yang diterima SIAKAD, lalu kata sandi lemah itu
+  menggantikan kata sandi portal secara permanen. Fallback kini hanya memberi
+  akses satu sesi dan tidak lagi menyentuh `user.password`.
+- **Peran fallback SIAKAD tidak divalidasi.** Peran hasil autentikasi eksternal
+  sekarang harus sejalan dengan peran akun lokal; bila tidak, permintaan ditolak
+  dengan 403.
+- **JIT provisioning bisa membuat akun administratif.** Peran SIAKAD yang
+  mengandung kata "ADMIN" dahulu dipetakan menjadi `ADMIN_SSO`, dan akun yang
+  peran pemetaannya tidak ditemukan jatuh ke `MAHASISWA`. Kini hanya `DOSEN`
+  dan `MAHASISWA` yang diizinkan; selain itu ditolak, tanpa fallback.
+
 ## [2026-11-16]
 
 ### Changed

@@ -425,6 +425,17 @@ function toPositiveInt(value: unknown, fallback: number): number {
 // Hash dummy untuk menyamakan waktu respons saat akun tidak ditemukan.
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString("hex"), 10);
 
+/**
+ * Kata sandi bawaan yang diberikan saat akun dosen/mahasiswa di-provision dari
+ * SIAKAD. Nilainya sama untuk semua akun, sehingga tidak boleh dipakai terus
+ * menerus: login yang mendeteksi kata sandi ini akan memaksa penggantian lewat
+ * modal yang tidak dapat ditutup.
+ *
+ * Dapat ditimpa lewat `DEFAULT_PASSWORD` di environment agar instalasi lain
+ * tidak memakai nilai yang sudah tertulis di repositori.
+ */
+const KATA_SANDI_BAWAAN = process.env.DEFAULT_PASSWORD?.trim() || "Unusu123!";
+
 /** Log detail error hanya di server, tidak pernah dikirim ke klien. */
 function logServerError(context: string, error: unknown): void {
   const detail = error instanceof Error ? error.message : String(error);
@@ -841,15 +852,34 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       const extAuth = await authenticateExternalSystem(trimmedIdentifier, password);
       if (extAuth.success) {
         // Otentikasi eksternal valid! Tentukan peran dan ambil biodata profil
-        const roleCode = extAuth.role?.toUpperCase().includes("DOSEN")
+        /*
+         * Peran akun hasil provisioning dibatasi pada DOSEN dan MAHASISWA.
+         *
+         * Sebelumnya peran SIAKAD yang mengandung kata "ADMIN" dipetakan ke
+         * ADMIN_SSO. Itu berbahaya: siapa pun yang bisa membuat akun bertanda
+         * admin di SIAKAD langsung memperoleh peran administratif di portal,
+         * dan peran itu menempel permanen karena pembuatan akun hanya terjadi
+         * sekali. Peran administratif portal (SUPERADMIN, ADMIN_SSO) hanya
+         * boleh diberikan lewat panel Manajemen Pengguna oleh Superadmin.
+         */
+        const peranSia = extAuth.role?.toUpperCase() || "";
+        const roleCode = peranSia.includes("DOSEN")
           ? "DOSEN"
-          : extAuth.role?.toUpperCase().includes("ADMIN")
-          ? "ADMIN_SSO"
-          : "MAHASISWA";
+          : peranSia.includes("MAHASISWA")
+          ? "MAHASISWA"
+          : null;
+
+        if (!roleCode) {
+          return res.status(403).json({
+            status: false,
+            message:
+              "Akun SIAKAD Anda tidak dikenali sebagai dosen atau mahasiswa. Hubungi Administrator PUSTIK UNUSU."
+          });
+        }
 
         const matchedRole = await prisma.role.findFirst({
           where: { code: roleCode },
-        }) || await prisma.role.findFirst({ where: { code: "MAHASISWA" } });
+        });
 
         if (matchedRole) {
           const hashedPassword = await bcrypt.hash(password, 10);
@@ -971,25 +1001,68 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
       });
     }
 
-    // Jika bukan baru saja di-provision dari sistem eksternal, verifikasi password lokal (atau fallback eksternal)
+    /*
+     * Verifikasi kata sandi.
+     *
+     * Urutan: hash lokal lebih dulu (sumber kebenaran portal), lalu fallback ke
+     * SIAKAD bila pengguna baru mengganti kata sandinya di sana.
+     *
+     * Jalur fallback SIAKAD SENGAJA TIDAK LAGI MENIMPA HASH LOKAL. Sebelumnya
+     * setiap fallback yang berhasil langsung menulis ulang `user.password`
+     * dengan kata sandi yang baru saja diketik. Akibatnya siapa pun yang tahu
+     * NIDN seorang dosen — dan NIDN bukan rahasia — bisa masuk memakai kata
+     * sandi lemah mana pun yang diterima SIAKAD, lalu kata sandi lemah itu
+     * MENGGANTIKAN kata sandi portal secara permanen. Akun tersebut terbajak
+     * tanpa sepengetahuan pemiliknya.
+     *
+     * Sekarang fallback hanya memberi akses satu sesi dan tidak mengubah kata
+     * sandi lokal. Bila pengguna ingin menyamakan kata sandi portal dengan
+     * SIAKAD, ia melakukannya sendiri lewat menu Keamanan.
+     */
     if (!isProvisionedFromExternal) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        // Coba verifikasi ulang ke sistem eksternal (jika user baru saja ganti password di sana)
+      const cocokLokal = await bcrypt.compare(password, user.password).catch(() => false);
+
+      if (!cocokLokal) {
         const extAuth = await authenticateExternalSystem(user.username, password);
-        if (extAuth.success) {
-          const newHashed = await bcrypt.hash(password, 10);
-          await prisma.user.update(
-            {
-            where: { id: user.id },
-            data: { password: newHashed, syncedAt: new Date() },
-          });
-        } else {
+
+        if (!extAuth.success) {
           return res.status(401).json({
             status: false,
             message: "NIM / NIDN / username atau password salah."
           });
         }
+
+        /*
+         * Kata sandi valid di SIAKAD tetapi berbeda dari kata sandi portal.
+         * Peran yang dikembalikan SIAKAD harus sejalan dengan peran akun lokal;
+         * bila SIAKAD mengaku sebagai peran berbeda (mis. admin), permintaan
+         * ditolak. Tanpa pemeriksaan ini, kredensial eksternal dengan hak lebih
+         * tinggi dapat dipakai untuk mengambil alih akun portal berperan apa
+         * pun, karena peran sesi diambil dari akun lokal hasil pencarian.
+         */
+        const peranLokal = user.roles.map((ur) => ur.role.code.toUpperCase());
+        const peranEksternal = (extAuth.role || "").toUpperCase();
+        const sejalanDenganLokal =
+          peranEksternal.length === 0 ||
+          peranLokal.some((kode) => peranEksternal.includes(kode)) ||
+          (peranLokal.includes("DOSEN") && peranEksternal.includes("DOSEN")) ||
+          (peranLokal.includes("MAHASISWA") && peranEksternal.includes("MAHASISWA"));
+
+        if (!sejalanDenganLokal) {
+          return res.status(403).json({
+            status: false,
+            message:
+              "Kata sandi SIAKAD Anda valid, tetapi peran akun SIAKAD tidak sesuai dengan akun portal ini. Hubungi Administrator PUSTIK UNUSU."
+          });
+        }
+
+        // Catat aktivitas sinkronisasi tanpa menyentuh kata sandi pengguna.
+        await prisma.user
+          .update({
+            where: { id: user.id },
+            data: { syncedAt: new Date() },
+          })
+          .catch((err: unknown) => logServerError("Login fallback SIAKAD: gagal memperbarui syncedAt", err));
       }
     }
 
@@ -1053,6 +1126,21 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
 
     const permissionKeys = await getUserPermissionKeys(user.id);
 
+    /*
+     * Akun hasil provisioning SIAKAD memakai kata sandi bawaan yang sama untuk
+     * semua orang. Selama pengguna belum menggantinya, portal wajib
+     * menampilkan modal ganti kata sandi yang tidak bisa ditutup.
+     *
+     * Status dihitung ulang setiap login (bukan hanya membaca kolom database)
+     * dengan membandingkan hash tersimpan terhadap kata sandi bawaan. Dengan
+     * begitu akun lama yang belum sempat ditandai tetap terlindungi, dan akun
+     * yang sudah mengganti kata sandi tidak pernah diminta lagi.
+     */
+    const masihKataSandiBawaan = await bcrypt
+      .compare(KATA_SANDI_BAWAAN, user.password)
+      .catch(() => false);
+    const harusGantiPassword = user.harusGantiPassword || masihKataSandiBawaan;
+
     // Sesi utama dititipkan pada cookie HttpOnly. Token tetap disertakan di body
     // hanya untuk kompatibilitas klien lama; frontend tidak lagi menyimpannya.
     res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions);
@@ -1073,6 +1161,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
         fakultas: user.fakultas,
         prodi: user.prodi,
         avatar: user.avatar,
+        harusGantiPassword,
         permissions: permissionKeys
       }
     });
@@ -1207,6 +1296,7 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
         biografi: true,
         syncedAt: true,
         isActive: true,
+        harusGantiPassword: true,
         createdAt: true,
         updatedAt: true
       }
@@ -1597,7 +1687,22 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
       if (newPassword.length < 8) {
         return res.status(400).json({ status: false, message: "Password baru minimal 8 karakter." });
       }
+      if (newPassword === currentPassword) {
+        return res.status(400).json({
+          status: false,
+          message: "Password baru tidak boleh sama dengan password saat ini.",
+        });
+      }
+      if (newPassword === KATA_SANDI_BAWAAN) {
+        return res.status(400).json({
+          status: false,
+          message: "Password bawaan tidak boleh dipakai. Pilih password lain yang hanya Anda ketahui.",
+        });
+      }
       updateData.password = await bcrypt.hash(newPassword, 10);
+      // Kata sandi sudah diganti sendiri oleh pengguna: kewajiban ganti selesai.
+      updateData.harusGantiPassword = false;
+      updateData.passwordDiubahAt = new Date();
     }
 
     const updatedUser = await prisma.user.update({
@@ -2331,7 +2436,13 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
     }
 
     const body = isPlainObject(req.body) ? req.body : {};
-    const { nama, email, noHp, roleIds, roleId, nim, nidn, fakultas, prodi, isActive, password } = body;
+    const {
+      nama, email, noHp, roleIds, roleId, nim, nidn, fakultas, prodi, isActive, password,
+      username, jenisKelamin, tempatLahir, tanggalLahir, nik, angkatan, statusAkademik,
+      alamat, asalSekolah, namaIbuKandung, gelarDepan, gelarBelakang, nip,
+      jabatanAkademik, bidangKeahlian, pendidikanTerakhir,
+      sintaId, linkSinta, googleScholar, orcid, scopusId, biografi,
+    } = body;
 
     const updateData: any = {};
 
@@ -2421,6 +2532,126 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
       updateData.nidn = typeof nidn === "string" && nidn.trim() ? nidn.trim() : null;
     }
 
+    // ---------------------------------------------------------------
+    // Username dapat diubah admin.
+    //
+    // Sebelumnya kolom ini selalu readonly di antarmuka. Karena username
+    // dipakai sebagai kunci login (dan disamakan dengan NIM/NIDN saat akun
+    // dibuat SIAKAD), perubahan harus dijaga ketat:
+    //   - tidak boleh kosong, maksimal 60 karakter, tanpa spasi,
+    //   - tidak boleh bentrok dengan username akun lain,
+    //   - akun sendiri tidak boleh mengganti username-nya sendiri, supaya
+    //     admin tidak terkunci di luar sesi yang sedang dipakai.
+    // ---------------------------------------------------------------
+    if (username !== undefined) {
+      const usernameBaru = typeof username === "string" ? username.trim() : "";
+
+      if (!usernameBaru) {
+        return res.status(400).json({ status: false, message: "Username tidak boleh kosong." });
+      }
+      if (usernameBaru.length > 60) {
+        return res.status(400).json({ status: false, message: "Username maksimal 60 karakter." });
+      }
+      if (/\s/.test(usernameBaru)) {
+        return res.status(400).json({ status: false, message: "Username tidak boleh mengandung spasi." });
+      }
+      if (req.user?.id === userId && usernameBaru !== targetUser.username) {
+        return res.status(400).json({
+          status: false,
+          message: "Anda tidak dapat mengubah username akun sendiri. Minta admin lain melakukannya.",
+        });
+      }
+      if (usernameBaru !== targetUser.username) {
+        const bentrok = await prisma.user.findFirst({
+          where: { username: usernameBaru, NOT: { id: userId } },
+          select: { id: true },
+        });
+        if (bentrok) {
+          return res.status(409).json({ status: false, message: "Username sudah dipakai akun lain." });
+        }
+      }
+      updateData.username = usernameBaru;
+    }
+
+    // ---------------------------------------------------------------
+    // Kolom profil lanjutan.
+    //
+    // Semuanya opsional: hanya ditulis bila dikirim, dan string kosong
+    // disimpan sebagai null agar kolom benar-benar kosong. Validasi sengaja
+    // ringan — ini data referensi civitas yang sumber aslinya SIAKAD, bukan
+    // masukan yang menentukan hak akses.
+    // ---------------------------------------------------------------
+    const kolomTeksMaksimal: Array<[keyof typeof body, number]> = [
+      ["jenisKelamin", 1],
+      ["tempatLahir", 100],
+      ["nik", 32],
+      ["angkatan", 10],
+      ["statusAkademik", 50],
+      ["alamat", 500],
+      ["asalSekolah", 200],
+      ["namaIbuKandung", 150],
+      ["gelarDepan", 50],
+      ["gelarBelakang", 80],
+      ["nip", 40],
+      ["jabatanAkademik", 100],
+      ["bidangKeahlian", 200],
+      ["pendidikanTerakhir", 100],
+      ["sintaId", 60],
+      ["linkSinta", 255],
+      ["googleScholar", 255],
+      ["orcid", 60],
+      ["scopusId", 60],
+      ["biografi", 5000],
+    ];
+
+    for (const [nama, batas] of kolomTeksMaksimal) {
+      const nilai = (body as Record<string, unknown>)[nama];
+      if (nilai === undefined) continue;
+
+      if (nilai === null || nilai === "") {
+        updateData[nama] = null;
+        continue;
+      }
+      if (typeof nilai !== "string") {
+        return res.status(400).json({ status: false, message: `Kolom ${nama} harus berupa teks.` });
+      }
+
+      const bersih = nilai.trim();
+      if (!bersih) {
+        updateData[nama] = null;
+        continue;
+      }
+      if (bersih.length > batas) {
+        return res.status(400).json({
+          status: false,
+          message: `Kolom ${nama} maksimal ${batas} karakter.`,
+        });
+      }
+      updateData[nama] = bersih;
+    }
+
+    // Jenis kelamin dibatasi ke dua nilai yang dipakai seluruh aplikasi.
+    if (updateData.jenisKelamin !== undefined && updateData.jenisKelamin !== null) {
+      if (!["L", "P"].includes(updateData.jenisKelamin)) {
+        return res.status(400).json({ status: false, message: "Jenis kelamin harus L atau P." });
+      }
+    }
+
+    // Tanggal lahir disimpan sebagai teks (kolomnya `String? @db.VarChar(30)`,
+    // bukan DateTime). Nilai disimpan dalam bentuk "YYYY-MM-DD" agar konsisten
+    // dengan input `type="date"` dan mudah dibaca ulang oleh formulir.
+    if (tanggalLahir !== undefined) {
+      if (tanggalLahir === null || tanggalLahir === "") {
+        updateData.tanggalLahir = null;
+      } else if (typeof tanggalLahir === "string") {
+        const bersih = tanggalLahir.trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(bersih) || Number.isNaN(new Date(bersih).getTime())) {
+          return res.status(400).json({ status: false, message: "Format tanggal lahir harus YYYY-MM-DD." });
+        }
+        updateData.tanggalLahir = bersih;
+      }
+    }
+
     if (typeof isActive === "boolean") {
       if (req.user?.id === userId && !isActive) {
         return res.status(400).json({ status: false, message: "Anda tidak dapat menonaktifkan akun sendiri." });
@@ -2458,6 +2689,28 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
           nidn: true,
           fakultas: true,
           prodi: true,
+          avatar: true,
+          jenisKelamin: true,
+          tempatLahir: true,
+          tanggalLahir: true,
+          nik: true,
+          angkatan: true,
+          statusAkademik: true,
+          alamat: true,
+          asalSekolah: true,
+          namaIbuKandung: true,
+          gelarDepan: true,
+          gelarBelakang: true,
+          nip: true,
+          jabatanAkademik: true,
+          bidangKeahlian: true,
+          pendidikanTerakhir: true,
+          sintaId: true,
+          linkSinta: true,
+          googleScholar: true,
+          orcid: true,
+          scopusId: true,
+          biografi: true,
           isActive: true,
           createdAt: true,
           updatedAt: true
@@ -2563,7 +2816,7 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
 
     let createdCount = 0;
     let updatedCount = 0;
-    const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
+    const defaultPasswordHash = await bcrypt.hash(KATA_SANDI_BAWAAN, 10);
 
     /*
      * Opsi `biodata`.
@@ -2676,6 +2929,7 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
             // cadangan bila NIDN belum diisi pada data SIAKAD.
             username: d.nidn || d.usernameSia || `dosen-${d.kodeSia ?? Date.now()}`,
             password: defaultPasswordHash,
+            harusGantiPassword: true,
             nama: d.nama,
             nidn: d.nidn,
             prodi: d.prodi,
@@ -2783,7 +3037,7 @@ app.post("/api/admin/siakad/sync-mahasiswa", authenticateToken, requirePermissio
 
     let createdCount = 0;
     let updatedCount = 0;
-    const defaultPasswordHash = await bcrypt.hash("Unusu123!", 10);
+    const defaultPasswordHash = await bcrypt.hash(KATA_SANDI_BAWAAN, 10);
 
     for (const m of students) {
       const existing = await prisma.user.findFirst({
@@ -2816,6 +3070,7 @@ app.post("/api/admin/siakad/sync-mahasiswa", authenticateToken, requirePermissio
           data: {
             username: m.nim,
             password: defaultPasswordHash,
+            harusGantiPassword: true,
             nama: m.nama,
             nim: m.nim,
             prodi: m.prodi,

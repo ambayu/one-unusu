@@ -104,6 +104,22 @@ Dokumen ini mencatat seluruh komponen bersama yang wajib digunakan ulang dan dil
 - **Varian `type`**: `success`, `error`, `confirm`, `info`, `warning`, `denied`.
 - **Aturan**: dilarang memakai `alert()`, `confirm()`, atau banner alert inline sebagai pengganti.
 
+### `ForcePasswordChangeModal` (`src/client/components/ForcePasswordChangeModal.tsx`)
+- **Tanggung Jawab**: Memaksa penggantian kata sandi bawaan (`Unusu123!`) hasil
+  provisioning SIAKAD pada login pertama.
+- **Sifat**: **tidak dapat ditutup** — tidak ada tombol batal, klik latar
+  diabaikan, `Escape` diblokir. Hanya "Simpan Kata Sandi Baru" atau "Keluar dari
+  Akun" yang tersedia.
+- **Props**: `isOpen`, `nama`, `username`, `onSuccess`, `onLogout`.
+- **Isi wajib**: username aktif (NIDN/NIM) agar pengguna menyadari bila masuk ke
+  akun yang salah, daftar persyaratan kata sandi yang diperbarui langsung, serta
+  penegasan bahwa mengganti kata sandi portal **tidak** mengubah kata sandi
+  SIAKAD.
+- **Pemasangan**: dirender oleh `PenjagaKataSandiBawaan` di `App.tsx`, di dalam
+  `Router` tetapi di luar `<Routes>`, sehingga tampil di seluruh halaman.
+- **Aturan**: dilarang membuat varian modal ini yang dapat ditutup tanpa
+  mengganti kata sandi; aturan lengkap ada di `docs/routes/auth/RULES.md` §2a.
+
 ### `StatusBadge`
 - **Bentuknya pola kelas, bukan komponen berdiri sendiri.** Tidak ada berkas `StatusBadge.tsx`; varian di bawah ditulis langsung pada elemen badge dan **wajib** mengikuti kode warna yang sama di semua halaman.
 - **Varian**:

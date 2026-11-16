@@ -57,6 +57,8 @@ export const PanelLayout: React.FC = () => {
 
         setUser(response.data.data);
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data.data));
+        // Beri tahu penjaga kata sandi bawaan agar membaca ulang status akun.
+        window.dispatchEvent(new Event('one-unusu:profil-diperbarui'));
       } catch {
         // Sesi tidak valid sudah ditangani interceptor API (bersihkan sesi lalu
         // alihkan ke /login). Cache terakhir dibiarkan agar sidebar tidak

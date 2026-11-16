@@ -49,6 +49,14 @@ model User {
   syncedAt       DateTime?  @map("synced_at")
   isActive       Boolean    @default(true)
   lastLoginAt    DateTime? // Diisi saat login sukses (audit & kebijakan akun dorman)
+  /*
+   * Penanda bahwa akun masih memakai kata sandi bawaan hasil provisioning
+   * SIAKAD (`Unusu123!`). Selama nilainya `true`, portal menampilkan modal
+   * ganti kata sandi yang tidak dapat ditutup. Dinonaktifkan otomatis saat
+   * pengguna mengganti kata sandinya sendiri.
+   */
+  harusGantiPassword Boolean @default(false) @map("harus_ganti_password")
+  passwordDiubahAt   DateTime? @map("password_diubah_at")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

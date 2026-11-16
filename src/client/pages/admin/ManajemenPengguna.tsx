@@ -353,6 +353,7 @@ export const ManajemenPengguna: React.FC = () => {
   // State Edit Pengguna
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editUsername, setEditUsername] = useState('');
   const [editNama, setEditNama] = useState('');
   const [editRoleIds, setEditRoleIds] = useState<number[]>([]);
   const [editEmail, setEditEmail] = useState('');
@@ -361,6 +362,31 @@ export const ManajemenPengguna: React.FC = () => {
   const [editFakultas, setEditFakultas] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editNewPassword, setEditNewPassword] = useState('');
+  /* Kolom identitas civitas. Diedit bebas oleh admin, termasuk NIM/NIDN
+     yang sebelumnya tidak tampil di formulir sama sekali. */
+  const [editNim, setEditNim] = useState('');
+  const [editNidn, setEditNidn] = useState('');
+  const [editJenisKelamin, setEditJenisKelamin] = useState('');
+  const [editTempatLahir, setEditTempatLahir] = useState('');
+  const [editTanggalLahir, setEditTanggalLahir] = useState('');
+  const [editNik, setEditNik] = useState('');
+  const [editAngkatan, setEditAngkatan] = useState('');
+  const [editStatusAkademik, setEditStatusAkademik] = useState('');
+  const [editAlamat, setEditAlamat] = useState('');
+  const [editAsalSekolah, setEditAsalSekolah] = useState('');
+  const [editNamaIbuKandung, setEditNamaIbuKandung] = useState('');
+  const [editGelarDepan, setEditGelarDepan] = useState('');
+  const [editGelarBelakang, setEditGelarBelakang] = useState('');
+  const [editNip, setEditNip] = useState('');
+  const [editJabatanAkademik, setEditJabatanAkademik] = useState('');
+  const [editBidangKeahlian, setEditBidangKeahlian] = useState('');
+  const [editPendidikanTerakhir, setEditPendidikanTerakhir] = useState('');
+  const [editSintaId, setEditSintaId] = useState('');
+  const [editLinkSinta, setEditLinkSinta] = useState('');
+  const [editGoogleScholar, setEditGoogleScholar] = useState('');
+  const [editOrcid, setEditOrcid] = useState('');
+  const [editScopusId, setEditScopusId] = useState('');
+  const [editBiografi, setEditBiografi] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   // State Hapus Pengguna
@@ -506,6 +532,7 @@ export const ManajemenPengguna: React.FC = () => {
 
   const handleOpenEdit = (user: UserProfile) => {
     setEditingUser(user);
+    setEditUsername(user.username);
     setEditNama(user.nama);
 
     let initialRoleIds: number[] = [];
@@ -527,6 +554,32 @@ export const ManajemenPengguna: React.FC = () => {
     setEditFakultas(user.fakultas || '');
     setEditIsActive(Boolean(user.isActive));
     setEditNewPassword('');
+    setEditNim(user.nim || '');
+    setEditNidn(user.nidn || '');
+    setEditJenisKelamin(user.jenisKelamin || '');
+    setEditTempatLahir(user.tempatLahir || '');
+    // Input date menuntut YYYY-MM-DD; nilai dari server bisa ISO lengkap.
+    setEditTanggalLahir(
+      user.tanggalLahir ? new Date(user.tanggalLahir).toISOString().slice(0, 10) : ''
+    );
+    setEditNik(user.nik || '');
+    setEditAngkatan(user.angkatan || '');
+    setEditStatusAkademik(user.statusAkademik || '');
+    setEditAlamat(user.alamat || '');
+    setEditAsalSekolah(user.asalSekolah || '');
+    setEditNamaIbuKandung(user.namaIbuKandung || '');
+    setEditGelarDepan(user.gelarDepan || '');
+    setEditGelarBelakang(user.gelarBelakang || '');
+    setEditNip(user.nip || '');
+    setEditJabatanAkademik(user.jabatanAkademik || '');
+    setEditBidangKeahlian(user.bidangKeahlian || '');
+    setEditPendidikanTerakhir(user.pendidikanTerakhir || '');
+    setEditSintaId(user.sintaId || '');
+    setEditLinkSinta(user.linkSinta || '');
+    setEditGoogleScholar(user.googleScholar || '');
+    setEditOrcid(user.orcid || '');
+    setEditScopusId(user.scopusId || '');
+    setEditBiografi(user.biografi || '');
     setShowEditModal(true);
   };
 
@@ -547,12 +600,36 @@ export const ManajemenPengguna: React.FC = () => {
     try {
       setIsUpdating(true);
       const payload: Partial<UserProfile> & { password?: string; roleIds?: number[] } = {
+        username: editUsername.trim(),
         nama: editNama.trim(),
         roleIds: editRoleIds,
         email: editEmail.trim() || undefined,
         noHp: editNoHp.trim() || undefined,
         prodi: editProdi.trim() || undefined,
         fakultas: editFakultas.trim() || undefined,
+        nim: editNim.trim() || undefined,
+        nidn: editNidn.trim() || undefined,
+        jenisKelamin: editJenisKelamin || undefined,
+        tempatLahir: editTempatLahir.trim() || undefined,
+        tanggalLahir: editTanggalLahir || undefined,
+        nik: editNik.trim() || undefined,
+        angkatan: editAngkatan.trim() || undefined,
+        statusAkademik: editStatusAkademik.trim() || undefined,
+        alamat: editAlamat.trim() || undefined,
+        asalSekolah: editAsalSekolah.trim() || undefined,
+        namaIbuKandung: editNamaIbuKandung.trim() || undefined,
+        gelarDepan: editGelarDepan.trim() || undefined,
+        gelarBelakang: editGelarBelakang.trim() || undefined,
+        nip: editNip.trim() || undefined,
+        jabatanAkademik: editJabatanAkademik.trim() || undefined,
+        bidangKeahlian: editBidangKeahlian.trim() || undefined,
+        pendidikanTerakhir: editPendidikanTerakhir.trim() || undefined,
+        sintaId: editSintaId.trim() || undefined,
+        linkSinta: editLinkSinta.trim() || undefined,
+        googleScholar: editGoogleScholar.trim() || undefined,
+        orcid: editOrcid.trim() || undefined,
+        scopusId: editScopusId.trim() || undefined,
+        biografi: editBiografi.trim() || undefined,
         isActive: editIsActive,
       };
 
@@ -1479,13 +1556,13 @@ export const ManajemenPengguna: React.FC = () => {
 
       {/* Modal Edit Pengguna */}
       {showEditModal && editingUser && (
-        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] my-8">
+        <div className="fixed inset-0 z-50 bg-[#1E293B]/60 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl border border-[#D8E5DC] my-8">
             <div className="flex justify-between items-start pb-3 border-b border-[#E8EFEA]">
               <div>
                 <h3 className="font-bold text-[#1E293B] text-sm">Ubah Akun Pengguna</h3>
                 <p className="text-[11px] text-[#64748B]">
-                  Perbarui profil, hak akses peran, status keaktifan, atau kata sandi akun SSO.
+                  Seluruh kolom dapat disunting: identitas, peran, data pribadi, akademik, ketenagaan, dan tautan akademik.
                 </p>
               </div>
               <button
@@ -1501,13 +1578,28 @@ export const ManajemenPengguna: React.FC = () => {
 
             <form onSubmit={handleUpdate} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-[#475569] mb-1">Username / NIM / NIDN</label>
+                <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-username">
+                  Username / NIM / NIDN
+                </label>
                 <input
+                  id="edit-username"
                   type="text"
-                  disabled
-                  value={editingUser.username}
-                  className="w-full px-3 py-2 bg-[#F1F5F2] border border-[#D8E5DC] text-[#64748B] rounded-lg cursor-not-allowed font-mono"
+                  required
+                  maxLength={60}
+                  value={editUsername}
+                  onChange={(event) => setEditUsername(event.target.value)}
+                  disabled={editingUser.id === currentUser?.id}
+                  className={`w-full px-3 py-2 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534] ${
+                    editingUser.id === currentUser?.id
+                      ? 'bg-[#F1F5F2] border border-[#D8E5DC] text-[#64748B] cursor-not-allowed'
+                      : 'bg-white border border-[#D8E5DC] text-[#1E293B]'
+                  }`}
                 />
+                <p className="text-[11px] text-[#94A3B8] mt-1">
+                  {editingUser.id === currentUser?.id
+                    ? 'Username akun sendiri tidak dapat diubah di sini — minta admin lain melakukannya.'
+                    : 'Dipakai untuk login. Tidak boleh mengandung spasi dan harus unik.'}
+                </p>
               </div>
 
               <div>
@@ -1638,6 +1730,350 @@ export const ManajemenPengguna: React.FC = () => {
                       className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
                     />
                   )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-nim">
+                    NIM
+                  </label>
+                  <input
+                    id="edit-nim"
+                    type="text"
+                    maxLength={40}
+                    value={editNim}
+                    onChange={(event) => setEditNim(event.target.value)}
+                    placeholder="Nomor Induk Mahasiswa"
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-nidn">
+                    NIDN / NUP
+                  </label>
+                  <input
+                    id="edit-nidn"
+                    type="text"
+                    maxLength={40}
+                    value={editNidn}
+                    onChange={(event) => setEditNidn(event.target.value)}
+                    placeholder="Nomor Induk Dosen Nasional"
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+              </div>
+
+              {/* --- Data pribadi --- */}
+              <div className="pt-2 border-t border-[#E8EFEA]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9BB5A3] mb-2">
+                  Data Pribadi
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-jk">
+                      Jenis Kelamin
+                    </label>
+                    <select
+                      id="edit-jk"
+                      value={editJenisKelamin}
+                      onChange={(event) => setEditJenisKelamin(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    >
+                      <option value="">-- Belum diisi --</option>
+                      <option value="L">Laki-laki</option>
+                      <option value="P">Perempuan</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-nik">
+                      NIK
+                    </label>
+                    <input
+                      id="edit-nik"
+                      type="text"
+                      maxLength={32}
+                      value={editNik}
+                      onChange={(event) => setEditNik(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-tempat-lahir">
+                      Tempat Lahir
+                    </label>
+                    <input
+                      id="edit-tempat-lahir"
+                      type="text"
+                      maxLength={100}
+                      value={editTempatLahir}
+                      onChange={(event) => setEditTempatLahir(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-tanggal-lahir">
+                      Tanggal Lahir
+                    </label>
+                    <input
+                      id="edit-tanggal-lahir"
+                      type="date"
+                      value={editTanggalLahir}
+                      onChange={(event) => setEditTanggalLahir(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-ibu">
+                      Nama Ibu Kandung
+                    </label>
+                    <input
+                      id="edit-ibu"
+                      type="text"
+                      maxLength={150}
+                      value={editNamaIbuKandung}
+                      onChange={(event) => setEditNamaIbuKandung(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-asal-sekolah">
+                      Asal Sekolah
+                    </label>
+                    <input
+                      id="edit-asal-sekolah"
+                      type="text"
+                      maxLength={200}
+                      value={editAsalSekolah}
+                      onChange={(event) => setEditAsalSekolah(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-alamat">
+                    Alamat
+                  </label>
+                  <textarea
+                    id="edit-alamat"
+                    rows={2}
+                    maxLength={500}
+                    value={editAlamat}
+                    onChange={(event) => setEditAlamat(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
+                </div>
+              </div>
+
+              {/* --- Data akademik --- */}
+              <div className="pt-2 border-t border-[#E8EFEA]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9BB5A3] mb-2">
+                  Data Akademik
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-angkatan">
+                      Angkatan
+                    </label>
+                    <input
+                      id="edit-angkatan"
+                      type="text"
+                      maxLength={10}
+                      value={editAngkatan}
+                      onChange={(event) => setEditAngkatan(event.target.value)}
+                      placeholder="Contoh: 2024"
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-status-akademik">
+                      Status Akademik
+                    </label>
+                    <input
+                      id="edit-status-akademik"
+                      type="text"
+                      maxLength={50}
+                      value={editStatusAkademik}
+                      onChange={(event) => setEditStatusAkademik(event.target.value)}
+                      placeholder="Aktif / Cuti / Lulus"
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* --- Data ketenagaan dosen --- */}
+              <div className="pt-2 border-t border-[#E8EFEA]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9BB5A3] mb-2">
+                  Ketenagaan
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-gelar-depan">
+                      Gelar Depan
+                    </label>
+                    <input
+                      id="edit-gelar-depan"
+                      type="text"
+                      maxLength={50}
+                      value={editGelarDepan}
+                      onChange={(event) => setEditGelarDepan(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-gelar-belakang">
+                      Gelar Belakang
+                    </label>
+                    <input
+                      id="edit-gelar-belakang"
+                      type="text"
+                      maxLength={80}
+                      value={editGelarBelakang}
+                      onChange={(event) => setEditGelarBelakang(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-nip">
+                      NIP
+                    </label>
+                    <input
+                      id="edit-nip"
+                      type="text"
+                      maxLength={40}
+                      value={editNip}
+                      onChange={(event) => setEditNip(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-jabatan">
+                      Jabatan Akademik
+                    </label>
+                    <input
+                      id="edit-jabatan"
+                      type="text"
+                      maxLength={100}
+                      value={editJabatanAkademik}
+                      onChange={(event) => setEditJabatanAkademik(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-bidang">
+                      Bidang Keahlian
+                    </label>
+                    <input
+                      id="edit-bidang"
+                      type="text"
+                      maxLength={200}
+                      value={editBidangKeahlian}
+                      onChange={(event) => setEditBidangKeahlian(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-pendidikan">
+                      Pendidikan Terakhir
+                    </label>
+                    <input
+                      id="edit-pendidikan"
+                      type="text"
+                      maxLength={100}
+                      value={editPendidikanTerakhir}
+                      onChange={(event) => setEditPendidikanTerakhir(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* --- Tautan akademik --- */}
+              <div className="pt-2 border-t border-[#E8EFEA]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9BB5A3] mb-2">
+                  Tautan Akademik
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-sinta">
+                      SINTA ID
+                    </label>
+                    <input
+                      id="edit-sinta"
+                      type="text"
+                      maxLength={60}
+                      value={editSintaId}
+                      onChange={(event) => setEditSintaId(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-link-sinta">
+                      Tautan SINTA
+                    </label>
+                    <input
+                      id="edit-link-sinta"
+                      type="url"
+                      maxLength={255}
+                      value={editLinkSinta}
+                      onChange={(event) => setEditLinkSinta(event.target.value)}
+                      placeholder="https://sinta.kemdikbud.go.id/..."
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-scholar">
+                      Google Scholar
+                    </label>
+                    <input
+                      id="edit-scholar"
+                      type="url"
+                      maxLength={255}
+                      value={editGoogleScholar}
+                      onChange={(event) => setEditGoogleScholar(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-orcid">
+                      ORCID
+                    </label>
+                    <input
+                      id="edit-orcid"
+                      type="text"
+                      maxLength={60}
+                      value={editOrcid}
+                      onChange={(event) => setEditOrcid(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-scopus">
+                      Scopus ID
+                    </label>
+                    <input
+                      id="edit-scopus"
+                      type="text"
+                      maxLength={60}
+                      value={editScopusId}
+                      onChange={(event) => setEditScopusId(event.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-biografi">
+                    Biografi
+                  </label>
+                  <textarea
+                    id="edit-biografi"
+                    rows={3}
+                    maxLength={5000}
+                    value={editBiografi}
+                    onChange={(event) => setEditBiografi(event.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                  />
                 </div>
               </div>
 

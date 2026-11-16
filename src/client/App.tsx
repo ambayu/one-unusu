@@ -29,6 +29,7 @@ import { PERMISSIONS } from './lib/permissions';
 import { AksesDitolak } from './pages/AksesDitolak';
 import { HalamanTidakDitemukan } from './pages/HalamanTidakDitemukan';
 import { PanelLayout } from './components/PanelLayout';
+import { ForcePasswordChangeModal } from './components/ForcePasswordChangeModal';
 import {
   ACCESS_DENIED_PATH,
   ADMIN_PANEL_PATH,
@@ -36,6 +37,7 @@ import {
   canOpenAdminPanel,
   resolveLandingPath,
 } from './lib/landing';
+import api from './services/api';
 import type { UserProfile } from './services/api';
 
 // Kunci localStorage untuk menyimpan data profil pengguna yang terautentikasi
@@ -163,6 +165,78 @@ const AdminPanelRoute = ({ children }: { children: React.ReactElement }) => {
 
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+/**
+ * Penjaga kata sandi bawaan.
+ *
+ * Dirender di dalam `Router` tetapi di luar `<Routes>`, sehingga modalnya tetap
+ * tampil apa pun halaman yang sedang dibuka — termasuk halaman panel, landing,
+ * maupun tujuan SSO. Selama `harusGantiPassword` bernilai `true`, pengguna
+ * tidak dapat berpindah halaman tanpa mengganti kata sandinya lebih dulu.
+ */
+const PenjagaKataSandiBawaan: React.FC = () => {
+  const [perluGanti, setPerluGanti] = React.useState(false);
+  const [profil, setProfil] = React.useState<UserProfile | null>(null);
+
+  React.useEffect(() => {
+    // Baca penanda dari cache profil. Server mengirim `harusGantiPassword` pada
+    // respons login, dan PanelLayout memperbarui cache yang sama saat memuat
+    // ulang profil — jadi nilainya selalu mengikuti keadaan terakhir.
+    const baca = () => {
+      const data = readCachedUser();
+      setProfil(data);
+      setPerluGanti(Boolean(data?.harusGantiPassword));
+    };
+    baca();
+
+    // Ikuti perubahan cache dari tab lain serta pembaruan di tab ini.
+    const tanganiPenyimpanan = () => baca();
+    window.addEventListener('storage', tanganiPenyimpanan);
+    window.addEventListener('one-unusu:profil-diperbarui', tanganiPenyimpanan);
+
+    return () => {
+      window.removeEventListener('storage', tanganiPenyimpanan);
+      window.removeEventListener('one-unusu:profil-diperbarui', tanganiPenyimpanan);
+    };
+  }, []);
+
+  /** Setelah kata sandi berganti, bersihkan penanda di cache profil. */
+  const tanganiBerhasil = () => {
+    const data = readCachedUser();
+    if (data) {
+      const diperbarui: UserProfile = { ...data, harusGantiPassword: false };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(diperbarui));
+      setProfil(diperbarui);
+    }
+    setPerluGanti(false);
+    // Beri tahu komponen lain (mis. PanelLayout) bahwa profil berubah.
+    window.dispatchEvent(new Event('one-unusu:profil-diperbarui'));
+  };
+
+  /** Keluar dari akun: hapus sesi lokal lalu kembali ke halaman login. */
+  const tanganiKeluar = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Abaikan kegagalan jaringan: sesi lokal tetap dibersihkan di bawah.
+    }
+    localStorage.removeItem('one_unusu_token');
+    localStorage.removeItem(USER_STORAGE_KEY);
+    window.location.href = `${BASE_PATH}/login`;
+  };
+
+  if (!perluGanti || !profil) return null;
+
+  return (
+    <ForcePasswordChangeModal
+      isOpen={perluGanti}
+      nama={profil.nama}
+      username={profil.username}
+      onSuccess={tanganiBerhasil}
+      onLogout={tanganiKeluar}
+    />
+  );
+};
+
 export function App() {
   const currentPath = window.location.pathname;
   const isBaseSubpath = BASE_PATH && currentPath.startsWith(BASE_PATH);
@@ -170,6 +244,8 @@ export function App() {
 
   return (
     <Router basename={routerBasename}>
+      {/* Modal ganti kata sandi bawaan — tampil di atas seluruh rute */}
+      <PenjagaKataSandiBawaan />
       <Routes>
         {/* Landing Page & Dedicated Subpages */}
         <Route path="/" element={<RootRoute />} />
