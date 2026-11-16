@@ -115,6 +115,61 @@ URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkunga
 3. **Penyelarasan Kode Sumber**:
    - Fungsi `buildSsoAppDefinitions` di `src/server/lib/ssoApps.ts` mendeteksi mode secara otomatis (`isLocalMode`) bila parameter `mode === "local"`, env `SSO_ENV === "local"`, atau bila `publicBaseUrl` mengandung string `localhost`.
 
+### 4.3 Aturan Baku Callback Browser Aplikasi Cabang (Mandatory)
+
+Bagian ini adalah **kontrak tetap** antara Portal ONE UNUSU dan seluruh aplikasi cabang. Melanggar satu butir cukup untuk membuat login gagal total, dan gejalanya sering menyerupai masalah lain. Katalog gejala-sebab-solusi lengkap ada di [`SSO_TROUBLESHOOTING.md`](./SSO_TROUBLESHOOTING.md); dokumen ini memuat aturan wajibnya.
+
+1. **Callback Berisi Token Saja**:
+   - URL callback yang diterima browser **hanya** boleh berbentuk `{urlRedirect}?token=<64 heksadesimal>`. Dilarang menambahkan `client_id`, `client_key`, atau parameter identitas lain di address bar.
+   - `client_id` dibaca dari env server cabang (`SSO_CLIENT_ID`) dan dikirim **hanya** pada `POST {ONE}/api/v2/website/verify-token`. `client_key` tidak boleh pernah menyentuh browser.
+2. **Tiket Sekali Pakai — Tukar Tepat Satu Kali**:
+   - Komponen callback wajib memakai penanda `useRef` (`sudahJalan`) agar `POST /api/auth/sso` tidak pernah terkirim dua kali, termasuk oleh `React.StrictMode`.
+   - Dilarang mengulang penukaran tiket yang sama setelah gagal. Bila gagal, arahkan pengguna memulai login baru.
+   - Dilarang memasang logika `cancelled` yang membuang hasil tukar yang sudah `200`; pola itu membuat pengguna tidak pernah dipindahkan ke dashboard.
+3. **Address Bar Wajib Dibersihkan**:
+   - Setelah tiket dibaca, `window.history.replaceState(null, '', window.location.pathname)` wajib dijalankan agar tiket tidak tertinggal di riwayat atau `Referer`.
+   - Karena itu tiket harus disimpan ke memori modul (`TIKET_TERAKHIR`) **sebelum** pembersihan, lalu dijadikan cadangan saat komponen terpasang ulang.
+4. **Basis API Wajib Relatif di Produksi**:
+   - Nilai cadangan `VITE_API_URL` **wajib** jalur relatif (`'/api'`, `'/sso/api'`, `'/akreditasi/api'`, sesuai lokasi proxy), **tidak boleh** `http://localhost:<port>/api`.
+   - Bundel produksi wajib diperiksa: `grep -o 'http://localhost:[0-9]*/api' dist/**/*.js` harus kosong.
+5. **Tiga Lapisan Wajib Sepakat**:
+   - `base` Vite, rute/redirect di server Express aplikasi cabang, dan `urlRedirect` di tabel `sso_apps` harus menunjuk bentuk URL yang sama. Satu awalan yang berbeda cukup untuk membuat halaman callback kosong atau aset gagal dimuat.
+   - Pengecualian sah: aplikasi yang memang dirancang di subpath (mis. Akreditasi di `/akreditasi/`) boleh memakai awalan, asalkan ketiga lapisan memuat awalan yang sama.
+6. **Cache Bukan Sumber Kebenaran**:
+   - `localStorage` hanya untuk tampilan awal. Keputusan navigasi setelah login **wajib** lewat verifikasi server (`fetchMe()` atau respons login).
+   - Dilarang mengalihkan pengguna ke dashboard hanya karena ada data pengguna di `localStorage`.
+7. **Status Kata Sandi Harus Sepakat**:
+   - `harusGantiPassword` dihitung dengan aturan yang sama di `POST /api/auth/login` dan `GET /api/auth/me`: `kolom || bcrypt.compare(KATA_SANDI_BAWAAN, hash)`. Membaca kolom mentah saja akan menutup modal wajib ganti kata sandi untuk akun lama.
+   - Begitu `passwordDiubahAt` terisi, fallback kata sandi SIAKAD **wajib dihentikan** untuk akun tersebut.
+8. **Perubahan Schema Wajib Disertai Migrasi**: kolom baru yang dipakai kode SSO harus punya berkas migrasi pada commit yang sama. `prisma migrate status` yang melaporkan "up to date" tidak membuktikan kolom benar-benar ada.
+
+### 4.4 Prosedur Wajib Saat SSO Dilaporkan Gagal
+
+1. Catat gejala persis (teks pesan, URL akhir, halaman yang dilihat pengguna) sebelum menyentuh kode.
+2. Cari gejala yang sama di tabel ringkas `SSO_TROUBLESHOOTING.md` §1, lalu **jalankan langkah pembuktian** pada entri tersebut.
+3. Terapkan solusi, lalu jalankan verifikasi pada entri yang sama.
+4. Bila gejala belum pernah tercatat, tambahkan entri baru ke `SSO_TROUBLESHOOTING.md` (gejala, sebab, pembuktian, solusi, verifikasi) pada commit yang sama dengan perbaikannya. Dilarang menutup laporan SSO tanpa memperbarui katalog.
+
+---
+
+### 4.3 Aturan Baku Callback Browser Aplikasi Cabang (Mandatory)
+
+Kontrak tetap antara Portal ONE UNUSU dan seluruh aplikasi cabang. Melanggar satu butir cukup untuk membuat login gagal total, dan gejalanya sering menyerupai masalah lain. Katalog gejala-sebab-solusi lengkap: `one-unusu/docs/SSO_TROUBLESHOOTING.md`.
+
+1. **Callback Berisi Token Saja**: URL callback hanya boleh berbentuk `{urlRedirect}?token=<64 heksadesimal>`. Dilarang menambahkan `client_id`/`client_key` di address bar. `client_id` dibaca dari env server cabang (`SSO_CLIENT_ID`) dan dikirim hanya pada `POST {ONE}/api/v2/website/verify-token`.
+2. **Tiket Sekali Pakai**: komponen callback wajib memakai penanda `useRef` (`sudahJalan`) agar `POST /api/auth/sso` tidak terkirim dua kali, termasuk oleh `React.StrictMode`. Dilarang mengulang penukaran tiket yang sudah gagal; minta pengguna memulai login baru. Dilarang memasang logika `cancelled` yang membuang hasil tukar yang sudah berhasil.
+3. **Bersihkan Address Bar**: setelah tiket dibaca, jalankan `window.history.replaceState(null, '', window.location.pathname)`. Simpan tiket ke memori modul (mis. `TIKET_TERAKHIR`) **sebelum** pembersihan agar tetap tersedia bila komponen terpasang ulang.
+4. **Basis API Relatif**: nilai cadangan `VITE_API_URL` wajib jalur relatif, tidak boleh `http://localhost:<port>/api`. Verifikasi dengan `grep -o 'http://localhost:[0-9]*/api' dist/**/*.js` — hasilnya harus kosong.
+5. **Tiga Lapisan Sepakat**: `base` Vite, rute/redirect server Express, dan `urlRedirect` di tabel `sso_apps` harus menunjuk bentuk URL yang sama. Pengecualian sah: aplikasi yang memang di subpath (mis. Akreditasi di `/akreditasi/`) boleh berawalan selama ketiganya sama.
+6. **Cache Bukan Sumber Kebenaran**: `localStorage` hanya untuk tampilan awal. Keputusan navigasi setelah login wajib lewat verifikasi server; dilarang mengalihkan pengguna hanya karena ada data pengguna di `localStorage`.
+
+### 4.4 Prosedur Wajib Saat SSO Dilaporkan Gagal
+
+1. Catat gejala persis (teks pesan, URL akhir, halaman) sebelum menyentuh kode.
+2. Cari gejala yang sama di tabel ringkas `one-unusu/docs/SSO_TROUBLESHOOTING.md` §1, lalu **jalankan langkah pembuktian** entri tersebut.
+3. Terapkan solusi, lalu jalankan verifikasi entri yang sama.
+4. Bila gejala belum pernah tercatat, tambahkan entri baru (gejala, sebab, pembuktian, solusi, verifikasi) pada commit yang sama dengan perbaikannya.
+
 ---
 
 ## 5. Aturan Keamanan, Database, & Kode
