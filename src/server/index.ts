@@ -1345,9 +1345,36 @@ app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res: Respons
 
     const { roles, ...profil } = user;
 
+    /*
+     * Status "masih memakai kata sandi bawaan" dihitung ULANG di sini, bukan
+     * hanya dibaca dari kolom database.
+     *
+     * Kolom `harusGantiPassword` bernilai false pada akun-akun lama yang dibuat
+     * sebelum kolom ini ada, padahal kata sandinya masih kata sandi bawaan.
+     * Endpoint login sudah menghitungnya dengan membandingkan hash, tetapi
+     * endpoint ini dulu mengirim nilai mentah kolom. Akibatnya: modal wajib
+     * ganti kata sandi sempat muncul setelah login, lalu HILANG begitu panel
+     * memuat ulang profil lewat endpoint ini. Sekarang kedua endpoint memakai
+     * aturan yang sama, sehingga modal tidak bisa hilang sendiri.
+     */
+    const hashKataSandi = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { password: true },
+    });
+    const masihKataSandiBawaan = hashKataSandi?.password
+      ? await bcrypt.compare(KATA_SANDI_BAWAAN, hashKataSandi.password).catch(() => false)
+      : false;
+    const harusGantiPassword = user.harusGantiPassword || masihKataSandiBawaan;
+
     res.json({
       status: true,
-      data: { ...profil, role: primaryRole, roles: roleList, permissions: permissionKeys },
+      data: {
+        ...profil,
+        harusGantiPassword,
+        role: primaryRole,
+        roles: roleList,
+        permissions: permissionKeys,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ status: false, message: "Gagal mengambil data profil pengguna." });
