@@ -2,31 +2,45 @@ import React, { useState, useEffect } from "react";
 import { Container } from "../ui/Container";
 import { assetUrl } from "../../lib/assets";
 import { fetchSliders } from "../../services/api";
+import { JENIS_MEDIA, jenisMedia } from "../../lib/mediaSlider";
 
-const defaultHeroSlides = [
+interface HeroSlide {
+  id: number;
+  image: string;
+  imageMobile: string;
+  title: string;
+  /** Slide video tidak memakai timer; perpindahan menunggu `onEnded`. */
+  jenis: typeof JENIS_MEDIA[keyof typeof JENIS_MEDIA];
+}
+
+const defaultHeroSlides: HeroSlide[] = [
   {
     id: 1,
     image: assetUrl("/assets/hero/hero-campus-1.png"),
     imageMobile: assetUrl("/assets/hero/hero-campus-1-mobile.png"),
     title: "Kampus Terpadu - Gedung Rektorat Gaperta",
+    jenis: JENIS_MEDIA.GAMBAR,
   },
   {
     id: 2,
     image: assetUrl("/assets/hero/hero-students-2.png"),
     imageMobile: assetUrl("/assets/hero/hero-students-2-mobile.png"),
     title: "Aktivitas Akademik - Kolaborasi Mahasiswa",
+    jenis: JENIS_MEDIA.GAMBAR,
   },
   {
     id: 3,
     image: assetUrl("/assets/hero/hero-digital-3.png"),
     imageMobile: assetUrl("/assets/hero/hero-digital-3-mobile.png"),
     title: "Fasilitas Teknologi - Laboratorium Komputasi",
+    jenis: JENIS_MEDIA.GAMBAR,
   },
   {
     id: 4,
     image: assetUrl("/assets/hero/hero-library-4.png"),
     imageMobile: assetUrl("/assets/hero/hero-library-4-mobile.png"),
     title: "Pusat Literasi - Perpustakaan Kampus",
+    jenis: JENIS_MEDIA.GAMBAR,
   },
 ];
 
@@ -40,7 +54,7 @@ const resolveImageUrl = (url?: string | null, fallback = "") => {
 };
 
 export function HeroSection() {
-  const [slides, setSlides] = useState(defaultHeroSlides);
+  const [slides, setSlides] = useState<HeroSlide[]>(defaultHeroSlides);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -49,7 +63,7 @@ export function HeroSection() {
       .then((res) => {
         if (!isMounted) return;
         if (res.data?.status && Array.isArray(res.data.data) && res.data.data.length > 0) {
-          const mapped = res.data.data.map((item) => {
+          const mapped: HeroSlide[] = res.data.data.map((item) => {
             const imgDesktop = resolveImageUrl(item.gambarUrl);
             const imgMobile = item.gambarMobileUrl ? resolveImageUrl(item.gambarMobileUrl, imgDesktop) : imgDesktop;
             return {
@@ -57,6 +71,7 @@ export function HeroSection() {
               image: imgDesktop,
               imageMobile: imgMobile,
               title: item.judul,
+              jenis: jenisMedia(item.gambarUrl),
             };
           });
           setSlides(mapped);
@@ -71,13 +86,17 @@ export function HeroSection() {
     };
   }, []);
 
+  // Slide video tidak memakai timer: perpindahan menunggu video selesai agar
+  // isinya tidak terpotong. Slide gambar tetap berotasi tiap 6 detik.
+  const slideAktifVideo = slides[currentSlide]?.jenis === JENIS_MEDIA.VIDEO;
+
   useEffect(() => {
-    if (slides.length <= 1) return;
+    if (slides.length <= 1 || slideAktifVideo) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, slideAktifVideo]);
 
   return (
     <section
@@ -96,15 +115,34 @@ export function HeroSection() {
               index === currentSlide ? "opacity-100" : "opacity-0"
             }`}
           >
-            <picture>
-              <source media="(max-width: 767px)" srcSet={item.imageMobile} />
-              <img
+            {item.jenis === JENIS_MEDIA.VIDEO ? (
+              // Video bisu + playsInline agar autoplay diizinkan peramban.
+              // Setelah selesai, slider berpindah ke slide berikutnya.
+              <video
                 src={item.image}
-                alt={item.title}
                 className="h-full w-full object-cover object-center"
-                loading={index === 0 ? "eager" : "lazy"}
+                muted
+                playsInline
+                autoPlay
+                preload={index === 0 ? "auto" : "metadata"}
+                aria-label={item.title}
+                onEnded={() => {
+                  if (index === currentSlide) {
+                    setCurrentSlide((prev) => (prev + 1) % slides.length);
+                  }
+                }}
               />
-            </picture>
+            ) : (
+              <picture>
+                <source media="(max-width: 767px)" srcSet={item.imageMobile} />
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="h-full w-full object-cover object-center"
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              </picture>
+            )}
           </div>
         ))}
       </div>

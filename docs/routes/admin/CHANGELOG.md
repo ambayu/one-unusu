@@ -1,5 +1,23 @@
 # Changelog - Admin Panel
 
+## [2026-11-18] - Slider Hero Berbasis Berkas dengan Dukungan Video
+
+### Added
+- **Unggah video pada halaman Slider Hero (`/admin/slider`).** `ManajemenSlider.tsx` dan beranda publik `HeroSection.tsx` kini menerima berkas video (MP4, WebM, OGG, MOV, M4V) hingga **50 MB**, di samping gambar (JPG, PNG, WebP) yang dibatasi **5 MB**.
+- **`src/server/lib/sliderMedia.ts`**: modul penyimpanan media slider — multer disk storage dengan nama berkas acak 48 karakter hex, daftar putih ekstensi, `periksaUkuranMediaSlider`, `urlMediaSlider`, `hapusMediaSliderFisik`, dan `namaBerkasMediaDariUrl`.
+- **`src/client/lib/mediaSlider.ts`**: `JENIS_MEDIA`, `jenisMedia`, `validasiBerkasMedia`, `labelJenisMedia`, serta batas ukuran sisi klien.
+- **Slide video menunggu selesai sebelum berpindah.** `HeroSection` tidak memakai timer untuk slide video: perpindahan terjadi saat peristiwa `ended` elemen `<video>`. Slide gambar tetap berotasi tiap 6 detik.
+
+### Changed
+- **Media slider tidak lagi disimpan sebagai base64.** Kolom `gambarUrl` kini hanya memuat path (`/storage/slider/<berkas>`); berkasnya disajikan `express.static` dengan `maxAge: "7d"`. Sebelumnya berkas dibaca `FileReader.readAsDataURL()` lalu dikirim sebagai string base64 di dalam body JSON.
+- **Endpoint `POST`/`PUT` `/api/admin/sliders` menerima `multipart/form-data`** (field `gambar`), bukan lagi JSON berisi `gambarUrl`. `gambarMobileUrl` kini selalu `null` dari server. Berkas lama dihapus dari disk setelah pembaruan berhasil; `DELETE` menghapus berkas setelah baris hilang.
+- **`src/client/services/api.ts`**: `SliderKiriman`, `buatFormSlider`, dan `kirimFormSlider` — `Content-Type` dikosongkan agar peramban menambahkan `boundary`.
+- **Tombol `Tambah Foto Slider` menjadi `Tambah Data`**, dan kartu daftar menampilkan label jenis media.
+
+### Notes
+- Batas 5 MB / 50 MB dipasang di server, bukan hanya di klien; skema database tidak berubah.
+- `UPLOAD_ROUTE_PATTERN` masih memuat `admin/sliders` untuk `largeJson`; tidak terpakai tetapi tidak berbahaya.
+
 ## [2026-11-15] - Nomor Urut pada Seluruh Tabel
 
 ### Added

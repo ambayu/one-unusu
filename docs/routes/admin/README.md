@@ -5,7 +5,7 @@ Rute `/admin` adalah pusat tata kelola integrasi SSO ONE UNUSU. Halaman dipecah 
 | Rute | Halaman | Izin menu | Endpoint utama |
 | --- | --- | --- | --- |
 | `/admin` | Registrasi SSO | `application:menu` | `GET/POST/PUT/DELETE /api/admin/apps` |
-| `/admin/slider` | Slider Hero | `slider:menu` | `GET/POST/PUT/DELETE /api/admin/sliders` |
+| `/admin/slider` | Slider Hero | `slider:menu` | `GET/POST/PUT/DELETE /api/admin/sliders` — media gambar/video berbasis berkas, lihat [`slider/README.md`](./slider/README.md) |
 | `/admin/direktori` | Aplikasi Non-SSO | `non_sso:menu` | `GET/POST/PUT/DELETE /api/admin/directories` |
 | `/admin/pengguna` | Manajemen Pengguna | `user:menu` | `GET/POST /api/admin/users` |
 | `/admin/izin` | Izin | `permission:menu` | `GET /api/admin/permissions`, `PUT /api/admin/roles/:id/permissions` |

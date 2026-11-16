@@ -398,11 +398,41 @@ export const fetchSliders = () =>
 export const fetchAdminSliders = () =>
   api.get<{ status: boolean; data: BannerSliderItem[] }>('/admin/sliders');
 
-export const createAdminSlider = (data: Partial<BannerSliderItem>) =>
-  api.post<{ status: boolean; message: string; data: BannerSliderItem }>('/admin/sliders', data);
+/**
+ * Media slider dikirim sebagai `multipart/form-data`, bukan JSON base64.
+ *
+ * `Content-Type` sengaja dihapus agar peramban menuliskannya sendiri lengkap
+ * dengan `boundary`; tanpa itu multer menolak body dan berkas tidak terbaca.
+ * Berkas hanya disertakan bila benar-benar ada, sehingga penyuntingan teks saja
+ * tidak mengirim field kosong yang akan dianggap galat oleh server.
+ */
+const kirimFormSlider = <T>(metode: 'post' | 'put', url: string, payload: SliderKiriman) =>
+  api[metode]<T>(url, buatFormSlider(payload), { headers: { 'Content-Type': undefined } });
 
-export const updateAdminSlider = (id: number, data: Partial<BannerSliderItem>) =>
-  api.put<{ status: boolean; message: string; data: BannerSliderItem }>(`/admin/sliders/${id}`, data);
+export interface SliderKiriman {
+  judul?: string;
+  subjudul?: string | null;
+  linkUrl?: string | null;
+  urutan?: number;
+  active?: boolean;
+  /** Berkas gambar atau video baru pengganti media lama. */
+  berkas?: File | null;
+}
+
+const buatFormSlider = ({ berkas, ...teks }: SliderKiriman): FormData => {
+  const form = new FormData();
+  Object.entries(teks).forEach(([kunci, nilai]) => {
+    if (nilai !== undefined && nilai !== null) form.append(kunci, String(nilai));
+  });
+  if (berkas) form.append('berkas', berkas);
+  return form;
+};
+
+export const createAdminSlider = (data: SliderKiriman) =>
+  kirimFormSlider<{ status: boolean; message: string; data: BannerSliderItem }>('post', '/admin/sliders', data);
+
+export const updateAdminSlider = (id: number, data: SliderKiriman) =>
+  kirimFormSlider<{ status: boolean; message: string; data: BannerSliderItem }>('put', `/admin/sliders/${id}`, data);
 
 export const deleteAdminSlider = (id: number) =>
   api.delete<{ status: boolean; message: string }>(`/admin/sliders/${id}`);
