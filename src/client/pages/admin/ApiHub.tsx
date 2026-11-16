@@ -150,6 +150,18 @@ export const ApiHub: React.FC = () => {
   const [searchKey, setSearchKey] = useState('');
   const [searchLog, setSearchLog] = useState('');
 
+  /*
+   * Filter katalog endpoint.
+   *
+   * Kotak pencarian saja tidak cukup ketika katalog berisi puluhan endpoint:
+   * admin biasanya ingin melihat "semua yang POST" atau "semua milik
+   * PRODI_UNUSU". Nilai kosong berarti filter itu tidak dipakai.
+   */
+  const [filterMetode, setFilterMetode] = useState('');
+  const [filterPenyedia, setFilterPenyedia] = useState('');
+  const [filterKategori, setFilterKategori] = useState('');
+  const [filterAkses, setFilterAkses] = useState('');
+
   // ---------- modal endpoint ----------
   const [modalEndpoint, setModalEndpoint] = useState(false);
   const [suntingEndpoint, setSuntingEndpoint] = useState<ApiEndpointItem | null>(null);
@@ -243,15 +255,61 @@ export const ApiHub: React.FC = () => {
 
   const endpointTersaring = useMemo(() => {
     const cari = searchEndpoint.trim().toLowerCase();
-    if (!cari) return endpoints;
-    return endpoints.filter(
-      (ep) =>
-        ep.name.toLowerCase().includes(cari) ||
-        ep.endpoint.toLowerCase().includes(cari) ||
-        ep.sourceApp.toLowerCase().includes(cari) ||
-        (ep.description ?? '').toLowerCase().includes(cari)
-    );
-  }, [endpoints, searchEndpoint]);
+
+    return endpoints.filter((ep) => {
+      if (cari) {
+        const cocokTeks =
+          ep.name.toLowerCase().includes(cari) ||
+          ep.endpoint.toLowerCase().includes(cari) ||
+          ep.sourceApp.toLowerCase().includes(cari) ||
+          (ep.description ?? '').toLowerCase().includes(cari);
+        if (!cocokTeks) return false;
+      }
+
+      if (filterMetode && ep.method.toUpperCase() !== filterMetode) return false;
+      if (filterPenyedia && ep.sourceApp !== filterPenyedia) return false;
+      if (filterKategori && (ep.category || '') !== filterKategori) return false;
+
+      // Satu pilihan menggabungkan dua kolom: publik/privat dan aktif/nonaktif.
+      if (filterAkses === 'publik' && !ep.isPublic) return false;
+      if (filterAkses === 'private' && ep.isPublic) return false;
+      if (filterAkses === 'aktif' && !ep.isActive) return false;
+      if (filterAkses === 'nonaktif' && ep.isActive) return false;
+
+      return true;
+    });
+  }, [endpoints, searchEndpoint, filterMetode, filterPenyedia, filterKategori, filterAkses]);
+
+  /** Pilihan filter diturunkan dari data yang benar-benar ada, bukan daftar tetap. */
+  const opsiMetode = useMemo(() => {
+    return Array.from(new Set(endpoints.map((ep) => ep.method.toUpperCase()))).sort();
+  }, [endpoints]);
+
+  const opsiPenyedia = useMemo(() => {
+    return Array.from(new Set(endpoints.map((ep) => ep.sourceApp).filter(Boolean))).sort();
+  }, [endpoints]);
+
+  const opsiKategori = useMemo(() => {
+    return Array.from(
+      new Set(endpoints.map((ep) => ep.category || '').filter((k) => k.length > 0))
+    ).sort();
+  }, [endpoints]);
+
+  /** true bila ada filter yang sedang menyala — dipakai tombol Reset. */
+  const adaFilterEndpoint =
+    searchEndpoint.trim() !== '' ||
+    filterMetode !== '' ||
+    filterPenyedia !== '' ||
+    filterKategori !== '' ||
+    filterAkses !== '';
+
+  const resetFilterEndpoint = () => {
+    setSearchEndpoint('');
+    setFilterMetode('');
+    setFilterPenyedia('');
+    setFilterKategori('');
+    setFilterAkses('');
+  };
 
   const keyTersaring = useMemo(() => {
     const cari = searchKey.trim().toLowerCase();
@@ -564,6 +622,95 @@ export const ApiHub: React.FC = () => {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* ---------- Baris filter katalog ---------- */}
+            <div className="flex flex-wrap items-end gap-2.5 px-3.5 py-3 bg-[#F8FBF9] border border-[#D8E5DC] rounded-[10px]">
+              <div className="w-[140px]">
+                <label htmlFor="filter-ep-metode" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+                  Metode
+                </label>
+                <select
+                  id="filter-ep-metode"
+                  value={filterMetode}
+                  onChange={(e) => setFilterMetode(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                >
+                  <option value="">Semua</option>
+                  {opsiMetode.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-[180px]">
+                <label htmlFor="filter-ep-penyedia" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+                  Penyedia
+                </label>
+                <select
+                  id="filter-ep-penyedia"
+                  value={filterPenyedia}
+                  onChange={(e) => setFilterPenyedia(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                >
+                  <option value="">Semua</option>
+                  {opsiPenyedia.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-[150px]">
+                <label htmlFor="filter-ep-kategori" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+                  Kategori
+                </label>
+                <select
+                  id="filter-ep-kategori"
+                  value={filterKategori}
+                  onChange={(e) => setFilterKategori(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                >
+                  <option value="">Semua</option>
+                  {opsiKategori.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-[170px]">
+                <label htmlFor="filter-ep-akses" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+                  Akses
+                </label>
+                <select
+                  id="filter-ep-akses"
+                  value={filterAkses}
+                  onChange={(e) => setFilterAkses(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                >
+                  <option value="">Semua</option>
+                  <option value="publik">Publik</option>
+                  <option value="private">Private</option>
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              {adaFilterEndpoint && (
+                <button
+                  type="button"
+                  onClick={resetFilterEndpoint}
+                  className="inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#BBF7D0] rounded-[8px] transition"
+                >
+                  <XMarkIcon className="w-3.5 h-3.5" />
+                  Reset Filter
+                </button>
+              )}
             </div>
 
             <DataTable<ApiEndpointItem>

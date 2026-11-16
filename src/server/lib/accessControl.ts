@@ -1,21 +1,21 @@
 import { PrismaClient } from "@prisma/client";
 
-/** Empat tingkat izin masuk yang berlaku untuk peluncur aplikasi SSO di portal. */
+/**
+ * Akses aplikasi cabang TIDAK lagi ditentukan oleh izin masuk global seperti
+ * `masuk_admin`/`masuk_dosen`. Setiap aplikasi cabang memiliki tabel pengguna
+ * dan peran sendiri, dan pendaftaran pengguna dilakukan admin aplikasi
+ * masing-masing dari direktori ONE UNUSU. Konstanta tingkat di bawah tinggal
+ * sebagai label tampilan untuk kolom `targetRoles` pada registry aplikasi.
+ */
 export const TINGKAT_MASUK = ["admin", "fakultas", "dosen", "mahasiswa"] as const;
 export type TingkatMasuk = (typeof TINGKAT_MASUK)[number];
 
-export function kunciIzinMasuk(tingkatOrClientId: string, mungkinTingkat?: TingkatMasuk): string {
-  const tingkat = (mungkinTingkat ?? tingkatOrClientId) as TingkatMasuk;
-  return `masuk_${tingkat}`;
-}
-
-export function tingkatMasukBawaan(kodePeran: string): TingkatMasuk[] {
-  if (kodePeran === "SUPERADMIN" || kodePeran === "ADMIN_SSO") return ["admin", "fakultas", "dosen", "mahasiswa"];
-  if (kodePeran === "ADMIN_FAKULTAS") return ["fakultas"];
-  if (kodePeran.startsWith("ADMIN_")) return ["admin"];
-  if (kodePeran === "DOSEN") return ["dosen"];
-  if (kodePeran === "MAHASISWA") return ["mahasiswa"];
-  return [];
+/** Label tingkat akses, hanya untuk tampilan. */
+export function labelTingkatMasuk(tingkat: TingkatMasuk): string {
+  if (tingkat === "admin") return "Administrator";
+  if (tingkat === "fakultas") return "Admin Fakultas";
+  if (tingkat === "dosen") return "Dosen";
+  return "Mahasiswa";
 }
 
 /**
@@ -35,7 +35,6 @@ export const PERMISSION_CATALOG = [
   { resource: "role", label: "Peran", actions: ["menu", "view", "edit", "delete"] },
   { resource: "api_hub", label: "Integrasi & API Hub", actions: ["menu", "view", "edit", "delete"] },
   { resource: "berkas_dosen", label: "Berkas Dosen", actions: ["menu", "view", "upload", "delete"] },
-  { resource: "akses", label: "Akses Aplikasi", actions: ["masuk_admin", "masuk_fakultas", "masuk_dosen", "masuk_mahasiswa"] },
   { resource: "superadmin", label: "Otoritas Superadmin", actions: ["access"] },
 ] as const;
 
@@ -47,10 +46,6 @@ const ACTION_LABEL: Record<string, string> = {
   upload: "Unggah",
   export: "Ekspor",
   access: "Akses Penuh",
-  masuk_admin: "Masuk sebagai Administrator",
-  masuk_fakultas: "Masuk sebagai Admin Fakultas",
-  masuk_dosen: "Masuk sebagai Dosen",
-  masuk_mahasiswa: "Masuk sebagai Mahasiswa",
 };
 
 const ALL_PERMISSIONS = "ALL" as const;
@@ -93,7 +88,6 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       "berkas_dosen:view",
       "berkas_dosen:upload",
       "berkas_dosen:delete",
-      "masuk_dosen",
     ],
   },
   {
@@ -107,7 +101,6 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       "profile:menu",
       "profile:view",
       "profile:edit",
-      "masuk_mahasiswa",
     ],
   },
   {
@@ -128,7 +121,7 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
 async function syncPermissions(prisma: PrismaClient): Promise<void> {
   for (const group of PERMISSION_CATALOG) {
     for (const action of group.actions) {
-      const key = group.resource === "akses" ? action : `${group.resource}:${action}`;
+      const key = `${group.resource}:${action}`;
       const label = `${group.label} · ${ACTION_LABEL[action] ?? action}`;
 
       await prisma.permission.upsert({
@@ -190,7 +183,7 @@ async function cleanObsoletePermissions(prisma: PrismaClient): Promise<void> {
   const validKeys = new Set<string>();
   for (const group of PERMISSION_CATALOG) {
     for (const action of group.actions) {
-      validKeys.add(group.resource === "akses" ? action : `${group.resource}:${action}`);
+      validKeys.add(`${group.resource}:${action}`);
     }
   }
 
@@ -214,45 +207,8 @@ async function cleanObsoletePermissions(prisma: PrismaClient): Promise<void> {
   }
 }
 
-/**
- * Memastikan peran bawaan sistem dan peran dinamis (mis. ADMIN_PRODI, ADMIN_LMS)
- * terikat ke izin masuk global yang sesuai dengan hierarkinya.
- */
-async function syncIzinMasukDefault(prisma: PrismaClient): Promise<void> {
-  const roles = await prisma.role.findMany({ select: { id: true, code: true } });
-  const permissions = await prisma.permission.findMany({
-    where: { key: { in: ["masuk_admin", "masuk_fakultas", "masuk_dosen", "masuk_mahasiswa"] } },
-    select: { id: true, key: true },
-  });
-  const permissionIdByKey = new Map(permissions.map((p) => [p.key, p.id]));
-
-  for (const role of roles) {
-    const bawaan = tingkatMasukBawaan(role.code);
-    for (const tingkat of bawaan) {
-      const key = `masuk_${tingkat}`;
-      const permissionId = permissionIdByKey.get(key);
-      if (!permissionId) continue;
-
-      await prisma.rolePermission.upsert({
-        where: {
-          roleId_permissionId: {
-            roleId: role.id,
-            permissionId,
-          },
-        },
-        update: {},
-        create: {
-          roleId: role.id,
-          permissionId,
-        },
-      });
-    }
-  }
-}
-
 export async function seedAccessControl(prisma: PrismaClient): Promise<void> {
   await syncPermissions(prisma);
   await syncRoles(prisma);
-  await syncIzinMasukDefault(prisma);
   await cleanObsoletePermissions(prisma);
 }

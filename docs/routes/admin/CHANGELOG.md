@@ -1,5 +1,54 @@
 # Changelog - Admin Panel
 
+## [2026-11-16] - API Hub: Data Organisasi & Perbaikan Izin Superadmin LPM
+
+### Added
+- **Endpoint `GET /api/v2/website/organisasi`** di ONE UNUSU. Mengembalikan hierarki **fakultas beserta program studi di dalamnya** (bersarang), dijaga API key, hasil di-cache 5 menit. Aplikasi cabang cukup memanggil ONE UNUSU; mereka tidak perlu tahu bahwa sumber aslinya Portal Prodi.
+- **Endpoint `POST /api/v1/public/organisasi`** di Portal Prodi UNUSU sebagai sumber data. Dijaga `PRODI_API_KEY`, menolak dengan 503 bila kunci belum diisi (fail-closed).
+- **`prisma/api-hub.ts`** — seeder katalog API Hub. Sebelumnya `seed.ts` hanya mengisi `sso_apps`, sehingga setiap kali database di-seed ulang seluruh katalog endpoint dan API key hilang dan harus dibuat manual. Seeder ini idempoten: endpoint dikenali lewat `endpoint` (unik), API key lewat `name`, dan **nilai kunci yang sudah beredar tidak pernah ditimpa** — hanya cakupan `allowedEndpoints` yang diselaraskan. Kunci baru dicetak sekali ke konsol.
+
+### Changed
+- **`potongKeyApi()` diperbaiki.** Sebelumnya bagian tengah kunci disamarkan dengan karakter `\uFFFD` (replacement character), yang tidak dapat dirender sehingga key tampil rusak seperti `unusu_sec_99����68ef`. Kini memakai titik-titik biasa (`·`).
+- **`allowedEndpoints` seluruh API key diperluas** dari `[6]` menjadi `[6,7]` agar data organisasi dapat diambil dengan kunci yang sama.
+
+### Fixed
+- **Superadmin tidak mendapat izin saat masuk LPM (harus refresh dulu).** Dua cacat sekaligus:
+  1. `ambilIzinPengguna()` di LPM menerima `_ssoRole` tetapi mengabaikannya, sehingga Superadmin tanpa peran lokal mendapat `izin` kosong dan setiap endpoint membalas 403. Kini Superadmin memperoleh seluruh izin fitur lewat `seluruhIzin()`.
+  2. Respons `POST /api/auth/sso` tidak pernah menyertakan `izin`, padahal klien memakainya untuk menentukan menu. Akibatnya sesi baru tampil kosong sampai halaman di-refresh (yang memicu `/api/auth/me`). Kini `izin` ikut dikirim.
+
+### Notes
+- Data fakultas/prodi **hanya** ada di Portal Prodi (6 fakultas, 14 prodi). Tabel `fakultas`/`prodi` bawaan ONE UNUSU masih kosong dan sengaja tidak dipakai.
+
+## [2026-11-20] - Model Akses Per-Aplikasi: Izin Masuk Global Dihapus
+
+### Changed
+- **Izin masuk global dihapus seluruhnya.** `masuk_admin`, `masuk_fakultas`, `masuk_dosen`, `masuk_mahasiswa` (id 37-40) beserta 10 baris `role_permissions` yang memakainya dihapus dari `one_unusu_db`. Katalog izin ONE UNUSU kini berisi 37 izin.
+- **`decideAppAccess` di ONE UNUSU ditulis ulang.** Parameternya tetap `(permissionKeys, targetRolesRaw, userRoleCodes)`, tetapi `permissionKeys` tidak lagi dibaca. Keputusan diturunkan dari **peran kampus**:
+  - `SUPERADMIN`/`ADMIN_SSO` → selalu lolos.
+  - Peran berawalan `ADMIN_` → tingkat `admin`.
+  - `DOSEN` → `dosen`, `MAHASISWA` → `mahasiswa`.
+  - Tingkat itu harus diterima `sso_apps.targetRoles`.
+- **`tingkatMasukDimiliki`** kini menerima `userRoleCodes`, bukan daftar izin.
+- **Putusan ONE UNUSU bersifat pendahuluan.** Aplikasi cabang memvalidasi ulang keanggotaannya sendiri saat menukar tiket; keputusan akhir milik aplikasi tujuan.
+- **`POST /api/admin/apps`** tidak lagi memanggil `siapkanIzinMasukAplikasi` — fungsi itu kini kosong dan hanya dipertahankan sebagai titik kompatibilitas.
+- **`/api/applications/catalog`** membaca `targetRoles` langsung. Sebelumnya nilai `tingkatMasuk` diturunkan dari regex `<clientId>:masuk_*` yang sudah tidak pernah cocok, sehingga katalog selalu kosong.
+- **Dashboard & `/aplikasi-sso`**: filter "mahasiswa murni" ditentukan dari **peran** `MAHASISWA`, bukan dari izin `masuk_mahasiswa`.
+
+### Removed
+- `src/server/lib/syncAppPermissions.ts` — kode mati tanpa satu pun impor.
+- `kunciIzinMasuk`, `tingkatMasukBawaan`, `syncIzinMasukDefault` dari `accessControl.ts`; grup izin `akses` dari `PERMISSION_CATALOG`; label `masuk_*` dari `ACTION_LABEL`.
+- Percabangan `resource === "akses"` di `syncPermissions`, `cleanObsoletePermissions`, dan `POST /api/admin/permissions/cleanup`.
+
+### Added
+- **`POST /api/v2/website/users`** — direktori pengguna untuk aplikasi cabang, dijaga **API key** (`Authorization: Bearer unusu_sec_...`). Terdaftar sebagai `api_endpoints` id 6 sehingga pemakaiannya tercatat di `api_usage_logs`.
+  - `search` minimal 2 karakter (`422`), `limit` dibatasi 20, rate-limited (`429` bila berlebih).
+  - Hanya mengembalikan `id`, `username`, `nama`, `email`, `noHp`, `nim`, `nidn`, `nip`, `fakultas`, `prodi`, `jenisKelamin`, `avatar`, `isActive`.
+  - API key LPM dan LPPM diterbitkan lewat API Hub lalu ditulis ke `.env` masing-masing sebagai `ONE_UNUSU_API_KEY`.
+
+### Verified
+- 10 uji manual `POST /api/v2/website/users` lolos: validasi API key, `search` pendek, `limit` berlebih, dan bentuk respons.
+- Typecheck `tsconfig.server.json` dan `tsconfig.json` ONE UNUSU bersih.
+
 ## [2026-11-20] - Dosen Dapat Mengubah Jenis Kelamin di Biodata Sendiri
 
 ### Changed

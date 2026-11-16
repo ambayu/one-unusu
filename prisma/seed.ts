@@ -5,6 +5,7 @@ import { seedAccessControl } from "./access-control.js";
 import { seedDirectory } from "./directory.js";
 import { seedSliders } from "./seed-sliders.js";
 import { buildSsoAppDefinitions, seedSsoApps } from "../src/server/lib/ssoApps.js";
+import { seedApiHub } from "./api-hub.js";
 
 dotenv.config();
 
@@ -105,6 +106,13 @@ async function main() {
 
   const { createdCount, updatedCount } = await seedSsoApps(prisma, SSO_APPS);
   console.log(`Registri aplikasi: ${createdCount} dibuat, ${updatedCount} diperbarui.`);
+
+  // ==========================================
+  // 2b. SEED KATALOG API HUB (ENDPOINT & KEY)
+  // ==========================================
+  // Harus setelah `seedSsoApps` karena API key menempel pada `appId` aplikasi.
+  console.log("Seeding katalog API Hub (endpoint & API key)...");
+  await seedApiHub(prisma);
 
   // ==========================================
   // 3. SEED PERMISSIONS & ROLES (resource:action)

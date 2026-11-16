@@ -1006,16 +1006,31 @@ export const ManajemenPengguna: React.FC = () => {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-md w-full">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+      {/*
+        Baris pencarian & filter.
+
+        Sebelumnya kolom pencarian dibatasi `max-w-md` (448px) lalu dipaksa
+        berbagi baris dengan empat select dan tombol aksi. Di layar selebar
+        laptop ruang yang tersisa untuk input tinggal puluhan piksel sehingga
+        teks yang diketik seolah "hilang" — hanya beberapa karakter terlihat
+        sebelum terpotong. Sekarang pencarian memakai lebar penuh barisnya
+        sendiri; select dan tombol aksi turun ke baris berikutnya saat layar
+        menyempit, bukan memeras kolom pencarian.
+      */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="relative w-full lg:max-w-md">
+            <MagnifyingGlassIcon
+              className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cari NIM, NIDN, nama, atau prodi..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+              aria-label="Cari pengguna berdasarkan NIM, NIDN, nama, atau prodi"
+              className="w-full pl-9 pr-3 min-h-[44px] py-2 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
             />
           </div>
 
@@ -1023,7 +1038,7 @@ export const ManajemenPengguna: React.FC = () => {
             <select
               value={filterRole}
               onChange={(event) => updateRoleFilter(event.target.value as 'ALL' | UserRole)}
-              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
+              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
             >
               <option value="ALL">Semua Peran</option>
               {ROLE_OPTIONS.map((role) => (
@@ -1038,7 +1053,7 @@ export const ManajemenPengguna: React.FC = () => {
                 type="button"
                 onClick={() => updateRoleFilter('ALL')}
                 title="Reset filter peran"
-                className="inline-flex items-center gap-1 px-2 py-2 text-xs font-semibold text-[#64748B] hover:text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
+                className="inline-flex items-center gap-1 px-2 py-2 min-h-[44px] text-xs font-semibold text-[#64748B] hover:text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
               >
                 <XMarkIcon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Reset</span>
@@ -1054,7 +1069,7 @@ export const ManajemenPengguna: React.FC = () => {
               value={filterFakultas}
               onChange={(event) => updateFakultasFilter(event.target.value)}
               aria-label="Saring menurut fakultas"
-              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
             >
               <option value="ALL">Semua Fakultas</option>
               {opsiFakultas.map((opsi) => (
@@ -1068,7 +1083,7 @@ export const ManajemenPengguna: React.FC = () => {
               value={filterProdi}
               onChange={(event) => updateProdiFilter(event.target.value)}
               aria-label="Saring menurut program studi"
-              className="px-2.5 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
             >
               <option value="ALL">Semua Prodi</option>
               {opsiProdi.map((opsi) => (

@@ -298,13 +298,15 @@ export const Dashboard: React.FC = () => {
   // pengelola hanya memiliki butir akun. Dipakai untuk memilih kalimat ajakan.
   const isCivitas = isDosen || user?.role === 'MAHASISWA';
 
-  // Filter izin masuk: akun dengan izin masuk_mahasiswa murni hanya melihat aplikasi yang diizinkan untuk mahasiswa
+  // Filter aplikasi: akun mahasiswa murni hanya melihat aplikasi yang memang
+  // menerima mahasiswa. Ditentukan dari PERAN (izin masuk_* sudah dihapus).
   const displayedApps = React.useMemo(() => {
-    const userPerms = user?.permissions || [];
-    const hasMasukMahasiswa = userPerms.includes('masuk_mahasiswa');
-    const hasMasukDosen = userPerms.includes('masuk_dosen');
-    const hasMasukAdmin = userPerms.includes('masuk_admin');
-    const isMahasiswaOnly = hasMasukMahasiswa && !hasMasukDosen && !hasMasukAdmin;
+    const roles = [user?.role, ...(user?.roles?.map((r) => r.code) ?? [])]
+      .filter(Boolean)
+      .map((r) => String(r).toUpperCase());
+    const isMahasiswaOnly =
+      roles.includes('MAHASISWA') &&
+      !roles.some((r) => r === 'DOSEN' || r.startsWith('ADMIN_') || r === 'SUPERADMIN');
 
     if (isMahasiswaOnly) {
       return apps.filter((app) => app.isAllowed !== false);

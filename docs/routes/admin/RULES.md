@@ -5,11 +5,24 @@ Dokumentasi aturan teknis dan desain untuk rute `/admin` beserta sub-rute tata k
 ---
 
 ## 1. Aturan Akses & Otoritas
-- Akses ditentukan oleh izin `resource:action`, bukan oleh nama peran.
-- Format izin: `menu`, `view`, `edit`, `delete` pada resource `dashboard`, `profile`, `application`, `user`, `permission`, dan `role`.
+- Akses panel admin ONE UNUSU ditentukan oleh izin `resource:action`, bukan oleh nama peran.
+- Format izin: `resource:action` pada resource `dashboard`, `profile`, `application`, `non_sso`, `slider`, `user`, `permission`, `role`, `api_hub`, `berkas_dosen`, dan `superadmin`.
 - Rute dilindungi `PermissionRoute` di client berdasarkan `permissions` pada cache pengguna; endpoint API dilindungi middleware `requirePermission` di server.
 - Client tanpa izin menu dialihkan ke `/dashboard`. Server mengembalikan `403` untuk request tanpa izin aksi.
 - `permissions` wajib disertakan pada respons `POST /api/auth/login` dan `GET /api/auth/me` agar navigasi dapat disusun tanpa request tambahan.
+
+### 1.1 Akses Aplikasi Cabang Bersifat Per-Aplikasi
+- **Izin masuk global sudah dihapus.** `masuk_admin`, `masuk_fakultas`, `masuk_dosen`, dan `masuk_mahasiswa` tidak lagi ada di katalog izin maupun database.
+- Setiap aplikasi cabang (LPM, LPPM, LMS, E-Surat, dst.) memiliki **tabel pengguna dan peran sendiri**. Keanggotaan di tabel itulah satu-satunya alasan seseorang boleh masuk.
+- Pengguna didaftarkan **admin aplikasi masing-masing** dengan memilih dari direktori ONE UNUSU. Tidak ada auto-provisioning saat login.
+- `decideAppAccess(permissionKeys, targetRolesRaw, userRoleCodes)` di ONE UNUSU kini hanya membaca **peran kampus**:
+  - `SUPERADMIN`/`ADMIN_SSO` → selalu lolos (jaring pengaman ekosistem).
+  - Peran berawalan `ADMIN_` → lolos sebagai tingkat `admin`.
+  - `DOSEN` → tingkat `dosen`; `MAHASISWA` → tingkat `mahasiswa`.
+  - Tingkat tersebut harus diterima `sso_apps.targetRoles`; bila tidak, tiket tidak diterbitkan.
+- Putusan ONE UNUSU bersifat **pendahuluan**. Aplikasi cabang **memvalidasi ulang keanggotaannya sendiri** saat menukar tiket; keputusan akhir selalu milik aplikasi tujuan.
+- Kode penolakan aplikasi cabang: `NOT_REGISTERED` (belum terdaftar), `INACTIVE` (dinonaktifkan), `NO_ROLE` (terdaftar tanpa peran).
+- **SUPERADMIN selalu dapat masuk LPM dan LPPM** meski tidak terdaftar di tabel pengguna aplikasi tersebut, dan otomatis memegang seluruh izin fitur aplikasi itu.
 
 ---
 
@@ -124,7 +137,6 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
 ---
 
 ## 7. Modul Integrasi & API Hub (`/admin/api-hub`)
-
 ### 7.1 Sumber Data
 - Seluruh isi halaman dibaca dari tabel sungguhan: `api_endpoints`, `api_keys`, dan `api_usage_logs`. **Dilarang** menulis ulang data contoh (`mockEndpoints`, `mockKeys`, `mockLogs`) ke dalam komponen.
 - Endpoint server berada di bawah `/api/admin/api-hub/*`, dijaga `api_hub:view` untuk baca, `api_hub:edit` untuk tulis, dan `api_hub:delete` untuk hapus/cabut.
@@ -152,3 +164,27 @@ Penyimpangan di atas **bukan** pelanggaran Part 9: `DataTable` tidak dapat menya
 - Tab aktif dimuat sesuai kebutuhan (lazy per tab), bukan ketiganya sekaligus. Ada tombol muat ulang per tab dan blok galat dengan tombol "Coba Lagi".
 - Modal endpoint dan modal key memakai pola yang sama dengan modal Berkas Dosen: `fixed inset-0 z-50 bg-[#1E293B]/60`, panel `max-w-lg rounded-2xl`, input `border-[#D8E5DC] px-4 py-3 rounded-[8px]` dengan fokus `focus:ring-1 focus:ring-[#166534]`.
 - Semua aksi destruktif (hapus endpoint, cabut key) memakai `NotificationModal` bertipe `confirm`, bukan `confirm()` bawaan peramban.
+
+---
+
+## 8. Direktori Pengguna untuk Aplikasi Cabang (`POST /api/v2/website/users`)
+### 8.1 Tujuan
+- Endpoint ini menjadi **satu-satunya pintu** bagi LPM, LPPM, dan aplikasi cabang lain untuk mencari pengguna kampus saat admin mereka mendaftarkan anggota.
+- Aplikasi cabang **tidak menyimpan daftar civitas sendiri** dan **tidak boleh** membuat akun manual. Semua akun berasal dari direktori ini.
+
+### 8.2 Keamanan
+- Dijaga **API key** yang diterbitkan lewat API Hub: `Authorization: Bearer unusu_sec_...` atau `X-API-Key`. Bukan `client_id`/`client_key`.
+- Endpoint terdaftar sebagai `api_endpoints` id 6, sehingga pemakaiannya tercatat di `api_usage_logs` lewat `catatPemakaianApi()`.
+- Key **hanya disimpan di server aplikasi cabang** (`.env` → `ONE_UNUSU_API_KEY`), tidak pernah dikirim ke browser. Server cabang yang memanggil, lalu meneruskan hasilnya ke kliennya.
+
+### 8.3 Batasan & Bentuk Data
+- `search` wajib minimal 2 karakter (di bawah itu `422`); `limit` dibatasi maksimal 20.
+- Rate limit diterapkan di atas endpoint; permintaan berlebih dibalas `429`.
+- Nilai yang dikembalikan **hanya**: `id`, `username`, `nama`, `email`, `noHp`, `nim`, `nidn`, `nip`, `fakultas`, `prodi`, `jenisKelamin`, `avatar`, `isActive`. Kredensial, token, dan kolom internal tidak pernah ikut.
+
+### 8.4 Alur Pendaftaran di Aplikasi Cabang
+1. Admin aplikasi membuka modal **Tambah Pengguna** lalu mengetik nama/NIDN/NIP (minimal 2 karakter).
+2. Server cabang memanggil direktori ONE UNUSU memakai API key, lalu menandai pengguna yang sudah terdaftar (`sudahTerdaftar`) agar tidak bisa dipilih dua kali.
+3. Saat disimpan, server cabang **memverifikasi ulang** setiap id ke ONE UNUSU. Id karangan ditolak `400`; pendaftaran ganda ditolak `409`.
+4. Biodata (nama, NIDN/NIP, email) disalin dari ONE UNUSU dan **tidak dapat diketik** admin aplikasi. Yang diatur admin hanya peran dan status keaktifan.
+5. Perubahan status dan peran berlaku **seketika**, karena server cabang membaca ulang keanggotaan pada setiap permintaan.

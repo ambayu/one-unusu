@@ -1,4 +1,4 @@
-﻿import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -10,12 +10,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
-import {
-  TINGKAT_MASUK,
-  kunciIzinMasuk,
-  tingkatMasukBawaan,
-  type TingkatMasuk
-} from "./lib/accessControl.js";
+import { TINGKAT_MASUK, type TingkatMasuk } from "./lib/accessControl.js";
 import {
   MAKS_UKURAN_BERKAS,
   MIME_PDF,
@@ -383,7 +378,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,40}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\-\s()]{8,20}$/;
-const MAX_IMAGE_LENGTH = 8 * 1024 * 1024; // Â± 6 MB biner setelah decode base64
+const MAX_IMAGE_LENGTH = 8 * 1024 * 1024; // ± 6 MB biner setelah decode base64
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -538,20 +533,21 @@ async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
 /**
  * Keputusan akses satu pengguna ke satu aplikasi cabang.
  *
- * Sumber kebenaran ada dua dan keduanya harus bersinggungan:
- * 1. Izin masuk global milik pengguna (`masuk_admin`, `masuk_dosen`,
- *    `masuk_mahasiswa`) dari tabel `permissions` + `role_permissions`.
- * 2. Tingkat masuk yang diterima aplikasi, diturunkan dari `sso_apps.targetRoles`.
+ * Sumber kebenaran sekarang HANYA peran kampus pengguna, sejalan dengan model
+ * akses per-aplikasi: setiap aplikasi cabang punya tabel pengguna dan peran
+ * sendiri, dan keanggotaan di sana (bukan izin global) yang menentukan akses.
  *
- * Kunci izin masuk TIDAK lagi berprefiks `clientId`; satu izin global berlaku
- * untuk seluruh aplikasi, sedangkan pembeda antar-aplikasi adalah `targetRoles`.
+ * Karena itu langkah ini bersifat PENDAHULUAN: tujuannya menolak lebih awal
+ * pengguna yang jelas tidak berhak, agar tiket SSO tidak diterbitkan. Aplikasi
+ * cabang tetap memvalidasi ulang keanggotaannya sendiri saat menukar tiket �
+ * keputusan akhir selalu milik aplikasi tujuan.
  *
- * Khusus tingkat `admin`, pengguna juga wajib memegang peran yang tercantum di
- * `targetRoles` atau peran berawalan `ADMIN_`, sehingga pemegang `masuk_admin`
- * tidak otomatis memperoleh akses ke aplikasi unit lain.
+ * - SUPERADMIN/ADMIN_SSO: selalu lolos (jaring pengaman ekosistem).
+ * - Peran berawalan ADMIN_ (admin unit): lolos sebagai `admin`.
+ * - DOSEN / MAHASISWA: lolos bila aplikasi menerima tingkat tersebut.
  *
- * Karena izin dibaca dari database pada setiap permintaan, pencabutan akses
- * oleh administrator langsung berlaku tanpa menunggu JWT kedaluwarsa.
+ * `permissionKeys` tidak lagi dibaca: izin `masuk_*` sudah dihapus dari katalog
+ * karena tidak pernah menjadi pembeda antar-aplikasi.
  */
 type AppAccessReason = "permission-allowed" | "permission-denied";
 
@@ -586,15 +582,21 @@ function tingkatDiterimaAplikasi(targetRoles: string[]): TingkatMasuk[] {
   return result;
 }
 
-/** Izin masuk global yang dimiliki pengguna (masuk_admin, masuk_dosen, masuk_mahasiswa). */
-function tingkatMasukDimiliki(permissionKeys: string[]): TingkatMasuk[] {
-  return TINGKAT_MASUK.filter((tingkat: TingkatMasuk) =>
-    permissionKeys.includes(kunciIzinMasuk(tingkat))
-  );
+/** Tingkat masuk yang dimiliki pengguna, diturunkan dari PERAN kampusnya. */
+function tingkatMasukDimiliki(userRoleCodes: string[]): TingkatMasuk[] {
+  const kode = userRoleCodes.map((r) => r.toUpperCase());
+  if (kode.includes("SUPERADMIN") || kode.includes("ADMIN_SSO")) {
+    return ["admin", "fakultas", "dosen", "mahasiswa"];
+  }
+  if (kode.some((r) => r.startsWith("ADMIN_"))) return ["admin"];
+  const hasil: TingkatMasuk[] = [];
+  if (kode.includes("DOSEN")) hasil.push("dosen");
+  if (kode.includes("MAHASISWA")) hasil.push("mahasiswa");
+  return hasil;
 }
 
 function decideAppAccess(
-  permissionKeys: string[],
+  _permissionKeys: string[],
   targetRolesRaw: string | null | undefined,
   userRoleCodes: string[] = []
 ): AppAccessDecision {
@@ -609,16 +611,9 @@ function decideAppAccess(
 
   const appRoles = parseTargetRoles(targetRolesRaw);
   const tingkatApp = tingkatDiterimaAplikasi(appRoles);
-  const tingkatUser = tingkatMasukDimiliki(permissionKeys);
+  const tingkatUser = tingkatMasukDimiliki(userRoleCodes);
 
-  const tingkatCocok = tingkatUser.filter((t) => {
-    if (!tingkatApp.includes(t)) return false;
-    // Khusus admin aplikasi, pastikan peran pengguna cocok dengan targetRoles atau peran admin aplikasi
-    if (t === "admin") {
-      return userRoleCodes.some((rc) => appRoles.includes(rc) || rc.startsWith("ADMIN_"));
-    }
-    return true;
-  });
+  const tingkatCocok = tingkatUser.filter((t) => tingkatApp.includes(t));
 
   return {
     allowed: tingkatCocok.length > 0,
@@ -628,10 +623,7 @@ function decideAppAccess(
 }
 
 /**
- * Menyiapkan izin masuk aplikasi baru.
- * Izin masuk kini bersifat global (masuk_admin, masuk_dosen, masuk_mahasiswa)
- * yang dicocokkan dengan targetRoles pada registry aplikasi SSO.
- */
+ * Menyiapkan akses aplikasi baru.
 async function siapkanIzinMasukAplikasi(
   _clientId: string,
   _nameApp: string,
@@ -1010,7 +1002,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
      * Jalur fallback SIAKAD SENGAJA TIDAK LAGI MENIMPA HASH LOKAL. Sebelumnya
      * setiap fallback yang berhasil langsung menulis ulang `user.password`
      * dengan kata sandi yang baru saja diketik. Akibatnya siapa pun yang tahu
-     * NIDN seorang dosen — dan NIDN bukan rahasia — bisa masuk memakai kata
+     * NIDN seorang dosen � dan NIDN bukan rahasia � bisa masuk memakai kata
      * sandi lemah mana pun yang diterima SIAKAD, lalu kata sandi lemah itu
      * MENGGANTIKAN kata sandi portal secara permanen. Akun tersebut terbajak
      * tanpa sepengetahuan pemiliknya.
@@ -1031,7 +1023,7 @@ app.post("/api/auth/login", loginLimiter, async (req: Request, res: Response) =>
          * (`passwordDiubahAt` terisi), kata sandi portal menjadi SATU-SATUNYA
          * kunci yang sah. Tanpa aturan ini, `Unusu123!` yang masih berlaku di
          * SIAKAD tetap bisa dipakai masuk ke portal meski pengguna sudah
-         * menggantinya — sehingga kewajiban ganti kata sandi menjadi sia-sia,
+         * menggantinya � sehingga kewajiban ganti kata sandi menjadi sia-sia,
          * dan siapa pun yang tahu NIDN dosen tetap bisa masuk.
          *
          * Akun yang belum pernah mengganti kata sandi tetap memakai fallback
@@ -1676,7 +1668,7 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
     setOptStr("biografi", biografi, 5000);
 
     // ---------------------------------------------------------------
-    // Jenis kelamin — boleh diisi sendiri pemilik akun.
+    // Jenis kelamin � boleh diisi sendiri pemilik akun.
     //
     // Kolom ini sebelumnya hanya bisa diubah admin. Nilainya dibatasi
     // `L`/`P` mengikuti satu-satunya bentuk yang dipakai seluruh aplikasi
@@ -1905,15 +1897,14 @@ app.get("/api/sso/apps", authenticateToken, async (req: AuthRequest, res: Respon
 
     const userRoleCodes = await getUserRoleCodes(currentUser.id);
 
-    // Filter berbasis izin (Permission-based):
-    // Jika akun hanya memiliki izin masuk_mahasiswa (tanpa izin masuk_dosen atau masuk_admin),
-    // aplikasi yang ditampilkan hanya yang menerima tingkat mahasiswa dan berstatus diizinkan.
-    const hasMasukMahasiswa = permissionKeys.includes("masuk_mahasiswa");
-    const hasMasukDosen = permissionKeys.includes("masuk_dosen");
-    const hasMasukAdmin = permissionKeys.includes("masuk_admin");
-    const isMahasiswaOnly = hasMasukMahasiswa && !hasMasukDosen && !hasMasukAdmin;
+    // Penentuan aplikasi yang tampil kini murni dari peran kampus + targetRoles
+    // aplikasi. Izin `masuk_*` sudah dihapus, jadi filter "mahasiswa murni"
+    // dinyatakan lewat peran MAHASISWA itu sendiri.
+    const isMahasiswaOnly =
+      userRoleCodes.includes("MAHASISWA") &&
+      !userRoleCodes.some((r) => r === "DOSEN" || r.startsWith("ADMIN_") || r === "SUPERADMIN");
 
-    // Status izin dihitung per pengguna dari izin masuk global yang dicocokkan dengan targetRoles
+    // Status izin dihitung per pengguna dari peran yang dicocokkan dengan targetRoles
     const appsWithAccess = apps.map((app) => {
       const decision = decideAppAccess(permissionKeys, app.targetRoles, userRoleCodes);
       return {
@@ -2659,7 +2650,7 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
     //
     // Semuanya opsional: hanya ditulis bila dikirim, dan string kosong
     // disimpan sebagai null agar kolom benar-benar kosong. Validasi sengaja
-    // ringan — ini data referensi civitas yang sumber aslinya SIAKAD, bukan
+    // ringan � ini data referensi civitas yang sumber aslinya SIAKAD, bukan
     // masukan yang menentukan hak akses.
     // ---------------------------------------------------------------
     const kolomTeksMaksimal: Array<[keyof typeof body, number]> = [
@@ -2910,7 +2901,7 @@ app.post("/api/admin/siakad/sync-dosen", authenticateToken, requirePermission("u
      * waktu proxy nginx.
      *
      * Hanya field yang belum terisi pada akun portal yang diisi. Data yang
-     * sudah ada tidak pernah ditimpa, dan nilai kosong dari SIAKAD dilewati —
+     * sudah ada tidak pernah ditimpa, dan nilai kosong dari SIAKAD dilewati �
      * banyak dosen memang belum melengkapi biodatanya di SIAKAD.
      */
     const mauBiodata = req.body?.biodata === true || req.body?.biodata === "true";
@@ -3217,7 +3208,7 @@ app.get("/api/admin/apps", authenticateToken, requirePermission("application:vie
   }
 });
 
-// POST /api/admin/apps/sync â€” Sinkronisasi registry aplikasi bawaan kampus & kunci admin
+// POST /api/admin/apps/sync — Sinkronisasi registry aplikasi bawaan kampus & kunci admin
 app.post("/api/admin/apps/sync", authenticateToken, requirePermission("application:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const publicBaseUrl = process.env.PUBLIC_BASE_URL || "";
@@ -3311,12 +3302,9 @@ app.post("/api/admin/apps", authenticateToken, requirePermission("application:ed
       }
     });
 
-    // Buat tiga izin masuk dan lekatkan ke peran sesuai cetak biru bawaan.
-    await siapkanIzinMasukAplikasi(newApp.clientId, newApp.nameApp, tingkatDiminta);
-
     res.json({
       status: true,
-      message: "Aplikasi SSO berhasil didaftarkan. Atur peran penerima izin masuk di halaman Peran & Izin.",
+      message: "Aplikasi SSO berhasil didaftarkan. Pengguna aplikasi ini didaftarkan admin masing-masing dari direktori ONE UNUSU.",
       data: newApp
     });
   } catch (error: any) {
@@ -3562,14 +3550,13 @@ app.post("/api/admin/permissions/cleanup", authenticateToken, requirePermission(
     const validKeys = new Set<string>();
     for (const group of PERMISSION_CATALOG) {
       for (const action of group.actions) {
-        validKeys.add(group.resource === "akses" ? action : `${group.resource}:${action}`);
+        validKeys.add(`${group.resource}:${action}`);
       }
     }
 
-    // Izin masuk kini global (masuk_admin/masuk_dosen/masuk_mahasiswa) dan sudah
-    // tercakup PERMISSION_CATALOG, sehingga tidak perlu ditambahkan per aplikasi.
-    // Sisa izin format lama `<clientId>:masuk_*` sengaja TIDAK dimasukkan sebagai
-    // kunci sah agar terdeteksi sebagai usang dan dapat dibersihkan.
+    // Izin masuk `masuk_*` sudah dihapus dari katalog: akses aplikasi cabang
+    // ditentukan oleh keanggotaan pengguna di masing-masing aplikasi, bukan oleh
+    // izin global. Izin format lama karena itu otomatis terdeteksi usang.
 
     // Cari izin di database yang kuncinya tidak ada di katalog resmi maupun aplikasi cabang
     // ATAU yang tidak terikat ke peran manapun (roles.none)
@@ -4286,8 +4273,8 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// INTEGRASI & API HUB — katalog endpoint, API key, dan riwayat penggunaan
+// ---------------------------------------------------------------------------
+// INTEGRASI & API HUB � katalog endpoint, API key, dan riwayat penggunaan
 //
 // Tiga tabel di balik panel ini sebelumnya hanya menampilkan data contoh yang
 // ditulis langsung di komponen klien. Endpoint di bawah ini menjadikannya
@@ -4300,7 +4287,7 @@ app.delete("/api/admin/sliders/:id", authenticateToken, requirePermission("slide
 //     tidak terus-menerus berpindah lewat jaringan setiap kali halaman dibuka.
 //   - Key tidak pernah dihapus fisik: pencabutan mengisi `revoked`, `revokedAt`,
 //     dan `revokedReason`, sehingga riwayat pemakaiannya tetap utuh.
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 
 /** Metode HTTP yang boleh disimpan pada katalog endpoint. */
 const METODE_ENDPOINT = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -4340,10 +4327,15 @@ function jsonContoh(value: unknown, maxLength: number): { ok: boolean; nilai: st
   }
 }
 
-/** Potongan key yang aman ditampilkan berulang kali. */
+/**
+ * Potongan key yang aman ditampilkan berulang kali.
+ *
+ * Hanya awalan dan akhiran yang ditampilkan; bagian tengah diganti titik-titik
+ * biasa supaya tidak ada karakter kontrol yang merusak tampilan.
+ */
 function potongKeyApi(key: string): string {
   if (key.length <= 16) return key;
-  return `${key.slice(0, 12)}${"•".repeat(6)}${key.slice(-4)}`;
+  return `${key.slice(0, 12)}${"·".repeat(6)}${key.slice(-4)}`;
 }
 
 /** Membuat API key baru: `unusu_sec_` + 40 karakter heksadesimal acak. */
@@ -4382,7 +4374,7 @@ async function normalisasiEndpointDiizinkan(
   return { ok: true, nilai: JSON.stringify(id.sort((a, b) => a - b)) };
 }
 
-/** GET /api/admin/api-hub/endpoints — daftar katalog endpoint. */
+/** GET /api/admin/api-hub/endpoints � daftar katalog endpoint. */
 app.get(
   "/api/admin/api-hub/endpoints",
   authenticateToken,
@@ -4416,7 +4408,7 @@ app.get(
   }
 );
 
-/** POST /api/admin/api-hub/endpoints — menambah endpoint baru. */
+/** POST /api/admin/api-hub/endpoints � menambah endpoint baru. */
 app.post(
   "/api/admin/api-hub/endpoints",
   authenticateToken,
@@ -4496,7 +4488,7 @@ app.post(
   }
 );
 
-/** PUT /api/admin/api-hub/endpoints/:id — memperbarui endpoint. */
+/** PUT /api/admin/api-hub/endpoints/:id � memperbarui endpoint. */
 app.put(
   "/api/admin/api-hub/endpoints/:id",
   authenticateToken,
@@ -4599,7 +4591,7 @@ app.put(
   }
 );
 
-/** DELETE /api/admin/api-hub/endpoints/:id — menghapus endpoint dari katalog. */
+/** DELETE /api/admin/api-hub/endpoints/:id � menghapus endpoint dari katalog. */
 app.delete(
   "/api/admin/api-hub/endpoints/:id",
   authenticateToken,
@@ -4627,7 +4619,7 @@ app.delete(
   }
 );
 
-/** GET /api/admin/api-hub/apps — pilihan aplikasi pemilik key. */
+/** GET /api/admin/api-hub/apps � pilihan aplikasi pemilik key. */
 app.get(
   "/api/admin/api-hub/apps",
   authenticateToken,
@@ -4647,7 +4639,7 @@ app.get(
 );
 
 /**
- * GET /api/admin/api-hub/keys — daftar API key.
+ * GET /api/admin/api-hub/keys � daftar API key.
  *
  * Nilai `key` yang dikirim ke klien sudah dipotong. Nilai utuh hanya keluar
  * sekali pada respons pembuatan key.
@@ -4703,7 +4695,7 @@ app.get(
 );
 
 /**
- * POST /api/admin/api-hub/keys — membuat API key baru.
+ * POST /api/admin/api-hub/keys � membuat API key baru.
  *
  * Respons ini satu-satunya tempat nilai key utuh dikirim ke klien.
  */
@@ -4749,7 +4741,7 @@ app.post(
 
       res.status(201).json({
         status: true,
-        message: `API key untuk "${app.nameApp}" berhasil dibuat. Simpan nilainya sekarang — tidak akan ditampilkan lagi.`,
+        message: `API key untuk "${app.nameApp}" berhasil dibuat. Simpan nilainya sekarang � tidak akan ditampilkan lagi.`,
         // Nilai utuh, hanya sekali.
         data: {
           id: dibuat.id,
@@ -4772,7 +4764,7 @@ app.post(
   }
 );
 
-/** PUT /api/admin/api-hub/keys/:id — memperbarui nama, deskripsi, atau izin endpoint. */
+/** PUT /api/admin/api-hub/keys/:id � memperbarui nama, deskripsi, atau izin endpoint. */
 app.put(
   "/api/admin/api-hub/keys/:id",
   authenticateToken,
@@ -4841,7 +4833,7 @@ app.put(
 );
 
 /**
- * DELETE /api/admin/api-hub/keys/:id — mencabut API key.
+ * DELETE /api/admin/api-hub/keys/:id � mencabut API key.
  *
  * Baris tidak dihapus. Pencabutan menandai `revoked` agar riwayat pemakaian
  * tetap bisa ditelusuri dan aplikasi pemakai langsung ditolak.
@@ -4888,7 +4880,7 @@ app.delete(
   }
 );
 
-/** GET /api/admin/api-hub/logs — riwayat pemakaian key. */
+/** GET /api/admin/api-hub/logs � riwayat pemakaian key. */
 app.get(
   "/api/admin/api-hub/logs",
   authenticateToken,
@@ -4936,9 +4928,9 @@ app.get(
   }
 );
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 // BERKAS DOSEN (unggah mandiri oleh dosen, verifikasi oleh admin)
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 
 type PeranBerkas = "pemilik" | "pengelola";
 /**
@@ -4999,7 +4991,7 @@ function bentukBerkas(
   };
 }
 
-// GET /api/admin/berkas-dosen/monitoring — Rekap kelengkapan berkas SELURUH dosen
+// GET /api/admin/berkas-dosen/monitoring � Rekap kelengkapan berkas SELURUH dosen
 //
 // Berbeda dari `GET /api/berkas-dosen/list` yang hanya mengembalikan baris
 // berkas, endpoint ini berangkat dari tabel pengguna berperan DOSEN. Dengan
@@ -5096,7 +5088,7 @@ app.get(
   }
 );
 
-// GET /api/berkas-dosen/tipe — Master 14 jenis berkas + status kelengkapan milik sendiri
+// GET /api/berkas-dosen/tipe � Master 14 jenis berkas + status kelengkapan milik sendiri
 app.get("/api/berkas-dosen/tipe", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const tipeList = await prisma.dosenBerkasTipe.findMany({
@@ -5125,7 +5117,7 @@ app.get("/api/berkas-dosen/tipe", authenticateToken, async (req: AuthRequest, re
   }
 });
 
-// GET /api/berkas-dosen/list — Daftar berkas (milik sendiri, atau seluruh dosen untuk pengelola)
+// GET /api/berkas-dosen/list � Daftar berkas (milik sendiri, atau seluruh dosen untuk pengelola)
 app.get("/api/berkas-dosen/list", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const peran = await peranBerkasPengguna(req.user!.id);
@@ -5178,7 +5170,7 @@ app.get("/api/berkas-dosen/list", authenticateToken, async (req: AuthRequest, re
   }
 });
 
-// POST /api/berkas-dosen/upload — Unggah satu berkas PDF (multipart/form-data)
+// POST /api/berkas-dosen/upload � Unggah satu berkas PDF (multipart/form-data)
 app.post(
   "/api/berkas-dosen/upload",
   authenticateToken,
@@ -5297,7 +5289,7 @@ app.post(
   }
 );
 
-// GET /api/berkas-dosen/file/:nama — Unduh / pratinjau berkas (pemilik atau pengelola)
+// GET /api/berkas-dosen/file/:nama � Unduh / pratinjau berkas (pemilik atau pengelola)
 app.get("/api/berkas-dosen/file/:nama", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const nama = String(req.params.nama ?? "");
@@ -5343,7 +5335,7 @@ app.get("/api/berkas-dosen/file/:nama", authenticateToken, async (req: AuthReque
   }
 });
 
-// DELETE /api/berkas-dosen/:id — Arsipkan berkas (pemilik atau pengelola)
+// DELETE /api/berkas-dosen/:id � Arsipkan berkas (pemilik atau pengelola)
 app.delete("/api/berkas-dosen/:id", authenticateToken, writeLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const id = Number.parseInt(String(req.params.id ?? ""), 10);
@@ -5394,28 +5386,9 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
         badge: true,
         icon: true,
         urlRedirect: true,
+        targetRoles: true,
       },
     });
-
-    // Tingkat masuk yang benar-benar dilekatkan pada suatu peran. Dipakai
-    // halaman publik untuk menyebut siapa yang dapat memakai aplikasi, tanpa
-    // membocorkan nama peran internal.
-    const izinMasuk = await prisma.rolePermission.findMany({
-      where: {
-        permission: { resource: { in: apps.map((app) => app.clientId) } },
-        role: { userRoles: { some: {} } },
-      },
-      select: { permission: { select: { key: true } } },
-    });
-
-    const tingkatTersedia = new Map<string, Set<string>>();
-    for (const item of izinMasuk) {
-      const cocok = /^(.+):masuk_(admin|dosen|mahasiswa)$/.exec(item.permission.key);
-      if (!cocok) continue;
-      const [, clientId, tingkat] = cocok;
-      if (!tingkatTersedia.has(clientId)) tingkatTersedia.set(clientId, new Set());
-      tingkatTersedia.get(clientId)!.add(tingkat);
-    }
 
     const data = apps.map((app) => {
       // Hanya origin yang dibuka ke publik agar alamat callback tidak bocor.
@@ -5426,6 +5399,11 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
         origin = "";
       }
 
+      // Tingkat akses dibaca dari `targetRoles` registry aplikasi. Sebelumnya
+      // nilai ini diturunkan dari izin `<clientId>:masuk_*` yang sudah dihapus,
+      // sehingga regex-nya tidak pernah cocok dan katalog selalu kosong.
+      const tingkatApp = tingkatDiterimaAplikasi(parseTargetRoles(app.targetRoles));
+
       return {
         id: app.id,
         clientId: app.clientId,
@@ -5433,9 +5411,7 @@ app.get("/api/applications/catalog", async (req: Request, res: Response) => {
         description: app.description,
         badge: app.badge,
         icon: app.icon,
-        tingkatMasuk: TINGKAT_MASUK.filter((tingkat: TingkatMasuk) =>
-          tingkatTersedia.get(app.clientId)?.has(tingkat)
-        ),
+        tingkatMasuk: TINGKAT_MASUK.filter((tingkat: TingkatMasuk) => tingkatApp.includes(tingkat)),
         origin,
       };
     });
@@ -5717,7 +5693,7 @@ const ambilDokumenAplikasi = async (
 // Proxy arsip dokumen LPM/LPPM untuk aplikasi cabang (server-to-server).
 // Aplikasi cabang tidak memiliki sesi pengguna di portal ini, sehingga
 // otorisasi memakai kredensial aplikasi (`client_id` + `client_key`) yang
-// terdaftar pada tabel `sso_apps` — pola yang sama dengan `verify-token`.
+// terdaftar pada tabel `sso_apps` � pola yang sama dengan `verify-token`.
 // Endpoint ini hanya membaca; tidak pernah menulis ke LPM/LPPM.
 app.post(
   "/api/v2/website/dokumen",
@@ -5823,6 +5799,526 @@ app.post(
   }
 );
 
+// ==========================================
+// 5b. API GATEWAY BERBASIS API KEY (aplikasi cabang)
+// ==========================================
+//
+// Bagian ini adalah penegakan nyata atas katalog yang diatur di /admin/api-hub.
+// Sebelumnya `api_keys` hanya menjadi dokumentasi: belum ada satu pun endpoint
+// yang benar-benar memeriksa key. Di sini key diperiksa, dibatasi ke endpoint
+// yang dicentang saat key dibuat, lalu pemakaiannya dicatat pada `api_usage_logs`.
+//
+// Identitas pemanggil adalah APLIKASI, bukan pengguna. Tidak ada sesi pengguna
+// di jalur ini, sehingga `authenticateToken` tidak dipakai.
+
+interface ApiKeyTerverifikasi {
+  id: number;
+  appId: number;
+  name: string;
+  app: { id: number; clientId: string; nameApp: string };
+  endpointId: number | null;
+}
+
+/** Mencatat satu pemakaian key. Kegagalan mencatat log tidak membatalkan respons. */
+async function catatPemakaianApi(params: {
+  keyId: number;
+  endpoint: string;
+  method: string;
+  statusCode: number;
+  mulai: number;
+  req: Request;
+  galat?: string;
+}): Promise<void> {
+  try {
+    await prisma.$transaction([
+      prisma.apiKey.update({
+        where: { id: params.keyId },
+        data: {
+          usageCount: { increment: 1 },
+          lastUsedAt: new Date(),
+          lastUsedIp: (params.req.ip ?? "").slice(0, 45) || null,
+        },
+      }),
+      prisma.apiUsageLog.create({
+        data: {
+          keyId: params.keyId,
+          endpoint: params.endpoint.slice(0, 255),
+          method: params.method.slice(0, 10),
+          statusCode: params.statusCode,
+          responseTime: Math.max(0, Date.now() - params.mulai),
+          requestIp: (params.req.ip ?? "").slice(0, 45) || null,
+          userAgent: String(params.req.headers["user-agent"] ?? "").slice(0, 255) || null,
+          errorMessage: params.galat ? params.galat.slice(0, 500) : null,
+        },
+      }),
+    ]);
+  } catch (error: any) {
+    // Pencatatan gagal tidak boleh menggagalkan permintaan yang sudah sah.
+    console.error("Gagal mencatat pemakaian API key:", error?.message);
+  }
+}
+
+/**
+ * Middleware penjaga endpoint yang dipanggil aplikasi cabang.
+ *
+ * Menerima header `Authorization: Bearer unusu_sec_...` maupun
+ * `X-API-Key: unusu_sec_...`. Key harus aktif (tidak dicabut) dan endpoint yang
+ * sedang dipanggil harus termasuk dalam `allowedEndpoints` key tersebut.
+ *
+ * `endpointWajib` diisi alamat endpoint pada katalog (`api_endpoints.endpoint`),
+ * mis. "/api/v2/website/users". Bila endpoint itu belum terdaftar di katalog,
+ * key dengan `allowedEndpoints = null` (semua endpoint) tetap boleh lewat,
+ * sedangkan key yang dibatasi daftar akan ditolak � supaya penambahan endpoint
+ * baru tidak perlu mengubah key yang sudah ada.
+ */
+const wajibApiKey = (endpointWajib: string) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const mulai = Date.now();
+    let keyIdUntukLog: number | null = null;
+
+    const tolak = async (status: number, pesan: string, galat?: string) => {
+      if (keyIdUntukLog !== null) {
+        await catatPemakaianApi({
+          keyId: keyIdUntukLog,
+          endpoint: req.originalUrl,
+          method: req.method,
+          statusCode: status,
+          mulai,
+          req,
+          galat: galat ?? pesan,
+        });
+      }
+      return res.status(status).json({ status: false, message: pesan });
+    };
+
+    try {
+      const headerAuth = String(req.headers.authorization ?? "");
+      const headerKey = String(req.headers["x-api-key"] ?? "");
+      const key = headerAuth.startsWith("Bearer ")
+        ? headerAuth.slice(7).trim()
+        : headerKey.trim();
+
+      if (!key) {
+        return res.status(401).json({
+          status: false,
+          message: "API key wajib disertakan pada header Authorization: Bearer <key> atau X-API-Key.",
+        });
+      }
+
+      if (key.length > 255) {
+        return res.status(401).json({ status: false, message: "API key tidak valid." });
+      }
+
+      const found = await prisma.apiKey.findUnique({
+        where: { key },
+        include: { app: { select: { id: true, clientId: true, nameApp: true, isActive: true } } },
+      });
+
+      if (!found) {
+        return res.status(401).json({ status: false, message: "API key tidak dikenali." });
+      }
+
+      keyIdUntukLog = found.id;
+
+      if (found.revoked) {
+        return tolak(401, "API key ini sudah dicabut.", "revoked");
+      }
+      if (!found.isActive) {
+        return tolak(401, "API key ini tidak aktif.", "inactive");
+      }
+      if (!found.app.isActive) {
+        return tolak(403, `Aplikasi pemilik key (${found.app.nameApp}) sedang nonaktif.`, "app-inactive");
+      }
+
+      const katalog = await prisma.apiEndpoint.findUnique({
+        where: { endpoint: endpointWajib },
+        select: { id: true, isActive: true },
+      });
+
+      if (katalog && !katalog.isActive) {
+        return tolak(403, "Endpoint ini sedang dinonaktifkan pada katalog API Hub.", "endpoint-inactive");
+      }
+
+      // Batas cakupan: key dengan daftar eksplisit hanya boleh memanggil yang ada
+      // di daftar itu. Key tanpa daftar (`null`) boleh memanggil semua endpoint
+      // aktif yang memang dijaga endpoint ini.
+      if (found.allowedEndpoints && katalog) {
+        let daftarId: number[] = [];
+        try {
+          const parsed = JSON.parse(found.allowedEndpoints);
+          if (Array.isArray(parsed)) daftarId = parsed.map((n) => Number(n));
+        } catch {
+          daftarId = [];
+        }
+        if (!daftarId.includes(katalog.id)) {
+          return tolak(
+            403,
+            `API key ini tidak berizin memanggil ${endpointWajib}.`,
+            "endpoint-not-allowed"
+          );
+        }
+      }
+
+      const terverifikasi: ApiKeyTerverifikasi = {
+        id: found.id,
+        appId: found.appId,
+        name: found.name,
+        app: { id: found.app.id, clientId: found.app.clientId, nameApp: found.app.nameApp },
+        endpointId: katalog?.id ?? null,
+      };
+      (req as AuthRequest & { apiKey?: ApiKeyTerverifikasi }).apiKey = terverifikasi;
+
+      // Catat setelah respons selesai supaya statusCode akhir yang tercatat benar.
+      res.on("finish", () => {
+        void catatPemakaianApi({
+          keyId: found.id,
+          endpoint: req.originalUrl,
+          method: req.method,
+          statusCode: res.statusCode,
+          mulai,
+          req,
+        });
+      });
+
+      next();
+    } catch (error: any) {
+      logServerError(`wajibApiKey ${endpointWajib}`, error);
+      return res.status(500).json({ status: false, message: "Gagal memverifikasi API key." });
+    }
+  };
+};
+
+/**
+ * POST /api/v2/website/users
+ *
+ * Pencarian pengguna direktori kampus untuk aplikasi cabang (server-to-server).
+ * Dipakai LPM/LPPM/Prodi/BAKSI/BAKSA agar Admin aplikasi tidak perlu mengetik
+ * pengguna secara manual — cukup memilih orang yang memang sudah ada.
+ *
+ * Mendukung tiga cara pakai:
+ *
+ * 1. **Kotak pencarian** — `search` minimal 2 karakter, mencari pada nama,
+ *    username, NIDN, NIP, NIM, dan email.
+ * 2. **Filter** — `role`, `fakultas`, dan `prodi` menyaring hasil. Ini yang
+ *    dipakai tabel "Tambah Pengguna" agar admin bisa menelusuri peran dan
+ *    program studi tanpa harus mengetik nama.
+ * 3. **Penelusuran awal** — tanpa `search` sama sekali, endpoint tetap menjawab
+ *    (maksimal 20 baris) supaya tabel langsung terisi begitu halaman dibuka.
+ *    Sebelumnya ini ditolak 422 dan tabel tampak kosong sampai admin mengetik.
+ *
+ * Yang dikembalikan hanya data pengenalan diri. Izin, kata sandi, NIK, dan
+ * tanggal lahir sengaja TIDAK dikirim: aplikasi cabang tidak berhak
+ * mengetahuinya dan tidak membutuhkannya untuk memilih pengguna. `role` hanya
+ * dikirim sebagai label supaya admin tahu siapa dosen dan siapa mahasiswa.
+ */
+const BATAS_MAKS_USERS_API = 20;
+
+app.post(
+  "/api/v2/website/users",
+  serverToServerLimiter,
+  wajibApiKey("/api/v2/website/users"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const body = isPlainObject(req.body) ? req.body : {};
+      const search = typeof body.search === "string" ? body.search.trim() : "";
+      const filterRole = typeof body.role === "string" ? body.role.trim().toUpperCase() : "";
+      const filterFakultas = typeof body.fakultas === "string" ? body.fakultas.trim() : "";
+      const filterProdi = typeof body.prodi === "string" ? body.prodi.trim() : "";
+
+      if (search.length === 1) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter `search` minimal 2 karakter bila diisi.",
+        });
+      }
+      if (search.length > 100) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter `search` maksimal 100 karakter.",
+        });
+      }
+
+      const limitDiminta = Number(body.limit);
+      const limit = Number.isInteger(limitDiminta)
+        ? Math.min(Math.max(limitDiminta, 1), BATAS_MAKS_USERS_API)
+        : BATAS_MAKS_USERS_API;
+
+      // Syarat disusun bertingkat; setiap filter hanya ikut bila benar-benar diisi.
+      const syarat: any[] = [{ isActive: true }];
+
+      if (search.length >= 2) {
+        syarat.push({
+          OR: [
+            { nama: { contains: search } },
+            { username: { contains: search } },
+            { nidn: { contains: search } },
+            { nip: { contains: search } },
+            { nim: { contains: search } },
+            { email: { contains: search } },
+          ],
+        });
+      }
+
+      if (filterFakultas) syarat.push({ fakultas: filterFakultas });
+      if (filterProdi) syarat.push({ prodi: filterProdi });
+
+      if (filterRole) {
+        syarat.push({ roles: { some: { role: { code: filterRole } } } });
+      }
+
+      const where = syarat.length === 1 ? syarat[0] : { AND: syarat };
+
+      const rows = await prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          nama: true,
+          email: true,
+          noHp: true,
+          nim: true,
+          nidn: true,
+          nip: true,
+          fakultas: true,
+          prodi: true,
+          jenisKelamin: true,
+          avatar: true,
+          isActive: true,
+          roles: { select: { role: { select: { code: true } } } },
+        },
+        orderBy: { nama: "asc" },
+        take: limit,
+      });
+
+      const data = rows.map((u) => {
+        const kodePeran = u.roles.map((r) => r.role.code);
+        return {
+          id: u.id,
+          username: u.username,
+          nama: u.nama,
+          email: u.email,
+          noHp: u.noHp,
+          nim: u.nim,
+          nidn: u.nidn,
+          nip: u.nip,
+          fakultas: u.fakultas,
+          prodi: u.prodi,
+          jenisKelamin: u.jenisKelamin,
+          avatar: u.avatar,
+          isActive: u.isActive,
+          role: kodePeran[0] ?? null,
+          roles: kodePeran,
+        };
+      });
+
+      return res.json({
+        status: true,
+        data,
+        meta: {
+          total: data.length,
+          limit,
+          search,
+          role: filterRole || null,
+          fakultas: filterFakultas || null,
+          prodi: filterProdi || null,
+          // Menandakan hasil mungkin terpotong karena mencapai batas maksimum.
+          terpotong: data.length >= limit,
+        },
+      });
+    } catch (error: any) {
+      logServerError("POST /api/v2/website/users", error);
+      return res.status(500).json({ status: false, message: "Gagal mencari pengguna." });
+    }
+  }
+);
+
+/**
+ * POST /api/v2/website/users/by-ids
+ *
+ * Mengambil sekumpulan pengguna berdasarkan **id**-nya, bukan namanya.
+ *
+ * Dibutuhkan saat aplikasi cabang menyimpan pilihan dari tabel "Tambah
+ * Pengguna". Verifikasi berbasis nama tidak dapat dipercaya: nama di SIAKAD
+ * kerap mengandung awalan gelar atau tanda baca (mis. `-. EMI RACHMI, SKM`)
+ * sehingga pencarian atas nama itu sendiri bisa gagal menemukan orang yang
+ * baru saja ditampilkan. Id tidak punya masalah semacam itu.
+ *
+ * Dibatasi 50 id per panggilan supaya tidak dapat dipakai untuk mengunduh
+ * seluruh direktori sekaligus.
+ */
+app.post(
+  "/api/v2/website/users/by-ids",
+  serverToServerLimiter,
+  wajibApiKey("/api/v2/website/users/by-ids"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const body = isPlainObject(req.body) ? req.body : {};
+      const mentah: unknown[] = Array.isArray(body.ids) ? body.ids : [];
+
+      const daftarId = Array.from(
+        new Set(
+          mentah
+            .map((n) => Number(n))
+            .filter((n): n is number => Number.isInteger(n) && n > 0)
+        )
+      ).slice(0, 50);
+
+      if (daftarId.length === 0) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter `ids` wajib berisi minimal satu id pengguna.",
+        });
+      }
+
+      const rows = await prisma.user.findMany({
+        where: { id: { in: daftarId } },
+        select: {
+          id: true,
+          username: true,
+          nama: true,
+          email: true,
+          noHp: true,
+          nim: true,
+          nidn: true,
+          nip: true,
+          fakultas: true,
+          prodi: true,
+          jenisKelamin: true,
+          avatar: true,
+          isActive: true,
+          roles: { select: { role: { select: { code: true } } } },
+        },
+        orderBy: { nama: "asc" },
+      });
+
+      const data = rows.map((u) => {
+        const kodePeran = u.roles.map((r) => r.role.code);
+        return {
+          id: u.id,
+          username: u.username,
+          nama: u.nama,
+          email: u.email,
+          noHp: u.noHp,
+          nim: u.nim,
+          nidn: u.nidn,
+          nip: u.nip,
+          fakultas: u.fakultas,
+          prodi: u.prodi,
+          jenisKelamin: u.jenisKelamin,
+          avatar: u.avatar,
+          isActive: u.isActive,
+          role: kodePeran[0] ?? null,
+          roles: kodePeran,
+        };
+      });
+
+      const ditemukan = new Set(data.map((u) => u.id));
+      const tidakDitemukan = daftarId.filter((id) => !ditemukan.has(id));
+
+      return res.json({
+        status: true,
+        data,
+        meta: { total: data.length, diminta: daftarId.length, tidakDitemukan },
+      });
+    } catch (error: any) {
+      logServerError("POST /api/v2/website/users/by-ids", error);
+      return res.status(500).json({ status: false, message: "Gagal mengambil pengguna." });
+    }
+  }
+);
+
+/**
+ * GET /api/v2/website/organisasi
+ *
+ * Daftar fakultas beserta program studi di dalamnya, untuk seluruh aplikasi
+ * UNUSU. Aplikasi cabang cukup memanggil ONE UNUSU; mereka tidak perlu tahu
+ * bahwa data aslinya dikelola Portal Prodi UNUSU.
+ *
+ * Sumber data satu-satunya adalah Portal Prodi (`POST /api/v1/public/organisasi`).
+ * Bila Portal Prodi sedang mati, endpoint ini menjawab 503 dengan pesan yang
+ * jelas — bukan daftar kosong yang menyesatkan pemanggil.
+ *
+ * Hasil disimpan di memori selama 5 menit karena data organisasi jarang
+ * berubah, sementara endpoint ini dipanggil setiap kali halaman dibuka.
+ */
+const CACHE_ORGANISASI_MS = 5 * 60 * 1000;
+let cacheOrganisasi: { diambilPada: number; isi: any } | null = null;
+
+app.get(
+  "/api/v2/website/organisasi",
+  serverToServerLimiter,
+  wajibApiKey("/api/v2/website/organisasi"),
+  async (_req: AuthRequest, res: Response) => {
+    const mulai = Date.now();
+    try {
+      if (cacheOrganisasi && mulai - cacheOrganisasi.diambilPada < CACHE_ORGANISASI_MS) {
+        return res.json({ status: true, ...cacheOrganisasi.isi, meta: { ...cacheOrganisasi.isi.meta, cache: true } });
+      }
+
+      const baseProdi = (process.env.PRODI_BASE_URL || "http://localhost:5010").replace(/\/$/, "");
+      const kunciProdi = (process.env.PRODI_API_KEY || "").trim();
+
+      if (!kunciProdi) {
+        return res.status(503).json({
+          status: false,
+          message: "PRODI_API_KEY belum dikonfigurasi pada server ONE UNUSU.",
+        });
+      }
+
+      const pengendali = new AbortController();
+      const batasWaktu = setTimeout(() => pengendali.abort(), 8000);
+
+      let jawabanProdi: globalThis.Response;
+      try {
+        jawabanProdi = await fetch(`${baseProdi}/api/v1/public/organisasi`, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${kunciProdi}`,
+          },
+          signal: pengendali.signal,
+        });
+      } finally {
+        clearTimeout(batasWaktu);
+      }
+
+      if (!jawabanProdi.ok) {
+        const teks = await jawabanProdi.text().catch(() => "");
+        logServerError(
+          "GET /api/v2/website/organisasi",
+          new Error(`Portal Prodi menjawab ${jawabanProdi.status}: ${teks.slice(0, 200)}`)
+        );
+        return res.status(502).json({
+          status: false,
+          message: "Portal Prodi menolak permintaan data organisasi.",
+        });
+      }
+
+      const isiProdi: any = await jawabanProdi.json();
+      const isi = {
+        data: Array.isArray(isiProdi?.data) ? isiProdi.data : [],
+        meta: {
+          totalFakultas: Number(isiProdi?.meta?.totalFakultas) || 0,
+          totalProdi: Number(isiProdi?.meta?.totalProdi) || 0,
+          sumber: "Portal Prodi UNUSU",
+        },
+      };
+
+      cacheOrganisasi = { diambilPada: mulai, isi };
+      return res.json({ status: true, ...isi, meta: { ...isi.meta, cache: false } });
+    } catch (error: any) {
+      const terputus = error?.name === "AbortError";
+      logServerError("GET /api/v2/website/organisasi", error);
+      return res.status(503).json({
+        status: false,
+        message: terputus
+          ? "Portal Prodi tidak menjawab tepat waktu."
+          : "Portal Prodi tidak dapat dihubungi.",
+      });
+    }
+  }
+);
+
 // GET /api/inter-service/dokumen-lpm
 app.get(
   "/api/inter-service/dokumen-lpm",
@@ -5850,7 +6346,7 @@ app.get(
 
     if (!hasil.ok) {
       // 401/403 dari aplikasi sumber berarti sesi pengguna tidak berlaku di
-      // sana — diteruskan apa adanya; kegagalan jaringan menjadi 502.
+      // sana � diteruskan apa adanya; kegagalan jaringan menjadi 502.
       const kode = hasil.statusCode && [401, 403].includes(hasil.statusCode) ? hasil.statusCode : 502;
       return res.status(kode).json({ status: false, app: "lpm", message: hasil.message, data: [] });
     }
@@ -5986,6 +6482,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`ðŸš€ ONE UNUSU SSO Central Gateway running on http://localhost:${PORT}`);
+  console.log(`🚀 ONE UNUSU SSO Central Gateway running on http://localhost:${PORT}`);
 });
 

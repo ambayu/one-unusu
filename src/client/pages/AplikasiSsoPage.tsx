@@ -141,14 +141,15 @@ export const AplikasiSsoPage: React.FC = () => {
     return assetUrl('/assets/apps/app-lms.png');
   };
 
-  // Filter permission masuk mahasiswa:
-  // Jika akun hanya memiliki izin masuk_mahasiswa murni, saring aplikasi agar HANYA yang diizinkan untuk mahasiswa
+  // Filter aplikasi: akun mahasiswa murni hanya melihat aplikasi yang memang
+  // menerima mahasiswa. Ditentukan dari PERAN (izin `masuk_*` sudah dihapus).
   const filteredApps = useMemo(() => {
-    const userPerms = user?.permissions || [];
-    const hasMasukMahasiswa = userPerms.includes('masuk_mahasiswa');
-    const hasMasukDosen = userPerms.includes('masuk_dosen');
-    const hasMasukAdmin = userPerms.includes('masuk_admin');
-    const isMahasiswaOnly = hasMasukMahasiswa && !hasMasukDosen && !hasMasukAdmin;
+    const roles = [user?.role, ...((user as { roles?: string[] })?.roles ?? [])]
+      .filter(Boolean)
+      .map((r) => String(r).toUpperCase());
+    const isMahasiswaOnly =
+      roles.includes('MAHASISWA') &&
+      !roles.some((r) => r === 'DOSEN' || r.startsWith('ADMIN_') || r === 'SUPERADMIN');
 
     let list = ssoApps;
     if (isMahasiswaOnly) {

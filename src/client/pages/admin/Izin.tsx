@@ -40,10 +40,9 @@ const ACTION_LABEL: Record<string, string> = {
   view: 'Lihat',
   edit: 'Ubah',
   delete: 'Hapus',
-  masuk_admin: 'Masuk Admin',
-  masuk_fakultas: 'Masuk Fakultas',
-  masuk_dosen: 'Masuk Dosen',
-  masuk_mahasiswa: 'Masuk Mahasiswa',
+  export: 'Ekspor',
+  upload: 'Unggah',
+  access: 'Akses Penuh',
 };
 
 const RESOURCE_LABEL: Record<string, string> = {
@@ -55,7 +54,9 @@ const RESOURCE_LABEL: Record<string, string> = {
   user: 'Manajemen Pengguna',
   permission: 'Izin',
   role: 'Peran',
-  akses: 'Akses Aplikasi SSO',
+  api_hub: 'Integrasi & API Hub',
+  berkas_dosen: 'Berkas Dosen',
+  superadmin: 'Otoritas Superadmin',
 };
 
 const ACTION_TONE: Record<string, string> = {
@@ -63,10 +64,9 @@ const ACTION_TONE: Record<string, string> = {
   view: 'bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]',
   edit: 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]',
   delete: 'bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]',
-  masuk_admin: 'bg-[#FAF5FF] text-[#7E22CE] border-[#E9D5FF]',
-  masuk_fakultas: 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]',
-  masuk_dosen: 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]',
-  masuk_mahasiswa: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
+  export: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]',
+  upload: 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]',
+  access: 'bg-[#FAF5FF] text-[#7E22CE] border-[#E9D5FF]',
 };
 
 export const Izin: React.FC = () => {
@@ -594,7 +594,7 @@ export const Izin: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="mis. masuk_admin, masuk_dosen, view, edit"
+                  placeholder="mis. berkas_dosen:view, user:edit"
                   value={newAction}
                   onChange={(e) => setNewAction(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#166534]"
