@@ -648,7 +648,7 @@ export const RegistrasiSso: React.FC = () => {
                         <button
                           onClick={() => openEditModal(app)}
                           title="Ubah Aplikasi"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
+                          className="min-h-[44px] inline-flex items-center gap-2 px-4 py-3 rounded-[8px] border border-[#D8E5DC] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                         >
                           <PencilSquareIcon className="w-3.5 h-3.5" />
                           <span>Ubah</span>
@@ -658,7 +658,7 @@ export const RegistrasiSso: React.FC = () => {
                         <button
                           onClick={() => setAppToDelete(app)}
                           title="Hapus Aplikasi"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
+                          className="min-h-[44px] inline-flex items-center gap-2 px-4 py-3 rounded-[8px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                           <span>Hapus</span>

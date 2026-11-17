@@ -256,11 +256,11 @@ export const Peran: React.FC = () => {
               </div>
 
               {(canEdit || canDelete || canAssignPermissions) && (
-                <div className="flex items-center gap-2 pt-2 border-t border-[#E8EFEA]">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E8EFEA]">
                   {canAssignPermissions && (
                     <Link
                       to={`/admin/peran/${role.id}/izin`}
-                      className="px-2.5 py-1.5 rounded-[7px] bg-[#F0FDF4] text-[#166534] font-semibold text-[11px]"
+                      className="min-h-[44px] inline-flex items-center px-4 py-3 rounded-[8px] border border-[#D8E5DC] bg-[#F0FDF4] text-[#166534] font-semibold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                     >
                       Atur Izin
                     </Link>
@@ -268,7 +268,7 @@ export const Peran: React.FC = () => {
                   {canEdit && (
                     <button
                       onClick={() => openEditForm(role)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-[11px] transition"
+                      className="min-h-[44px] inline-flex items-center gap-2 px-4 py-3 rounded-[8px] border border-[#D8E5DC] bg-[#F1F5F2] hover:bg-[#E8EFEA] text-[#475569] font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                     >
                       <PencilSquareIcon className="w-3.5 h-3.5" />
                       Ubah
@@ -277,7 +277,7 @@ export const Peran: React.FC = () => {
                   {canDelete && !role.isSystem && (
                     <button
                       onClick={() => setRoleToDelete(role)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-[11px] transition"
+                      className="min-h-[44px] inline-flex items-center gap-2 px-4 py-3 rounded-[8px] bg-[#FEE2E2] hover:bg-[#FECACA] text-[#B91C1C] font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                     >
                       <TrashIcon className="w-3.5 h-3.5" />
                       Hapus

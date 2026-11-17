@@ -240,9 +240,10 @@ export const DaftarAplikasi: React.FC = () => {
         <button
           onClick={loadData}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#D8E5DC] text-xs font-semibold text-[#166534] hover:bg-[#F0FDF4] transition self-start md:self-auto disabled:opacity-60"
+          type="button"
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] transition self-start md:self-auto disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
         >
-          <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <ArrowPathIcon className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
           <span>Muat Ulang Katalog</span>
         </button>
       </div>
@@ -287,12 +288,39 @@ export const DaftarAplikasi: React.FC = () => {
       </div>
 
       {/* Filter Tab & Search Bar */}
-      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3.5">
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+      <section className="bg-white rounded-[16px] border border-[#D8E5DC] p-4 sm:p-6 space-y-4" aria-labelledby="catalog-filter-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="catalog-filter-heading" className="text-base font-semibold text-[#1E293B]">Filter Katalog Aplikasi</h2>
+          {(searchQuery || filterTab !== 'all') && (
+            <button type="button" onClick={() => { setSearchQuery(''); setFilterTab('all'); }} className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+              Reset Semua Filter
+            </button>
+          )}
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-4">
+          <div className="min-w-0">
+            <label htmlFor="catalog-search" className="mb-2 block text-sm font-semibold text-[#3A5544]">Cari aplikasi atau portal</label>
+            <div className="relative min-w-0">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+              <input
+                id="catalog-search"
+                type="text"
+                placeholder="Cari aplikasi atau portal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="min-w-0 w-full pl-12 pr-4 py-3 text-sm rounded-[8px] border border-[#D8E5DC] bg-white focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+              />
+            </div>
+          </div>
+        </div>
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-sm font-semibold text-[#3A5544]">Jenis layanan</legend>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={() => setFilterTab('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            aria-pressed={filterTab === 'all'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all ${
               filterTab === 'all'
                 ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
@@ -303,40 +331,33 @@ export const DaftarAplikasi: React.FC = () => {
           <button
             type="button"
             onClick={() => setFilterTab('sso')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            aria-pressed={filterTab === 'sso'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all flex items-center gap-2 ${
               filterTab === 'sso'
                 ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
             }`}
           >
-            <LinkIcon className="w-3.5 h-3.5" />
+            <LinkIcon className="w-4 h-4 shrink-0" />
             <span>Aplikasi SSO ({ssoApps.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setFilterTab('non-sso')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            aria-pressed={filterTab === 'non-sso'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all flex items-center gap-2 ${
               filterTab === 'non-sso'
                 ? 'bg-[#166534] text-white shadow-sm'
                 : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
             }`}
           >
-            <GlobeAltIcon className="w-3.5 h-3.5" />
+            <GlobeAltIcon className="w-4 h-4 shrink-0" />
             <span>Non-SSO / Mandiri ({directories.length})</span>
           </button>
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-          <input
-            type="text"
-            placeholder="Cari aplikasi atau portal..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#D8E5DC] bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#166534]/20 focus:border-[#166534] transition"
-          />
-        </div>
-      </div>
+          </div>
+        </fieldset>
+        <p className="text-sm text-[#64748B] break-words">Jenis layanan: {filterTab === 'all' ? 'Semua' : filterTab === 'sso' ? 'Aplikasi SSO' : 'Non-SSO / Mandiri'}{searchQuery && ` · Pencarian: ${searchQuery}`}</p>
+      </section>
 
       {error && (
         <div className="flex items-start gap-2.5 rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] px-4 py-3 text-xs font-medium text-[#B91C1C]">
@@ -441,7 +462,7 @@ export const DaftarAplikasi: React.FC = () => {
                         type="button"
                         onClick={() => handleLaunchApp(app)}
                         disabled={redirectingAppId === app.id}
-                        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] text-xs font-bold transition-all ${
+                        className={`w-full min-h-[44px] flex items-center justify-center gap-2 py-3 px-4 rounded-[8px] text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all ${
                           isLocked
                             ? 'bg-[#F1F5F2] hover:bg-[#E2E8F0] text-[#64748B] border border-[#D8E5DC]'
                             : 'bg-[#166534] hover:bg-[#14532D] text-white shadow-sm hover:shadow-sm'
@@ -455,9 +476,9 @@ export const DaftarAplikasi: React.FC = () => {
                               : 'Buka Aplikasi'}
                         </span>
                         {isLocked ? (
-                          <LockClosedIcon className="w-3.5 h-3.5" />
+                          <LockClosedIcon className="w-4 h-4 shrink-0" />
                         ) : (
-                          <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                          <ArrowTopRightOnSquareIcon className="w-4 h-4 shrink-0" />
                         )}
                       </button>
                     </div>
@@ -529,10 +550,10 @@ export const DaftarAplikasi: React.FC = () => {
                     href={dir.urlTarget}
                     target={dir.isExternal ? '_blank' : '_self'}
                     rel={dir.isExternal ? 'noopener noreferrer' : undefined}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-[10px] bg-[#F1F5F2] hover:bg-[#166534] text-[#1E293B] hover:text-white text-xs font-semibold transition group-hover:border-[#166534] border border-[#D8E5DC]"
+                    className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 px-4 rounded-[8px] bg-[#F1F5F2] hover:bg-[#166534] text-[#1E293B] hover:text-white text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 group-hover:border-[#166534] border border-[#D8E5DC]"
                   >
                     <span>Kunjungi Portal</span>
-                    <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4 shrink-0" />
                   </a>
                 </div>
               ))}
