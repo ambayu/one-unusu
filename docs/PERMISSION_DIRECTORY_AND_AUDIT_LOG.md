@@ -104,7 +104,20 @@ export const PERMISSION_CATALOG = [
 
 ---
 
-### 2.4 Fungsionalitas Antarmuka (`src/client/pages/admin/Izin.tsx`)
+### 2.4 Fungsionalitas Antarmuka (diperbarui 2026-11-17)
+
+#### Keputusan akses aplikasi per peran (2026-11-18)
+
+- Kelompok **Akses Aplikasi** pada `/admin/peran/:id/izin` menautkan aplikasi terdaftar ke peran ONE UNUSU, bukan mendaftarkan anggota satu per satu.
+- Pemetaan menggunakan `SsoApp.targetRoles` yang sudah tersedia; kode peran dicocokkan persis dengan salah satu peran pengguna. Hak masuk tidak memberikan izin tindakan internal aplikasi.
+- Pemeriksaan server-ke-server `POST /api/v2/website/check-access` menerima `client_id`, `client_key`, dan `user_id`; keputusan memakai status pengguna, status aplikasi, serta peran terbaru. Tidak mengembalikan profil atau kredensial.
+- LPM/LPPM adalah sasaran penyesuaian gerbang keanggotaan pertama. Gerbang legacy aplikasi cabang lain harus diaudit sebelum menganggap role kustom otomatis didukung seluruh ekosistem.
+
+Penautan izin dibuka dari `/admin/peran` (`Peran.tsx`): pilih **Atur Izin** untuk menuju halaman khusus `/admin/peran/:id/izin` (`PeranIzin.tsx`, `AdminPanelTemplate`). Izin dikelompokkan berdasarkan modul/resource. Centang izin lalu **Simpan Izin**; setiap penyimpanan hanya memperbarui peran tersebut. Katalog dan izin peran dimuat ulang saat halaman dibuka; kegagalan memuat memblokir penyimpanan. Diperlukan `role:menu` untuk halaman Peran, `role:view` untuk daftar peran, `permission:view` untuk katalog, dan `permission:edit` untuk menautkan. Otorisasi serta anti-eskalasi pada server tidak berubah.
+
+Halaman `/admin/izin` (`Izin.tsx`) hanya mengelola katalog, jumlah peran tertaut, filter, tambah, sinkronisasi, dan pembersihan izin. Matriks lintas peran di bawah merupakan catatan implementasi lama, bukan antarmuka aktif.
+
+#### Riwayat: matriks lama
 
 1. **Matriks Dua Dimensi (Grid Roles vs Permissions)**:
    - Sumbu Vertikal: Daftar izin dikelompokkan berdasarkan `resource` (Dashboard, User, SSO, Direktori, dsb.) dengan tag badge warna untuk `action` (Menu = Biru `#EFF6FF`, View = Hijau `#F0FDF4`, Edit = Kuning `#FEF3C7`, Delete = Merah `#FEE2E2`).

@@ -1,5 +1,28 @@
 # Changelog - Admin Panel
 
+## [2026-11-18] - Tombol kembali pada penautan izin
+
+- Keputusan pengguna: pilihan aplikasi ditautkan per peran ONE UNUSU, bukan per anggota cabang. Menggunakan `SsoApp.targetRoles` tanpa perubahan skema; izin tindakan internal aplikasi tidak digabungkan dengan hak masuk.
+
+- Tombol **Kembali ke Peran** berada di kanan atas header judul `/admin/peran/:id/izin`, melalui slot `headerAction` pada template panel.
+
+## [2026-11-17] - Penautan izin per peran
+
+- **Atur Izin** membuka halaman khusus `/admin/peran/:id/izin`, bukan editor di bawah daftar peran. Izin dikelompokkan berdasarkan modul/resource dengan checkbox dan satu tombol simpan untuk peran terpilih; menggunakan `AdminPanelTemplate`.
+
+- `/admin/peran` menyediakan tombol **Atur Izin** pada setiap peran; katalog dan penautan terbaru dimuat sebelum menyimpan hanya peran terpilih.
+- `/admin/izin` menjadi katalog izin tanpa checkbox penautan maupun simpan matriks. Filter, tambah, sinkronisasi, dan pembersihan katalog tetap tersedia.
+- Penautan tetap memakai `PUT /api/admin/roles/:id/permissions`, membutuhkan `permission:edit` dan pembacaan katalog `permission:view`; tidak mengubah otorisasi server maupun data secara otomatis.
+
+## [2026-11-17] - Direktori pengguna terpadu dan parameter API
+
+- Atas persetujuan operator, route dan record katalog `/users/by-ids` dihapus; referensi pada lima API key dipindahkan ke `/users` dalam transaksi. Credential dan log tetap dipertahankan. Kolom parameter hanya menampilkan nama parameter.
+
+- `POST /api/v2/website/users` menerima `ids` (1–50 ID) sebagai alternatif penelusuran `search`, `role`, `fakultas`, `prodi`, dan `limit`. Mode ID tidak digabung dengan filter penelusuran; status nonaktif tetap dikirim agar aplikasi cabang dapat memvalidasinya.
+- LPM/LPPM memakai endpoint terpadu. `/users/by-ids` menjadi alias kompatibilitas, bukan implementasi terpisah.
+- Katalog API Hub menampilkan kolom Parameter / Filter dengan daftar biasa; keterangan lama bahwa search wajib dikoreksi pada tampilan endpoint pengguna.
+- Seeder hanya mendaftarkan endpoint pengguna terpadu untuk instalasi baru. Database lama, API key, dan riwayat penggunaan tidak dihapus atau diubah otomatis; entri alias lama tetap ditampilkan dengan petunjuk migrasi sampai katalog diselaraskan atas persetujuan operator.
+
 ## [2026-11-16] - API Hub: Data Organisasi & Perbaikan Izin Superadmin LPM
 
 ### Added

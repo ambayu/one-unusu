@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildSsoAppDefinitions, LOCAL_DEV_CALLBACKS } from "../src/server/lib/ssoApps.js";
 
-const options = { publicBaseUrl: "http://localhost:5173", prodiBaseUrl: "" };
+const options = { publicBaseUrl: "http://localhost:5183", prodiBaseUrl: "" };
 const suffixes = ["UNUSU_LMS", "LPPM_UNUSU", "LPM_UNUSU", "ESURAT_UNUSU", "SDM_SARPRAS", "UNUSU_AKREDITASI", "PRODI_UNUSU", "BAKSA_UNUSU", "BAKSI_UNUSU"];
 const callbacks = Object.fromEntries(suffixes.map((suffix) => [
   `SSO_CALLBACK_URL_${suffix}`, `https://${suffix.toLowerCase().replaceAll("_", "-")}.example.org/sso/callback`,
@@ -10,6 +10,8 @@ const callbacks = Object.fromEntries(suffixes.map((suffix) => [
 
 const local = buildSsoAppDefinitions({}, { ...options, mode: "local" });
 assert.equal(local.length, 9);
+const frontendPorts = [new URL(options.publicBaseUrl).port, ...local.map((app) => new URL(app.urlRedirect).port)];
+assert.equal(new Set(frontendPorts).size, frontendPorts.length, "Port portal dan callback aplikasi harus berbeda");
 for (const app of local) assert.equal(app.urlRedirect, LOCAL_DEV_CALLBACKS[app.clientId]);
 assert.equal(buildSsoAppDefinitions({}, options)[0].urlRedirect, local[0].urlRedirect);
 assert.equal(buildSsoAppDefinitions({ SSO_CALLBACK_URL_UNUSU_LMS: " http://localhost:6200/sso/callback " }, options)[0].urlRedirect, "http://localhost:6200/sso/callback");

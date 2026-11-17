@@ -10,6 +10,7 @@ interface AdminPanelTemplateProps {
   description: string;
   onRefresh?: () => void;
   refreshing?: boolean;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -26,6 +27,7 @@ export const AdminPanelTemplate: React.FC<AdminPanelTemplateProps> = ({
   description,
   onRefresh,
   refreshing = false,
+  headerAction,
   children,
 }) => (
   <PanelPageTemplate
@@ -36,6 +38,7 @@ export const AdminPanelTemplate: React.FC<AdminPanelTemplateProps> = ({
     description={description}
     onRefresh={onRefresh}
     refreshing={refreshing}
+    headerAction={headerAction}
   >
     {children}
   </PanelPageTemplate>

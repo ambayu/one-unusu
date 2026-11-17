@@ -99,6 +99,8 @@ async function main() {
   // ==========================================
   // 2. SEED REGISTRY APLIKASI SSO (CABANG)
   // ==========================================
+  // Lokal: frontend ONE http://localhost:5183, API 5000; port 5178 khusus Sarpras.
+  // Callback cabang bersumber dari src/server/lib/ssoApps.ts; ONE adalah issuer, bukan cabang.
   console.log("Registering SSO Client Apps...");
 
   // Hapus aplikasi LMS lama jika masih ada

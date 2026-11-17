@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   LockClosedIcon,
   PencilSquareIcon,
@@ -58,6 +59,9 @@ export const Peran: React.FC = () => {
 
   const canEdit = hasPermission(currentUser, PERMISSIONS.roleEdit);
   const canDelete = hasPermission(currentUser, PERMISSIONS.roleDelete);
+  const canAssignPermissions = hasPermission(currentUser, PERMISSIONS.permissionView)
+    && hasPermission(currentUser, PERMISSIONS.permissionEdit);
+
 
   const loadRoles = useCallback(async () => {
     try {
@@ -190,7 +194,7 @@ export const Peran: React.FC = () => {
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-[11px] text-[#64748B]">
-          Peran sistem tidak dapat dihapus. Penyesuaian izin dilakukan pada menu Izin.
+          Peran sistem tidak dapat dihapus. Pilih Atur Izin untuk menautkan izin pada setiap peran.
         </p>
 
         {canEdit && (
@@ -253,8 +257,16 @@ export const Peran: React.FC = () => {
                 </span>
               </div>
 
-              {(canEdit || canDelete) && (
+              {(canEdit || canDelete || canAssignPermissions) && (
                 <div className="flex items-center gap-2 pt-2 border-t border-[#E8EFEA]">
+                  {canAssignPermissions && (
+                    <Link
+                      to={`/admin/peran/${role.id}/izin`}
+                      className="px-2.5 py-1.5 rounded-[7px] bg-[#F0FDF4] text-[#166534] font-semibold text-[11px]"
+                    >
+                      Atur Izin
+                    </Link>
+                  )}
                   {canEdit && (
                     <button
                       onClick={() => openEditForm(role)}

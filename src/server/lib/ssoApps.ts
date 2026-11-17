@@ -216,6 +216,7 @@ export function buildSsoAppDefinitions(
  * `clientKey` hanya ditimpa bila nilai barunya tidak kosong. Tanpa penjagaan
  * ini, sinkronisasi dengan `.env` yang belum diisi akan menghapus kunci yang
  * sudah disetel lewat panel admin dan mematikan login aplikasi tersebut.
+ * Pemetaan targetRoles yang sudah tersimpan hanya diubah melalui panel admin.
  */
 export async function seedSsoApps(
   prisma: PrismaClient,
@@ -225,7 +226,7 @@ export async function seedSsoApps(
   let updatedCount = 0;
 
   for (const app of apps) {
-    const { clientKey, ...metadata } = app;
+    const { clientKey, targetRoles: _targetRoles, ...metadata } = app;
 
     const existing = await prisma.ssoApp.findUnique({
       where: { clientId: app.clientId },

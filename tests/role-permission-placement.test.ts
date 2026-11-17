@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const roles = readFileSync(new URL('../src/client/pages/admin/Peran.tsx', import.meta.url), 'utf8');
+const catalog = readFileSync(new URL('../src/client/pages/admin/Izin.tsx', import.meta.url), 'utf8');
+const editor = readFileSync(new URL('../src/client/pages/admin/PeranIzin.tsx', import.meta.url), 'utf8');
+const routes = readFileSync(new URL('../src/client/App.tsx', import.meta.url), 'utf8');
+assert.match(editor, /updateAdminRolePermissions\(role\.id, keys\)/);
+assert.match(editor, /updateAdminRoleApps\(role\.id, appIds\)/);
+assert.match(editor, /fetchAdminRoleApps\(Number\(id\)\)/);
+assert.match(editor, /Akses Aplikasi/);
+assert.match(editor, /index \+ 1/);
+assert.match(roles, /PERMISSIONS\.permissionEdit/);
+assert.match(roles, /PERMISSIONS\.permissionView/);
+assert.match(editor, /selected\.permissionKeys/);
+assert.match(editor, /permission\.resource === resource/);
+assert.match(editor, /<fieldset/);
+assert.match(routes, /path="\/admin\/peran\/:id\/izin"/);
+assert.doesNotMatch(roles, /updateAdminRolePermissions/);
+assert.match(roles, /Atur Izin/);
+assert.doesNotMatch(catalog, /updateAdminRolePermissions|togglePermission|dirtyRoleIds/);
+console.log('PASS: penautan izin hanya tersedia per peran, katalog tidak mengubah penautan.');

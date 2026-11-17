@@ -9,7 +9,9 @@ import path from "path";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
+import { decideAppAccess, mapAppRole, parseAppRoles } from "./lib/appAccess.js";
+import { validasiIdsPengguna } from "./lib/websiteUsers.js";
 import { TINGKAT_MASUK, type TingkatMasuk } from "./lib/accessControl.js";
 import {
   MAKS_UKURAN_BERKAS,
@@ -530,42 +532,9 @@ async function bolehMelihatClientKey(req: AuthRequest): Promise<boolean> {
   return keys.includes("application:edit");
 }
 
-/**
- * Keputusan akses satu pengguna ke satu aplikasi cabang.
- *
- * Sumber kebenaran sekarang HANYA peran kampus pengguna, sejalan dengan model
- * akses per-aplikasi: setiap aplikasi cabang punya tabel pengguna dan peran
- * sendiri, dan keanggotaan di sana (bukan izin global) yang menentukan akses.
- *
- * Karena itu langkah ini bersifat PENDAHULUAN: tujuannya menolak lebih awal
- * pengguna yang jelas tidak berhak, agar tiket SSO tidak diterbitkan. Aplikasi
- * cabang tetap memvalidasi ulang keanggotaannya sendiri saat menukar tiket �
- * keputusan akhir selalu milik aplikasi tujuan.
- *
- * - SUPERADMIN/ADMIN_SSO: selalu lolos (jaring pengaman ekosistem).
- * - Peran berawalan ADMIN_ (admin unit): lolos sebagai `admin`.
- * - DOSEN / MAHASISWA: lolos bila aplikasi menerima tingkat tersebut.
- *
- * `permissionKeys` tidak lagi dibaca: izin `masuk_*` sudah dihapus dari katalog
- * karena tidak pernah menjadi pembeda antar-aplikasi.
- */
-type AppAccessReason = "permission-allowed" | "permission-denied";
-
-interface AppAccessDecision {
-  allowed: boolean;
-  reason: AppAccessReason;
-  /** Tingkat masuk yang dimiliki pengguna, mis. ["admin"] atau ["dosen"]. */
-  tingkat: TingkatMasuk[];
-}
-
+// Tingkat masuk berikut hanya metadata kompatibilitas, bukan keputusan otorisasi.
 function parseTargetRoles(targetRolesRaw: string | null | undefined): string[] {
-  if (!targetRolesRaw) return [];
-  try {
-    const parsed = JSON.parse(targetRolesRaw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return parseAppRoles(targetRolesRaw) ?? [];
 }
 
 function tingkatDiterimaAplikasi(targetRoles: string[]): TingkatMasuk[] {
@@ -580,46 +549,6 @@ function tingkatDiterimaAplikasi(targetRoles: string[]): TingkatMasuk[] {
     result.push("mahasiswa");
   }
   return result;
-}
-
-/** Tingkat masuk yang dimiliki pengguna, diturunkan dari PERAN kampusnya. */
-function tingkatMasukDimiliki(userRoleCodes: string[]): TingkatMasuk[] {
-  const kode = userRoleCodes.map((r) => r.toUpperCase());
-  if (kode.includes("SUPERADMIN") || kode.includes("ADMIN_SSO")) {
-    return ["admin", "fakultas", "dosen", "mahasiswa"];
-  }
-  if (kode.some((r) => r.startsWith("ADMIN_"))) return ["admin"];
-  const hasil: TingkatMasuk[] = [];
-  if (kode.includes("DOSEN")) hasil.push("dosen");
-  if (kode.includes("MAHASISWA")) hasil.push("mahasiswa");
-  return hasil;
-}
-
-function decideAppAccess(
-  _permissionKeys: string[],
-  targetRolesRaw: string | null | undefined,
-  userRoleCodes: string[] = []
-): AppAccessDecision {
-  // SUPERADMIN dan ADMIN_SSO memiliki hak akses penuh ke seluruh peluncur aplikasi SSO
-  if (userRoleCodes.includes("SUPERADMIN") || userRoleCodes.includes("ADMIN_SSO")) {
-    return {
-      allowed: true,
-      reason: "permission-allowed",
-      tingkat: ["admin"],
-    };
-  }
-
-  const appRoles = parseTargetRoles(targetRolesRaw);
-  const tingkatApp = tingkatDiterimaAplikasi(appRoles);
-  const tingkatUser = tingkatMasukDimiliki(userRoleCodes);
-
-  const tingkatCocok = tingkatUser.filter((t) => tingkatApp.includes(t));
-
-  return {
-    allowed: tingkatCocok.length > 0,
-    reason: tingkatCocok.length > 0 ? "permission-allowed" : "permission-denied",
-    tingkat: tingkatCocok,
-  };
 }
 
 /**
@@ -2079,6 +2008,33 @@ app.get("/api/sso/app-client/:clientId/v2/redirect", authenticateToken, writeLim
   }
 });
 
+app.post("/api/v2/website/check-access", serverToServerLimiter, async (req: Request, res: Response) => {
+  try {
+    const body = isPlainObject(req.body) ? req.body : {};
+    const { client_id, client_key, user_id } = body;
+    if (typeof client_id !== "string" || !client_id || client_id.length > 100 ||
+        typeof client_key !== "string" || !client_key || client_key.length > 200 ||
+        typeof user_id !== "number" || !Number.isSafeInteger(user_id) || user_id <= 0) {
+      return res.status(422).json({ status: false, message: "Parameter client_id, client_key, atau user_id tidak valid." });
+    }
+    const ssoApp = await prisma.ssoApp.findFirst({
+      where: { clientId: client_id, clientKey: client_key, isActive: true },
+      select: { targetRoles: true }
+    });
+    if (!ssoApp) return res.status(401).json({ status: false, message: "Kredensial aplikasi tidak valid." });
+    const user = await prisma.user.findUnique({
+      where: { id: user_id },
+      select: { isActive: true, roles: { select: { role: { select: { code: true } } } } }
+    });
+    if (!user || !user.isActive) return res.status(403).json({ status: false, message: "Pengguna tidak aktif atau tidak ditemukan." });
+    const roles = user.roles.map((item) => item.role.code);
+    return res.json({ status: true, data: { allowed: decideAppAccess([], ssoApp.targetRoles, roles).allowed, roles } });
+  } catch {
+    logServerError("POST /api/v2/website/check-access", new Error("Access check failed"));
+    return res.status(500).json({ status: false, message: "Gagal memeriksa akses aplikasi." });
+  }
+});
+
 // POST /api/v2/website/verify-token (Dipanggil Server-to-Server oleh LMS, LPPM, E-Surat, dll.)
 app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Request, res: Response) => {
   try {
@@ -2191,9 +2147,7 @@ app.post("/api/v2/website/verify-token", serverToServerLimiter, async (req: Requ
     const roleCodes = user.roles.map((ur) => ur.role.code);
     const primaryRole = roleCodes.includes("SUPERADMIN") ? "SUPERADMIN" : (roleCodes[0] ?? "");
 
-    // 6. Penegakan Otorisasi Aplikasi Tujuan (Fail-Closed)
-    //    Sumber: izin masuk global milik pengguna (masuk_*) di
-    //    `role_permissions`, diiriskan dengan `targetRoles` aplikasi.
+    // Akses masuk memakai kode peran persis; izin tindakan tetap terpisah.
     const verifyPermissionKeys = await getUserPermissionKeys(user.id);
     const verifyDecision = decideAppAccess(verifyPermissionKeys, ssoApp.targetRoles, roleCodes);
 
@@ -3714,6 +3668,76 @@ app.put("/api/admin/roles/:id", authenticateToken, requirePermission("role:edit"
   } catch (error: any) {
     logServerError("PUT /api/admin/roles/:id", error);
     res.status(500).json({ status: false, message: "Gagal memperbarui peran." });
+  }
+});
+
+app.get("/api/admin/roles/:id/apps", authenticateToken, requirePermission("role:view"), requirePermission("permission:view"), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!/^[1-9]\d*$/.test(String(req.params.id)) || !Number.isSafeInteger(id)) {
+      return res.status(422).json({ status: false, message: "ID peran tidak valid." });
+    }
+    const role = await prisma.role.findUnique({ where: { id }, select: { code: true } });
+    if (!role) return res.status(404).json({ status: false, message: "Peran tidak ditemukan." });
+    const ownRoles = await getUserRoleCodes(req.user!.id);
+    const apps = await prisma.ssoApp.findMany({
+      orderBy: [{ order: "asc" }, { id: "asc" }],
+      select: { id: true, nameApp: true, isActive: true, targetRoles: true }
+    });
+    return res.json({ status: true, data: apps.map((app) => ({
+      id: app.id, nameApp: app.nameApp, isActive: app.isActive,
+      selected: parseTargetRoles(app.targetRoles).includes(role.code),
+      canGrant: app.isActive && decideAppAccess([], app.targetRoles, ownRoles).allowed
+    })) });
+  } catch (error: unknown) {
+    logServerError("GET /api/admin/roles/:id/apps", error);
+    return res.status(500).json({ status: false, message: "Gagal memuat akses aplikasi." });
+  }
+});
+
+app.put("/api/admin/roles/:id/apps", authenticateToken, requirePermission("role:view"), requirePermission("permission:view"), requirePermission("permission:edit"), writeLimiter, async (req: AuthRequest, res: Response) => {
+  const conflict = new Error("Application mappings changed concurrently");
+  try {
+    const id = Number(req.params.id);
+    const body = isPlainObject(req.body) ? req.body : {};
+    const rawIds: unknown = body.appIds;
+    if (!/^[1-9]\d*$/.test(String(req.params.id)) || !Number.isSafeInteger(id) || !Array.isArray(rawIds) ||
+        rawIds.length > 500 || rawIds.some((value) => typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0)) {
+      return res.status(422).json({ status: false, message: "ID peran atau daftar aplikasi tidak valid." });
+    }
+    const appIds = new Set(rawIds as number[]);
+    const result = await prisma.$transaction(async (tx) => {
+      const role = await tx.role.findUnique({ where: { id }, select: { code: true } });
+      if (!role) return { status: 404, message: "Peran tidak ditemukan." };
+      const actor = await tx.user.findUnique({ where: { id: req.user!.id }, select: {
+        roles: { select: { role: { select: { code: true } } } }
+      } });
+      const ownRoles = actor?.roles.map((item) => item.role.code) ?? [];
+      const apps = await tx.ssoApp.findMany({ select: { id: true, isActive: true, targetRoles: true } });
+      if ([...appIds].some((appId) => !apps.some((app) => app.id === appId && app.isActive))) {
+        return { status: 422, message: "Aplikasi harus terdaftar dan aktif." };
+      }
+      const changed = apps.filter((app) => app.isActive && parseTargetRoles(app.targetRoles).includes(role.code) !== appIds.has(app.id));
+      if (changed.some((app) => !decideAppAccess([], app.targetRoles, ownRoles).allowed)) {
+        return { status: 403, message: "Anda tidak dapat mengubah akses aplikasi yang tidak Anda miliki." };
+      }
+      if (changed.some((app) => !parseAppRoles(app.targetRoles))) {
+        return { status: 422, message: "Konfigurasi peran aplikasi tidak valid." };
+      }
+      for (const app of changed) {
+        const updated = await tx.ssoApp.updateMany({
+          where: { id: app.id, isActive: true, targetRoles: app.targetRoles },
+          data: { targetRoles: mapAppRole(app.targetRoles, role.code, appIds.has(app.id)) }
+        });
+        if (updated.count !== 1) throw conflict;
+      }
+      return { status: 200, message: "Akses aplikasi peran berhasil diperbarui." };
+    });
+    return res.status(result.status).json({ status: result.status === 200, message: result.message });
+  } catch (error: unknown) {
+    if (error === conflict) return res.status(409).json({ status: false, message: "Akses berubah bersamaan. Muat ulang dan coba kembali." });
+    logServerError("PUT /api/admin/roles/:id/apps", error);
+    return res.status(500).json({ status: false, message: "Gagal menyimpan akses aplikasi." });
   }
 });
 
@@ -5995,7 +6019,7 @@ const wajibApiKey = (endpointWajib: string) => {
  * Dipakai LPM/LPPM/Prodi/BAKSI/BAKSA agar Admin aplikasi tidak perlu mengetik
  * pengguna secara manual — cukup memilih orang yang memang sudah ada.
  *
- * Mendukung tiga cara pakai:
+ * Mendukung empat cara pakai:
  *
  * 1. **Kotak pencarian** — `search` minimal 2 karakter, mencari pada nama,
  *    username, NIDN, NIP, NIM, dan email.
@@ -6005,6 +6029,8 @@ const wajibApiKey = (endpointWajib: string) => {
  * 3. **Penelusuran awal** — tanpa `search` sama sekali, endpoint tetap menjawab
  *    (maksimal 20 baris) supaya tabel langsung terisi begitu halaman dibuka.
  *    Sebelumnya ini ditolak 422 dan tabel tampak kosong sampai admin mengetik.
+ * 4. **Berdasarkan ID** — `ids` berisi 1–50 angka ID valid, tanpa filter lain;
+ *    mengembalikan akun aktif maupun nonaktif beserta ID yang tidak ditemukan.
  *
  * Yang dikembalikan hanya data pengenalan diri. Izin, kata sandi, NIK, dan
  * tanggal lahir sengaja TIDAK dikirim: aplikasi cabang tidak berhak
@@ -6013,13 +6039,14 @@ const wajibApiKey = (endpointWajib: string) => {
  */
 const BATAS_MAKS_USERS_API = 20;
 
-app.post(
-  "/api/v2/website/users",
-  serverToServerLimiter,
-  wajibApiKey("/api/v2/website/users"),
-  async (req: AuthRequest, res: Response) => {
+const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
     try {
       const body = isPlainObject(req.body) ? req.body : {};
+      const validasi = validasiIdsPengguna(body);
+      if (validasi.error) {
+        return res.status(422).json({ status: false, message: validasi.error });
+      }
+      const daftarId = validasi.ids;
       const search = typeof body.search === "string" ? body.search.trim() : "";
       const filterRole = typeof body.role === "string" ? body.role.trim().toUpperCase() : "";
       const filterFakultas = typeof body.fakultas === "string" ? body.fakultas.trim() : "";
@@ -6044,7 +6071,7 @@ app.post(
         : BATAS_MAKS_USERS_API;
 
       // Syarat disusun bertingkat; setiap filter hanya ikut bila benar-benar diisi.
-      const syarat: any[] = [{ isActive: true }];
+      const syarat: Prisma.UserWhereInput[] = [{ isActive: true }];
 
       if (search.length >= 2) {
         syarat.push({
@@ -6066,7 +6093,9 @@ app.post(
         syarat.push({ roles: { some: { role: { code: filterRole } } } });
       }
 
-      const where = syarat.length === 1 ? syarat[0] : { AND: syarat };
+      const where: Prisma.UserWhereInput = daftarId
+        ? { id: { in: daftarId } }
+        : { AND: syarat };
 
       const rows = await prisma.user.findMany({
         where,
@@ -6087,7 +6116,7 @@ app.post(
           roles: { select: { role: { select: { code: true } } } },
         },
         orderBy: { nama: "asc" },
-        take: limit,
+        take: daftarId ? undefined : limit,
       });
 
       const data = rows.map((u) => {
@@ -6114,7 +6143,11 @@ app.post(
       return res.json({
         status: true,
         data,
-        meta: {
+        meta: daftarId ? {
+          total: data.length,
+          diminta: daftarId.length,
+          tidakDitemukan: daftarId.filter((id) => !data.some((u) => u.id === id)),
+        } : {
           total: data.length,
           limit,
           search,
@@ -6125,106 +6158,17 @@ app.post(
           terpotong: data.length >= limit,
         },
       });
-    } catch (error: any) {
-      logServerError("POST /api/v2/website/users", error);
+    } catch (error: unknown) {
+      logServerError(`POST ${req.path}`, error);
       return res.status(500).json({ status: false, message: "Gagal mencari pengguna." });
     }
-  }
-);
+};
 
-/**
- * POST /api/v2/website/users/by-ids
- *
- * Mengambil sekumpulan pengguna berdasarkan **id**-nya, bukan namanya.
- *
- * Dibutuhkan saat aplikasi cabang menyimpan pilihan dari tabel "Tambah
- * Pengguna". Verifikasi berbasis nama tidak dapat dipercaya: nama di SIAKAD
- * kerap mengandung awalan gelar atau tanda baca (mis. `-. EMI RACHMI, SKM`)
- * sehingga pencarian atas nama itu sendiri bisa gagal menemukan orang yang
- * baru saja ditampilkan. Id tidak punya masalah semacam itu.
- *
- * Dibatasi 50 id per panggilan supaya tidak dapat dipakai untuk mengunduh
- * seluruh direktori sekaligus.
- */
 app.post(
-  "/api/v2/website/users/by-ids",
+  "/api/v2/website/users",
   serverToServerLimiter,
-  wajibApiKey("/api/v2/website/users/by-ids"),
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const body = isPlainObject(req.body) ? req.body : {};
-      const mentah: unknown[] = Array.isArray(body.ids) ? body.ids : [];
-
-      const daftarId = Array.from(
-        new Set(
-          mentah
-            .map((n) => Number(n))
-            .filter((n): n is number => Number.isInteger(n) && n > 0)
-        )
-      ).slice(0, 50);
-
-      if (daftarId.length === 0) {
-        return res.status(422).json({
-          status: false,
-          message: "Parameter `ids` wajib berisi minimal satu id pengguna.",
-        });
-      }
-
-      const rows = await prisma.user.findMany({
-        where: { id: { in: daftarId } },
-        select: {
-          id: true,
-          username: true,
-          nama: true,
-          email: true,
-          noHp: true,
-          nim: true,
-          nidn: true,
-          nip: true,
-          fakultas: true,
-          prodi: true,
-          jenisKelamin: true,
-          avatar: true,
-          isActive: true,
-          roles: { select: { role: { select: { code: true } } } },
-        },
-        orderBy: { nama: "asc" },
-      });
-
-      const data = rows.map((u) => {
-        const kodePeran = u.roles.map((r) => r.role.code);
-        return {
-          id: u.id,
-          username: u.username,
-          nama: u.nama,
-          email: u.email,
-          noHp: u.noHp,
-          nim: u.nim,
-          nidn: u.nidn,
-          nip: u.nip,
-          fakultas: u.fakultas,
-          prodi: u.prodi,
-          jenisKelamin: u.jenisKelamin,
-          avatar: u.avatar,
-          isActive: u.isActive,
-          role: kodePeran[0] ?? null,
-          roles: kodePeran,
-        };
-      });
-
-      const ditemukan = new Set(data.map((u) => u.id));
-      const tidakDitemukan = daftarId.filter((id) => !ditemukan.has(id));
-
-      return res.json({
-        status: true,
-        data,
-        meta: { total: data.length, diminta: daftarId.length, tidakDitemukan },
-      });
-    } catch (error: any) {
-      logServerError("POST /api/v2/website/users/by-ids", error);
-      return res.status(500).json({ status: false, message: "Gagal mengambil pengguna." });
-    }
-  }
+  wajibApiKey("/api/v2/website/users"),
+  tanganiDirektoriPengguna
 );
 
 /**
@@ -6484,4 +6428,3 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`🚀 ONE UNUSU SSO Central Gateway running on http://localhost:${PORT}`);
 });
-

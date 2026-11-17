@@ -54,7 +54,7 @@ npm run dev
 npm run dev:client
 ```
 
-> **Port tetap.** Dev client memakai port `5178` dengan `strictPort: true`. Bila port sedang dipakai, Vite gagal dengan jelas alih-alih diam-diam pindah port - karena URL callback SSO di database menunjuk angka yang pasti.
+> **Port tetap.** Dev client memakai port `5183` dengan `strictPort: true`; `5178` khusus Sarpras dan `5173` milik sikapi. Bila port sedang dipakai, Vite gagal tanpa berpindah otomatis.
 
 ### Production Build & Run
 ```bash

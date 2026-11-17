@@ -12,6 +12,7 @@ interface PanelPageTemplateProps {
   description: string;
   onRefresh?: () => void;
   refreshing?: boolean;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -36,6 +37,7 @@ export const PanelPageTemplate: React.FC<PanelPageTemplateProps> = ({
   description,
   onRefresh,
   refreshing = false,
+  headerAction,
   children,
 }) => (
   <div className="w-full min-w-0 bg-white border border-[#D8E5DC] rounded-[16px] shadow-sm overflow-hidden">
@@ -50,6 +52,7 @@ export const PanelPageTemplate: React.FC<PanelPageTemplateProps> = ({
         <p className="text-xs text-[#475569] mt-0.5">{description}</p>
       </div>
 
+      {headerAction}
       {onRefresh && (
         <button
           onClick={onRefresh}

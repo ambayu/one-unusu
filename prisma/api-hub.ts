@@ -50,29 +50,15 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
   {
     name: "Daftar Pengguna ONE UNUSU",
     description:
-      "Pencarian pengguna direktori kampus untuk aplikasi cabang. Dipakai LPM, LPPM, Portal Prodi, BAKSI, dan BAKSA saat admin memilih anggota. Parameter `search` wajib minimal 2 karakter.",
+      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, fakultas, prodi, limit (maksimal 20). Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan.",
     endpoint: "/api/v2/website/users",
     method: "POST",
     sourceApp: "ONE_UNUSU",
     category: "data",
     exampleRequest:
-      'POST /api/v2/website/users\nAuthorization: Bearer unusu_sec_...\n\n{"search":"sep","limit":10}',
+      'POST /api/v2/website/users\nAuthorization: Bearer unusu_sec_...\n\n{"search":"sep","role":"DOSEN","limit":10}\n\nAtau berdasarkan ID (tanpa filter lain):\n{"ids":[38,50]}',
     exampleResponse:
       '{"status":true,"data":[{"id":12,"username":"septi","nama":"SEPTIARINI ZULIATI","email":"septi@unusu.ac.id","noHp":"08...","nim":null,"nidn":"...","nip":null,"fakultas":"Fakultas Ilmu Komputer","prodi":"Teknik Informatika","jenisKelamin":"P","avatar":null,"isActive":true}],"meta":{"total":1,"limit":10,"search":"sep"}}',
-    isPublic: false,
-  },
-  {
-    name: "Daftar Pengguna ONE UNUSU (berdasarkan ID)",
-    description:
-      "Mengambil sekumpulan pengguna berdasarkan id-nya, maksimal 50 per panggilan. Dipakai aplikasi cabang untuk memverifikasi pilihan dari tabel Tambah Pengguna, karena verifikasi berbasis nama gagal pada nama yang mengandung gelar atau tanda baca.",
-    endpoint: "/api/v2/website/users/by-ids",
-    method: "POST",
-    sourceApp: "ONE_UNUSU",
-    category: "data",
-    exampleRequest:
-      'POST /api/v2/website/users/by-ids\nAuthorization: Bearer unusu_sec_...\n\n{"ids":[38,50]}',
-    exampleResponse:
-      '{"status":true,"data":[{"id":38,"username":"...","nama":"-. EMI RACHMI, SKM","email":"...","fakultas":"Fakultas Ilmu Kesehatan","prodi":"D3 Analis Kesehatan","role":"DOSEN","roles":["DOSEN"],"isActive":true}],"meta":{"total":1,"diminta":2,"tidakDitemukan":[50]}}',
     isPublic: false,
   },
   {
@@ -122,7 +108,6 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
     envKey: "lpm-unusu/.env → ONE_UNUSU_API_KEY",
     endpointDiizinkan: [
       "/api/v2/website/users",
-      "/api/v2/website/users/by-ids",
       "/api/v2/website/organisasi",
     ],
   },
@@ -134,7 +119,6 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
     envKey: "lppm-unusu/.env → ONE_UNUSU_API_KEY",
     endpointDiizinkan: [
       "/api/v2/website/users",
-      "/api/v2/website/users/by-ids",
       "/api/v2/website/organisasi",
     ],
   },
@@ -146,7 +130,6 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
     envKey: "prodi-unusu/.env → ONE_UNUSU_API_KEY",
     endpointDiizinkan: [
       "/api/v2/website/users",
-      "/api/v2/website/users/by-ids",
       "/api/v2/website/organisasi",
     ],
   },
@@ -158,7 +141,6 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
     envKey: "baksa-unusu/.env → ONE_UNUSU_API_KEY",
     endpointDiizinkan: [
       "/api/v2/website/users",
-      "/api/v2/website/users/by-ids",
       "/api/v2/website/organisasi",
     ],
   },
@@ -170,7 +152,6 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
     envKey: "baksi-unusu/.env → ONE_UNUSU_API_KEY",
     endpointDiizinkan: [
       "/api/v2/website/users",
-      "/api/v2/website/users/by-ids",
       "/api/v2/website/organisasi",
     ],
   },

@@ -67,8 +67,8 @@ Salin `.env.example` menjadi `.env` di root proyek, lalu sesuaikan:
 ```bash
 DATABASE_URL="mysql://root:@localhost:3306/one_unusu_db"
 JWT_SECRET="..."
-CORS_ORIGIN="http://localhost:5173,http://127.0.0.1:5173"
-DEV_PORT="5173"                # hanya server pengembangan Vite
+CORS_ORIGIN="http://localhost:5183,http://127.0.0.1:5183"
+DEV_PORT="5183"                # hanya server pengembangan Vite
 VITE_API_URL="http://localhost:5000/api"
 VITE_PUBLIC_PORTAL_URL="/sso/"   # opsional; default: halaman depan aplikasi
 ```
@@ -100,10 +100,10 @@ npm run db:seed:access
 npm run dev
 ```
 
-* Frontend: `http://localhost:5173`
+* Frontend: `http://localhost:5183`
 * Backend API: `http://localhost:5000/api`
 * `/api` diproksi oleh Vite saat mode pengembangan.
-* Port frontend ditetapkan `strictPort`, jadi Vite **gagal start** bila 5178 sudah dipakai - bukan diam-diam pindah port dan membuat CORS menolak tanpa penjelasan. Daftar port seluruh proyek ada di `D:\Project\LIST_PORT.md`.
+* Port frontend ditetapkan `strictPort`, jadi Vite **gagal start** bila 5183 sudah dipakai. Port 5178 milik Sarpras. Daftar port seluruh proyek ada di `D:\Project\LIST_PORT.md`.
 
 ---
 

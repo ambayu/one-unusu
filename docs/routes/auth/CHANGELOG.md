@@ -1,5 +1,12 @@
 # Changelog - Autentikasi SSO
 
+## [2026-11-17] — Port lokal tanpa bentrok
+
+- Frontend ONE dipindah ke 5183; 5178 tetap callback Sarpras, 5173 milik sikapi.
+- Referensi portal satelit, contoh environment, dan konfigurasi URL/CORS lokal diselaraskan tanpa mengubah credential, registry callback cabang, atau database.
+- Alokasi seluruh aplikasi dicatat di `D:\Project\LIST_PORT.md` dan `docs/LOCAL_PORTS.md`; Portal Web memakai 5184 agar tidak bertabrakan dengan devhub-ai di 3000.
+- Pemeriksaan registry callback menegakkan port portal dan sembilan callback lokal yang unik. Tidak menjalankan build, seed, atau restart layanan.
+
 ## [2026-11-17] — Kewajiban Ganti Kata Sandi Bawaan & Penutupan Celah Pengambilalihan Akun
 
 ### Added

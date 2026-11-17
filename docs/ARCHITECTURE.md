@@ -49,7 +49,7 @@ Setiap aplikasi internal UNUSU (LMS, E-Surat, dsb.) melakukan autentikasi terpus
 [ONE UNUSU Backend]  (src/server/index.ts)
   1. Verifikasi JWT sesi user lewat middleware `authenticateToken`.
   2. Cari `SsoApp` berdasarkan `clientId`, tolak jika tidak ada atau `isActive = false`.
-  3. Baca `targetRoles` (JSON string), petakan ke tingkat masuk yang diterima, lalu putuskan lewat `decideAppAccess(permissionKeys, targetRoles, roleCodes)`. Tolak `403` bila tidak lolos.
+  3. Baca `targetRoles` (JSON string) dan cocokkan kode peran persis dengan salah satu peran pengguna melalui keputusan akses bersama; tidak memakai kesamaan tingkat atau awalan peran. Tolak `403` bila tidak lolos, dengan pengecualian administrator pusat yang ditetapkan kebijakan.
   4. Bersihkan `SsoAuthToken` yang kedaluwarsa lebih dari 24 jam.
   5. Terbitkan token acak 64 karakter hex (`crypto.randomBytes(32)`).
   6. Simpan ke tabel `sso_auth_tokens`: token, userId, appId, clientId, expiresAt (+5 menit), isUsed.

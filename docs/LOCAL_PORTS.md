@@ -2,7 +2,7 @@
 
 ## Port dan URL aplikasi
 
-- Setiap aplikasi membaca `DEV_PORT` untuk port Vite; ONE memakai default lokal `5173`, cabang memakai default pada tabel berikut. Port harus integer 1–65535 dan tidak berpindah otomatis bila terpakai.
+- ONE UNUSU memakai port Vite **5183**, bukan 5173 (milik sikapi) atau 5178 (milik Sarpras). Aplikasi SSO membaca `DEV_PORT`; port harus integer 1–65535 dan tidak berpindah otomatis bila terpakai.
 - `DEV_API_TARGET` mengatur target proxy API saat development pada aplikasi yang memiliki backend Express.
 - Setiap frontend cabang membaca `VITE_ONE_UNUSU_URL` untuk alamat portal ONE. Isi URL publik sesuai deployment VPS sebelum build; nilai `VITE_*` tertanam saat build dan membutuhkan build ulang bila berubah.
 - Default localhost hanya untuk development. Atur `SSO_BASE_URL` pada backend cabang untuk endpoint server ONE, bukan alamat frontend; proxy/API path harus sesuai deployment.
@@ -23,6 +23,24 @@ Registry callback: `one-unusu/src/server/lib/ssoApps.ts`. Callback menggunakan e
 | BAKSI | `SSO_CALLBACK_URL_BAKSI_UNUSU` | `http://localhost:5182/sso/callback` |
 
 Override berlaku di lokal maupun VPS. Mengubah callback tidak mengubah port listener aplikasi: sesuaikan konfigurasi server/Vite dan reverse proxy secara terpisah.
+
+### Alokasi lokal tanpa bentrok (17 November 2026)
+
+| Aplikasi | API | Frontend |
+| --- | --- | --- |
+| ONE UNUSU | 5000 | 5183 |
+| LMS | 5003 | 5174 |
+| E-Surat | 5002 | 5175 |
+| LPPM | 5005 | 5176 |
+| LPM | 5004 | 5177 |
+| Sarpras | 5008 | 5178 |
+| Akreditasi | 5007 | 5179 |
+| Prodi | 5010 | 5180 |
+| BAKSA | 5011 | 5181 |
+| BAKSI | 5012 | 5182 |
+| Portal Web | 5006 | 5184 |
+
+Port 5173 tetap milik sikapi dan 3000 milik devhub-ai, sesuai `D:\Project\LIST_PORT.md`. Portal ONE bukan callback aplikasi cabang: registry seeder tetap memakai 5174–5182, tanpa perlu seed ulang. URL portal pada environment lokal dan contoh diselaraskan ke 5183. Restart dilakukan manual oleh operator; perubahan `.env` tidak otomatis dimuat ulang backend.
 
 ## Pemilihan lingkungan
 

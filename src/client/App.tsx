@@ -20,6 +20,7 @@ import { RegistrasiSso } from './pages/admin/RegistrasiSso';
 import { ManajemenPengguna } from './pages/admin/ManajemenPengguna';
 import { Izin } from './pages/admin/Izin';
 import { Peran } from './pages/admin/Peran';
+import { PeranIzin } from './pages/admin/PeranIzin';
 import { DirektoriPublik } from './pages/admin/DirektoriPublik';
 import { ManajemenSlider } from './pages/admin/ManajemenSlider';
 import { BerkasDosen } from './pages/admin/BerkasDosen';
@@ -440,6 +441,22 @@ export function App() {
                 <AdminPanelRoute>
                   <PermissionRoute permission={PERMISSIONS.roleMenu}>
                     <Peran />
+                  </PermissionRoute>
+                </AdminPanelRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/peran/:id/izin"
+            element={
+              <ProtectedRoute>
+                <AdminPanelRoute>
+                  <PermissionRoute permission={PERMISSIONS.roleMenu}>
+                    <PermissionRoute permission={PERMISSIONS.permissionView}>
+                      <PermissionRoute permission={PERMISSIONS.permissionEdit}>
+                        <PeranIzin />
+                      </PermissionRoute>
+                    </PermissionRoute>
                   </PermissionRoute>
                 </AdminPanelRoute>
               </ProtectedRoute>

@@ -378,6 +378,20 @@ export const syncAdminPermissions = () =>
 export const fetchAdminRoles = () =>
   api.get<{ status: boolean; data: RoleItem[] }>('/admin/roles');
 
+export interface RoleAppItem {
+  id: number;
+  nameApp: string;
+  isActive: boolean;
+  selected: boolean;
+  canGrant: boolean;
+}
+
+export const fetchAdminRoleApps = (id: number) =>
+  api.get<{ status: boolean; data: RoleAppItem[] }>(`/admin/roles/${id}/apps`);
+
+export const updateAdminRoleApps = (id: number, appIds: number[]) =>
+  api.put<{ status: boolean; message: string }>(`/admin/roles/${id}/apps`, { appIds });
+
 export const createAdminRole = (data: { code: string; name: string; description?: string }) =>
   api.post<{ status: boolean; message: string }>('/admin/roles', data);
 

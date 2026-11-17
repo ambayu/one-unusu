@@ -57,6 +57,14 @@ import {
 
 type TabId = 'endpoints' | 'keys' | 'logs';
 
+const PARAMETER_ENDPOINT: Record<string, readonly string[]> = {
+  'POST /api/v2/website/users': [
+    'ids', 'search', 'role', 'fakultas', 'prodi', 'limit',
+  ],
+  'GET /api/v2/website/organisasi': [],
+  'POST /api/v1/public/organisasi': [],
+};
+
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'endpoints', label: 'Katalog Endpoint' },
   { id: 'keys', label: 'Manajemen API Key' },
@@ -747,10 +755,24 @@ export const ApiHub: React.FC = () => {
                       <p className="font-semibold text-xs text-[#1E293B]">{ep.name}</p>
                       <p className="text-xs text-[#166534] font-mono font-bold mt-0.5 break-all">{ep.endpoint}</p>
                       {ep.description && (
-                        <p className="text-[11px] text-[#64748B] mt-1 line-clamp-2">{ep.description}</p>
+                        <p className="text-[11px] text-[#64748B] mt-1 line-clamp-2">{ep.method === 'POST' && ep.endpoint === '/api/v2/website/users'
+                          ? 'Direktori pengguna: penelusuran dengan filter opsional atau pengambilan berdasarkan daftar ID.'
+                          : ep.description}</p>
                       )}
                     </div>
                   ),
+                },
+                {
+                  key: 'parameter',
+                  judul: 'Parameter / Filter',
+                  sel: (ep) => {
+                    const parameter = PARAMETER_ENDPOINT[`${ep.method.toUpperCase()} ${ep.endpoint}`];
+                    return parameter?.length ? (
+                      <ul className="list-none space-y-1 text-[11px] font-mono text-[#475569]">
+                        {parameter.map((teks) => <li key={teks}>{teks}</li>)}
+                      </ul>
+                    ) : <p className="text-[11px] text-[#64748B]">—</p>;
+                  },
                 },
                 {
                   key: 'method',

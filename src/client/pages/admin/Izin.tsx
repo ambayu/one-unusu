@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FunnelIcon,
   KeyIcon,
-  LockClosedIcon,
   TrashIcon,
   XMarkIcon,
   ArrowPathIcon,
@@ -13,22 +12,11 @@ import { useAdminData } from '../../hooks/useAdminData';
 import { NotificationModal, NotificationType } from '../../components/NotificationModal';
 import {
   PermissionItem,
-  RoleItem,
-  SsoAppItem,
   cleanupUnusedPermissions,
   syncAdminPermissions,
   fetchAdminPermissions,
   createAdminPermission,
-  deleteAdminPermission,
-  fetchAdminApps,
-  fetchAdminRoles,
-  updateAdminRolePermissions,
 } from '../../services/api';
-
-interface FeedbackMessage {
-  type: 'success' | 'error';
-  text: string;
-}
 
 interface PermissionGroup {
   resource: string;
@@ -45,7 +33,7 @@ const ACTION_LABEL: Record<string, string> = {
   access: 'Akses Penuh',
 };
 
-const RESOURCE_LABEL: Record<string, string> = {
+export const RESOURCE_LABEL: Record<string, string> = {
   dashboard: 'Dashboard SSO',
   profile: 'Biodata Pengguna',
   application: 'Registrasi SSO',
@@ -70,14 +58,10 @@ const ACTION_TONE: Record<string, string> = {
 };
 
 export const Izin: React.FC = () => {
-  const { currentUser, loading, reload } = useAdminData();
+  const { currentUser, loading } = useAdminData();
 
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
-  const [roles, setRoles] = useState<RoleItem[]>([]);
-  const [draft, setDraft] = useState<Record<number, string[]>>({});
-  const [dirtyRoleIds, setDirtyRoleIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'used' | 'unused'>('all');
@@ -98,41 +82,38 @@ export const Izin: React.FC = () => {
   const [newAction, setNewAction] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [isSubmittingPerm, setIsSubmittingPerm] = useState(false);
-  const [permToDelete, setPermToDelete] = useState<PermissionItem | null>(null);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
 
-  const loadMatrix = useCallback(async () => {
+  const loadPermissions = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      const [permissionResult, roleResult] = await Promise.allSettled([
-        fetchAdminPermissions(),
-        fetchAdminRoles(),
-      ]);
-
-      if (permissionResult.status === 'fulfilled' && permissionResult.value.data.status) {
-        setPermissions(permissionResult.value.data.data);
+      const res = await fetchAdminPermissions();
+      if (res.data.status) {
+        setPermissions(res.data.data);
+      } else {
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Memuat Izin',
+          message: 'Gagal memuat katalog izin.',
+        });
       }
-
-      if (roleResult.status === 'fulfilled' && roleResult.value.data.status) {
-        const roleList = roleResult.value.data.data;
-        setRoles(roleList);
-        setDraft(
-          roleList.reduce<Record<number, string[]>>((accumulator, role) => {
-            accumulator[role.id] = [...role.permissionKeys];
-            return accumulator;
-          }, {})
-        );
-        setDirtyRoleIds([]);
-      }
+    } catch {
+      setNotify({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Memuat Izin',
+        message: 'Gagal menghubungi server untuk memuat katalog izin.',
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadMatrix();
-  }, [loadMatrix]);
+    void loadPermissions();
+  }, [loadPermissions]);
 
   const handleCleanup = async () => {
     setShowCleanupConfirm(false);
@@ -146,7 +127,7 @@ export const Izin: React.FC = () => {
           title: 'Pembersihan Berhasil',
           message: res.data.message || 'Izin yang tidak digunakan berhasil dibersihkan dari database.',
         });
-        await loadMatrix();
+        await loadPermissions();
       } else {
         setNotify({
           isOpen: true,
@@ -178,7 +159,7 @@ export const Izin: React.FC = () => {
           title: 'Sinkronisasi Selesai',
           message: res.data.message || 'Katalog izin sub-menu berhasil disinkronkan dengan spesifikasi sistem.',
         });
-        await loadMatrix();
+        await loadPermissions();
       } else {
         setNotify({
           isOpen: true,
@@ -231,7 +212,7 @@ export const Izin: React.FC = () => {
   /**
    * Nomor urut tiap izin, melanjutkan lintas kelompok.
    *
-   * Matriks izin dikelompokkan per resource, sehingga menghitung nomor dari
+   * Katalog izin dikelompokkan per resource, sehingga menghitung nomor dari
    * indeks di dalam kelompok akan mengulang 1, 2, 3 pada setiap kelompok.
    * Peta ini memberi satu deret utuh dari atas ke bawah saat tabel dibaca.
    */
@@ -246,62 +227,6 @@ export const Izin: React.FC = () => {
     });
     return peta;
   }, [groups]);
-
-  const togglePermission = (roleId: number, key: string) => {
-    setDraft((previous) => {
-      const current = previous[roleId] ?? [];
-      const next = current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
-
-      return { ...previous, [roleId]: next };
-    });
-
-    setDirtyRoleIds((previous) => (previous.includes(roleId) ? previous : [...previous, roleId]));
-  };
-
-  const hasKey = (roleId: number, key: string) => (draft[roleId] ?? []).includes(key);
-
-  const handleSave = async () => {
-    if (dirtyRoleIds.length === 0) {
-      setNotify({
-        isOpen: true,
-        type: 'warning',
-        title: 'Tidak Ada Perubahan',
-        message: 'Belum ada perubahan matriks izin untuk disimpan.',
-      });
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const results = await Promise.allSettled(
-        dirtyRoleIds.map((roleId) => updateAdminRolePermissions(roleId, draft[roleId] ?? []))
-      );
-
-      const failed = results.filter((result) => result.status === 'rejected').length;
-
-      if (failed > 0) {
-        setNotify({
-          isOpen: true,
-          type: 'error',
-          title: 'Gagal Menyimpan Izin',
-          message: `${failed} peran gagal disimpan. Periksa kembali koneksi atau hak akses administrator Anda.`,
-        });
-      } else {
-        setNotify({
-          isOpen: true,
-          type: 'success',
-          title: 'Izin Disimpan',
-          message: 'Seluruh konfigurasi matriks peran dan izin berhasil disimpan dan diperbarui.',
-        });
-        setDirtyRoleIds([]);
-      }
-
-      await loadMatrix();
-      await reload();
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleCreatePermission = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -334,7 +259,7 @@ export const Izin: React.FC = () => {
           title: 'Izin Ditambahkan',
           message: res.data.message || 'Izin baru berhasil ditambahkan ke katalog sistem.',
         });
-        await loadMatrix();
+        await loadPermissions();
       } else {
         setNotify({
           isOpen: true,
@@ -363,8 +288,8 @@ export const Izin: React.FC = () => {
     <AdminPanelTemplate
       user={currentUser}
       title="Izin"
-      description="Atur matriks izin akses per peran. Setiap menu dan aksi dikendalikan oleh izin resource:action."
-      onRefresh={loadMatrix}
+      description="Kelola katalog izin menu dan aksi. Penetapan izin untuk setiap peran dilakukan melalui menu Peran."
+      onRefresh={loadPermissions}
       refreshing={isLoading || loading}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -408,13 +333,6 @@ export const Izin: React.FC = () => {
             <span>Tambah Izin</span>
           </button>
 
-          <button
-            onClick={handleSave}
-            disabled={isSaving || dirtyRoleIds.length === 0}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            <span>{isSaving ? 'Menyimpan...' : `Simpan Perubahan${dirtyRoleIds.length > 0 ? ` (${dirtyRoleIds.length})` : ''}`}</span>
-          </button>
         </div>
       </div>
 
@@ -461,7 +379,7 @@ export const Izin: React.FC = () => {
 
       {isLoading ? (
         <div className="bg-white rounded-[14px] border border-[#D8E5DC] p-10 text-center text-xs text-[#64748B]">
-          Memuat matriks izin...
+          Memuat katalog izin...
         </div>
       ) : (
         <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm overflow-hidden">
@@ -471,19 +389,7 @@ export const Izin: React.FC = () => {
                 <tr>
                   <th className="py-3 px-3 text-center sticky left-0 bg-[#F0FDF4] z-10 w-[56px]">No.</th>
                   <th className="py-3 px-4 sticky left-[56px] bg-[#F0FDF4] z-10 min-w-[240px]">Izin</th>
-                  {roles.map((role) => (
-                    <th key={role.id} className="py-3 px-3 text-center whitespace-nowrap">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="inline-flex items-center gap-1">
-                          {role.isSystem && <LockClosedIcon className="w-3 h-3 text-[#94A3B8]" />}
-                          <span>{role.name}</span>
-                        </span>
-                        <span className="text-[10px] font-medium text-[#94A3B8] normal-case">
-                          {role.userCount} pengguna
-                        </span>
-                      </div>
-                    </th>
-                  ))}
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Jumlah Peran</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D8E5DC]/50">
@@ -491,12 +397,14 @@ export const Izin: React.FC = () => {
                   <React.Fragment key={group.resource}>
                     <tr className="bg-[#F8FBF9]">
                       <td
-                        colSpan={roles.length + 2}
-                        className="py-2.5 px-4 text-xs font-bold text-[#1E293B] border-y border-[#D8E5DC] flex items-center gap-2"
+                        colSpan={3}
+                        className="py-2.5 px-4 text-xs font-bold text-[#1E293B] border-y border-[#D8E5DC]"
                       >
+                        <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-[#166534]"></span>
                         <span>{RESOURCE_LABEL[group.resource] ?? group.resource}</span>
-                        <span className="text-[10px] font-mono text-[#64748B] lowercase">({group.resource})</span>
+                         <span className="text-[10px] font-mono text-[#64748B] lowercase">({group.resource})</span>
+                        </div>
                       </td>
                     </tr>
                     {group.items.map((permission) => (
@@ -526,24 +434,16 @@ export const Izin: React.FC = () => {
                             </div>
                           </div>
                         </td>
-                        {roles.map((role) => (
-                          <td key={role.id} className="py-2.5 px-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={hasKey(role.id, permission.key)}
-                              onChange={() => togglePermission(role.id, permission.key)}
-                              aria-label={`${permission.key} untuk ${role.name}`}
-                              className="w-4 h-4 rounded border-[#C8DDD0] text-[#166534] focus:ring-1 focus:ring-[#166534] cursor-pointer accent-[#166534]"
-                            />
-                          </td>
-                        ))}
+                        <td className="py-2.5 px-3 text-center tabular-nums">
+                          {permission.roleCount ?? 0}
+                        </td>
                       </tr>
                     ))}
                   </React.Fragment>
                 ))}
                 {groups.length === 0 && (
                   <tr>
-                    <td colSpan={roles.length + 2} className="py-8 text-center text-xs text-[#94A3B8]">
+                    <td colSpan={3} className="py-8 text-center text-xs text-[#94A3B8]">
                       Tidak ada izin yang sesuai dengan filter yang dipilih.
                     </td>
                   </tr>

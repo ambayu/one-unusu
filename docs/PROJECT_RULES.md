@@ -63,6 +63,8 @@ Dokumen ini berisi aturan global mutlak yang berlaku di seluruh modul, halaman, 
 
 ### 4.1 Aturan Otorisasi Aplikasi Cabang & Model Peran (Permission-First, Mandatory)
 
+> **Keputusan terbaru pengguna — 2026-11-18:** akses masuk aplikasi ditautkan **per peran ONE UNUSU**, bukan per anggota pada aplikasi cabang. Halaman `/admin/peran/:id/izin` menampilkan pilihan aplikasi. `SsoApp.targetRoles` menyimpan kode peran yang boleh masuk, dicocokkan persis dengan salah satu peran pengguna; bukan berdasarkan awalan atau tingkat peran. SUPERADMIN tetap selalu dapat masuk. Izin tindakan internal aplikasi tetap terpisah. Aturan lama tentang `masuk_*` dan kewajiban pendaftaran anggota di bawah tidak lagi menjadi acuan akses masuk.
+
 Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan dua sumbu**: izin masuk global milik pengguna **dan** daftar peran target milik aplikasi. Keduanya harus bersinggungan.
 
 1. **Model Peran Pengguna Dinamis (many-to-many via `user_roles`)**:
