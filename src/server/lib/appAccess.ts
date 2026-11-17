@@ -17,7 +17,7 @@ export function decideAppAccess(_permissionKeys: string[], raw: string | null | 
   const allowed = override || matched.length > 0;
   const tingkat: TingkatMasuk[] = override ? ['admin'] : [];
   if (!override) {
-    if (matched.some((role) => role.startsWith('ADMIN_'))) tingkat.push('admin');
+    if (matched.some((role) => role.startsWith('ADMIN_') || role.startsWith('ADMI_'))) tingkat.push('admin');
     if (matched.includes('DOSEN')) tingkat.push('dosen');
     if (matched.includes('MAHASISWA')) tingkat.push('mahasiswa');
   }
