@@ -115,7 +115,7 @@ const pesanGalat = (err: unknown, bawaan: string) => {
 };
 
 export const ApiHub: React.FC = () => {
-  const { currentUser: user } = useAdminData();
+  const { currentUser: user, loading: userLoading } = useAdminData();
   const [activeTab, setActiveTab] = useState<TabId>('endpoints');
 
   const canView = hasPermission(user, PERMISSIONS.apiHubView);
@@ -491,7 +491,49 @@ export const ApiHub: React.FC = () => {
     }
   };
 
-  // ---------- gerbang izin ----------
+  // ---------- gerbang izin & skeleton ----------
+
+  if (userLoading) {
+    return (
+      <AdminPanelTemplate
+        user={user}
+        title="Integrasi & API Hub"
+        description="Katalog endpoint, kunci akses, dan riwayat pemakaian API antar aplikasi ONE UNUSU."
+      >
+        <div className="space-y-6" aria-busy="true" aria-label="Memuat modul API Hub">
+          {/* Skeleton Tab Navigasi */}
+          <div className="flex gap-4 border-b border-[#D8E5DC] pb-3">
+            <div className="h-5 w-32 bg-[#E2E8F0] rounded-md animate-pulse" />
+            <div className="h-5 w-28 bg-[#E2E8F0] rounded-md animate-pulse" />
+            <div className="h-5 w-36 bg-[#E2E8F0] rounded-md animate-pulse" />
+          </div>
+
+          {/* Skeleton Filter Toolbar */}
+          <div className="p-4 bg-white border border-[#D8E5DC] rounded-[14px] flex flex-col sm:flex-row gap-3">
+            <div className="h-10 flex-1 bg-[#F1F5F2] rounded-[8px] animate-pulse" />
+            <div className="h-10 w-32 bg-[#F1F5F2] rounded-[8px] animate-pulse" />
+            <div className="h-10 w-32 bg-[#F1F5F2] rounded-[8px] animate-pulse" />
+          </div>
+
+          {/* Skeleton List Items */}
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-20 bg-white border border-[#D8E5DC] rounded-[12px] p-4 flex items-center justify-between animate-pulse"
+              >
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-48 bg-[#E2E8F0] rounded" />
+                  <div className="h-3 w-72 bg-[#F1F5F2] rounded" />
+                </div>
+                <div className="h-8 w-24 bg-[#E2E8F0] rounded-[8px]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </AdminPanelTemplate>
+    );
+  }
 
   if (!canView) {
     return (
