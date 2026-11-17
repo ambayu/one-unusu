@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
-import { LOCAL_DEV_CALLBACKS } from "../src/server/lib/ssoApps";
+import { buildSsoAppDefinitions } from "../src/server/lib/ssoApps.js";
 
 dotenv.config();
 
@@ -9,15 +9,18 @@ const prisma = new PrismaClient();
 /**
  * Menyelaraskan urlRedirect aplikasi cabang dengan port pengembangan lokal.
  *
- * Nilai urlRedirect di produksi dibentuk dari SEED_PUBLIC_BASE_URL sehingga
- * selalu menunjuk domain tunggal. Di mesin lokal setiap aplikasi berjalan pada
- * port berbeda, jadi callback harus diarahkan ke port aplikasi masing-masing.
+ * Callback env mengesampingkan port bawaan registry pengembangan.
  * Jalankan setelah seed bila menguji alur SSO antar aplikasi di lokal:
  *
  *   npm run prisma:sso-dev-urls
  */
 async function main() {
-  for (const [clientId, urlRedirect] of Object.entries(LOCAL_DEV_CALLBACKS)) {
+  const apps = buildSsoAppDefinitions(process.env, {
+    publicBaseUrl: process.env.SEED_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL || "",
+    prodiBaseUrl: process.env.SEED_PRODI_BASE_URL || process.env.PRODI_BASE_URL || "",
+    mode: "local",
+  });
+  for (const { clientId, urlRedirect } of apps) {
     const app = await prisma.ssoApp.findUnique({ where: { clientId } });
     if (!app) {
       console.log(`Lewati ${clientId}: belum terdaftar sebagai aplikasi SSO.`);
@@ -25,7 +28,7 @@ async function main() {
     }
 
     await prisma.ssoApp.update({ where: { clientId }, data: { urlRedirect } });
-    console.log(`${clientId} -> ${urlRedirect}`);
+    console.log(`Callback diperbarui: ${clientId}`);
   }
 }
 

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Aplikasi ini dipasang di sub-path produksi (PROD_BASE). Saat mode dev,
@@ -7,16 +7,20 @@ import react from '@vitejs/plugin-react'
 const PROD_BASE = '/sso/'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const port = Number(env.DEV_PORT || 5173)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('DEV_PORT must be an integer between 1 and 65535')
+  return {
   base: command === 'build' ? PROD_BASE : '/',
   plugins: [react()],
   server: {
-    // Port tetap ONE UNUSU SSO Central Gateway adalah 5178.
-    port: 5178,
+    // Port portal terpisah dari callback Sarpras di 5178.
+    port,
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: env.DEV_API_TARGET || 'http://localhost:5000',
         changeOrigin: true
       }
     }
@@ -24,4 +28,5 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist/client'
   }
-}))
+  }
+})

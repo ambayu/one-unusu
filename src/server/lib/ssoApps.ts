@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+import { BlockList, isIP } from "node:net";
 
 /**
  * Registri aplikasi cabang SSO (tabel `sso_apps`).
@@ -26,12 +27,24 @@ export interface SsoAppDefinition {
 }
 
 export interface SsoAppRegistryOptions {
-  /** Basis URL portal; cabang berjalan sebagai sub-path di bawahnya. */
+  /** Basis URL portal, hanya untuk mendeteksi mode lokal bila mode belum diisi. */
   publicBaseUrl: string;
-  /** Basis URL Portal Prodi yang berjalan di domain sendiri, bukan sub-path. */
+  /** Dipertahankan untuk kompatibilitas pemanggil; callback wajib memakai env. */
   prodiBaseUrl: string;
   /** Mode URL callback: "vps" (menggunakan sub-path/domain) atau "local" (menggunakan port dev lokal). */
   mode?: "vps" | "local";
+}
+
+const loopbackAddresses = new BlockList();
+loopbackAddresses.addSubnet("127.0.0.0", 8, "ipv4");
+loopbackAddresses.addAddress("::1", "ipv6");
+loopbackAddresses.addAddress("0.0.0.0", "ipv4");
+loopbackAddresses.addAddress("::", "ipv6");
+
+function isLocalHostname(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  return host === "localhost" || host.endsWith(".localhost") ||
+    (isIP(host) !== 0 && loopbackAddresses.check(host, isIP(host) === 6 ? "ipv6" : "ipv4"));
 }
 
 /** Pemetaan URL callback untuk mode pengembangan lokal (port tiap aplikasi) */
@@ -49,20 +62,40 @@ export const LOCAL_DEV_CALLBACKS: Record<string, string> = {
 
 export function buildSsoAppDefinitions(
   env: NodeJS.ProcessEnv,
-  { publicBaseUrl, prodiBaseUrl, mode }: SsoAppRegistryOptions
+  { publicBaseUrl, mode }: SsoAppRegistryOptions
 ): SsoAppDefinition[] {
-  const cabang = publicBaseUrl.replace(/\/+$/, "");
-  const prodi = prodiBaseUrl.replace(/\/+$/, "");
   const kunci = (nama: string) => (env[nama] ?? "").trim();
+  if (env.SSO_ENV && !["local", "vps", "production"].includes(env.SSO_ENV)) {
+    throw new Error("SSO_ENV harus local, vps, atau production.");
+  }
+  const production = env.NODE_ENV === "production" || env.SSO_ENV === "production";
+  const selectedMode = mode ?? (env.SSO_ENV === "production" ? "vps" : env.SSO_ENV);
+  const isLocalMode = selectedMode === "local" ||
+    (!selectedMode && !production && isLocalHostname(new URL(publicBaseUrl).hostname));
+  if (production && isLocalMode) {
+    throw new Error("Mode SSO local tidak diizinkan di production.");
+  }
+  if (env.SSO_ENV === "vps" && isLocalMode) {
+    throw new Error("Mode SSO local bertentangan dengan SSO_ENV=vps.");
+  }
 
-  // Mode lokal otomatis aktif jika mode === "local" atau env SSO_ENV === "local" atau publicBaseUrl mengandung localhost
-  const isLocalMode = mode === "local" || env.SSO_ENV === "local" || (mode !== "vps" && env.SSO_ENV !== "vps" && env.SSO_ENV !== "production" && publicBaseUrl.includes("localhost"));
-
-  const resolveCallback = (clientId: string, vpsPath: string): string => {
-    if (isLocalMode && LOCAL_DEV_CALLBACKS[clientId]) {
-      return LOCAL_DEV_CALLBACKS[clientId];
+  const resolveCallback = (clientId: string, suffix: string): string => {
+    const name = `SSO_CALLBACK_URL_${suffix}`;
+    const value = kunci(name) || (isLocalMode ? LOCAL_DEV_CALLBACKS[clientId] : "");
+    if (!value) throw new Error(`${name} wajib diisi untuk mode VPS/production.`);
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error(`${name} harus berupa URL HTTP/HTTPS absolut.`);
     }
-    return vpsPath;
+    if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password) {
+      throw new Error(`${name} harus berupa URL HTTP/HTTPS tanpa kredensial.`);
+    }
+    if (!isLocalMode && isLocalHostname(url.hostname)) {
+      throw new Error(`${name} tidak boleh menunjuk loopback di VPS/production.`);
+    }
+    return value;
   };
 
   return [
@@ -73,7 +106,7 @@ export function buildSsoAppDefinitions(
       description: "Portal pembelajaran dosen & mahasiswa: kelas, materi, tugas, dan penilaian.",
       icon: "GraduationCap",
       badge: "Pembelajaran",
-      urlRedirect: resolveCallback("50e3ed28134b379d", isLocalMode ? `${cabang}/lms/sso/callback` : "https://lms.unusu.ac.id/sso/callback"),
+      urlRedirect: resolveCallback("50e3ed28134b379d", "UNUSU_LMS"),
       targetRoles: JSON.stringify(["ADMIN_LMS", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 1,
       isActive: true,
@@ -85,7 +118,7 @@ export function buildSsoAppDefinitions(
       description: "Portal Riset, Pengabdian Kepada Masyarakat, Publikasi Jurnal, dan Hibah Dosen.",
       icon: "FlaskConical",
       badge: "Penelitian",
-      urlRedirect: resolveCallback("223ea0752e7619e2", isLocalMode ? `${cabang}/lppm/sso/callback` : "https://lppm.unusu.ac.id/sso/callback"),
+      urlRedirect: resolveCallback("223ea0752e7619e2", "LPPM_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_LPPM", "DOSEN", "SUPERADMIN"]),
       order: 2,
       isActive: true,
@@ -97,7 +130,7 @@ export function buildSsoAppDefinitions(
       description: "Lembaga Penjaminan Mutu, Audit Mutu Internal (AMI), & Instrumen Akreditasi.",
       icon: "Award",
       badge: "Penjaminan Mutu",
-      urlRedirect: resolveCallback("014813db6bffb39f", isLocalMode ? `${cabang}/lpm/sso/callback` : "https://lpm.unusu.ac.id/sso/callback"),
+      urlRedirect: resolveCallback("014813db6bffb39f", "LPM_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_LPM", "DOSEN", "SUPERADMIN"]),
       order: 3,
       isActive: true,
@@ -109,7 +142,7 @@ export function buildSsoAppDefinitions(
       description: "Tata Naskah Dinas, Disposisi Digital, & Surat Keterangan Mahasiswa/Dosen.",
       icon: "MailCheck",
       badge: "Administrasi",
-      urlRedirect: resolveCallback("e538eac90fb83578", isLocalMode ? `${cabang}/esurat/sso/callback` : "https://esurat.unusu.ac.id/sso/callback"),
+      urlRedirect: resolveCallback("e538eac90fb83578", "ESURAT_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_ESURAT", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 4,
       isActive: true,
@@ -121,7 +154,7 @@ export function buildSsoAppDefinitions(
       description: "Manajemen Kepegawaian, Fasilitas Kampus, & Inventaris Sarana Prasarana.",
       icon: "Building2",
       badge: "Kepegawaian",
-      urlRedirect: resolveCallback("38cf6306cea79458", isLocalMode ? `${cabang}/sarpras/sso/callback` : "https://sdmsarpras.unusu.ac.id/sso/callback"),
+      urlRedirect: resolveCallback("38cf6306cea79458", "SDM_SARPRAS"),
       targetRoles: JSON.stringify(["ADMIN_SARPRAS", "DOSEN", "SUPERADMIN"]),
       order: 5,
       isActive: true,
@@ -133,7 +166,7 @@ export function buildSsoAppDefinitions(
       description: "Instrumen akreditasi, bukti dokumen, dan penilaian butir mutu program studi.",
       icon: "ClipboardCheck",
       badge: "Penjaminan Mutu",
-      urlRedirect: resolveCallback("a5776434492cb44a", isLocalMode ? `${cabang}/akreditasi/sso/callback` : `${cabang}/akreditasi/sso/callback`),
+      urlRedirect: resolveCallback("a5776434492cb44a", "UNUSU_AKREDITASI"),
       targetRoles: JSON.stringify(["ADMIN_AKREDITASI", "DOSEN", "SUPERADMIN"]),
       order: 6,
       isActive: true,
@@ -145,10 +178,7 @@ export function buildSsoAppDefinitions(
       description: "Portal program studi: profil, kurikulum, dosen, dan informasi akademik prodi.",
       icon: "AcademicCap",
       badge: "Akademik",
-      // Portal Prodi adalah aplikasi multi-domain (satu tenant per hostname
-      // seperti `tif.unusu.ac.id`), jadi alamatnya tidak dapat mengikuti
-      // `publicBaseUrl` yang dipakai cabang lain pada VPS.
-      urlRedirect: resolveCallback("70c76ea9b5d5d3a8", `${prodi}/sso/callback`),
+      urlRedirect: resolveCallback("70c76ea9b5d5d3a8", "PRODI_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_PRODI", "DOSEN", "SUPERADMIN"]),
       order: 7,
       isActive: true,
@@ -160,7 +190,7 @@ export function buildSsoAppDefinitions(
       description: "Biro Administrasi Keuangan, Sarana & Aset: arsip naskah dinas, dokumen keuangan, dan inventaris.",
       icon: "Building2",
       badge: "Keuangan & Aset",
-      urlRedirect: resolveCallback("e18b6c47291a03df", isLocalMode ? `${cabang}/baksa/sso/callback` : `${cabang}/baksa/sso/callback`),
+      urlRedirect: resolveCallback("e18b6c47291a03df", "BAKSA_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_BAKSA", "DOSEN", "SUPERADMIN"]),
       order: 8,
       isActive: true,
@@ -172,7 +202,7 @@ export function buildSsoAppDefinitions(
       description: "Biro Administrasi Kemahasiswaan & Sistem Informasi: arsip ormawa, beasiswa, dan kebijakan TI.",
       icon: "ComputerDesktop",
       badge: "Kemahasiswaan & SI",
-      urlRedirect: resolveCallback("f29c7d58302b14ea", isLocalMode ? `${cabang}/baksi/sso/callback` : `${cabang}/baksi/sso/callback`),
+      urlRedirect: resolveCallback("f29c7d58302b14ea", "BAKSI_UNUSU"),
       targetRoles: JSON.stringify(["ADMIN_BAKSI", "DOSEN", "MAHASISWA", "SUPERADMIN"]),
       order: 9,
       isActive: true,

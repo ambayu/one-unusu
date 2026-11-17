@@ -106,14 +106,15 @@ Otorisasi akses ke aplikasi cabang menganut prinsip **Permission-First dengan du
 URL redirect / callback SSO aplikasi satelit dikonfigurasi berdasarkan lingkungan target:
 
 1. **Pemetaan Lingkungan**:
-   - **Mode Lokal (`local`)**: Setiap aplikasi satelit berjalan di port Vite mandiri (`http://localhost:5175` s.d. `5181`). Nilai `urlRedirect` di tabel `sso_apps` harus mengarah ke port lokal masing-masing (`http://localhost:517x/sso/callback`).
-   - **Mode VPS / Produksi (`vps`)**: Seluruh aplikasi satelit diakses via reverse-proxy Nginx sub-path di bawah domain utama (`{PUBLIC_BASE_URL}/{app}/sso/callback`), kecuali Portal Prodi yang memiliki multi-domain mandiri (`{PRODI_BASE_URL}/sso/callback`).
+   - **Mode Lokal (`local`)**: Callback memakai `SSO_CALLBACK_URL_<suffix>` bila diisi, atau port pengembangan bawaan 5174–5182 dari `LOCAL_DEV_CALLBACKS`.
+   - **Mode VPS / Produksi (`vps`)**: Sembilan callback wajib diisi eksplisit melalui `SSO_CALLBACK_URL_<suffix>`, baik domain mandiri maupun sub-path reverse proxy. Tidak ada domain produksi bawaan atau turunan base URL. Loopback dan alamat bind wildcard ditolak.
 2. **Skrip Penyelaras Database**:
-   - `npm run db:sso-dev-urls`: Memperbarui seluruh `urlRedirect` di database lokal menjadi port localhost.
+   - `npm run db:sso-dev-urls`: Memperbarui seluruh `urlRedirect` memakai registry mode lokal dan override env; ditolak pada produksi atau `SSO_ENV=vps`.
    - `npm run db:sso-vps-urls`: Memperbarui seluruh `urlRedirect` di database menjadi URL domain VPS.
    - `npm run db:seed:local` / `npm run db:seed:vps`: Menjalankan seeder dengan target lingkungan eksplisit.
 3. **Penyelarasan Kode Sumber**:
-   - Fungsi `buildSsoAppDefinitions` di `src/server/lib/ssoApps.ts` mendeteksi mode secara otomatis (`isLocalMode`) bila parameter `mode === "local"`, env `SSO_ENV === "local"`, atau bila `publicBaseUrl` mengandung string `localhost`.
+   - `buildSsoAppDefinitions` dipakai oleh seed, sync admin, dan kedua skrip callback. Parameter `mode` mendahului `SSO_ENV`; tanpa keduanya, hostname loopback pada `publicBaseUrl` mengaktifkan lokal hanya di pengembangan. `NODE_ENV=production` / `SSO_ENV=production` menolak mode lokal. Callback harus berupa URL HTTP/HTTPS absolut tanpa kredensial.
+   - Daftar nama env dan port pengembangan ada di [`LOCAL_PORTS.md`](LOCAL_PORTS.md). Jalankan skrip yang menulis database hanya setelah persetujuan operator.
 
 ### 4.3 Aturan Baku Callback Browser Aplikasi Cabang (Mandatory)
 

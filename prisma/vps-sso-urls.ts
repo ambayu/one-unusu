@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
+import { buildSsoAppDefinitions } from "../src/server/lib/ssoApps.js";
 
 dotenv.config();
 
@@ -7,28 +8,15 @@ const prisma = new PrismaClient();
 
 /**
  * Menyelaraskan urlRedirect aplikasi cabang dengan konfigurasi domain produksi (VPS).
- * Menggunakan SEED_PUBLIC_BASE_URL (mis. https://portal.unusu.ac.id atau https://unusu.ac.id)
- * dan SEED_PRODI_BASE_URL untuk aplikasi multi-domain Prodi.
+ * Seluruh callback wajib dikonfigurasi melalui SSO_CALLBACK_URL_<suffix>.
  */
 async function main() {
-  const publicBaseUrl = (process.env.SEED_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL || "https://unusu.ac.id").replace(/\/+$/, "");
-  const prodiBaseUrl = (process.env.SEED_PRODI_BASE_URL || process.env.PRODI_BASE_URL || "https://prodi.unusu.ac.id").replace(/\/+$/, "");
-
-  console.log(`Menyetel URL callback SSO untuk lingkungan VPS/Produksi...`);
-  console.log(`Public Base URL: ${publicBaseUrl}`);
-  console.log(`Prodi Base URL : ${prodiBaseUrl}`);
-
-  const VPS_CALLBACKS: Record<string, string> = {
-    "unusu-lms": `${publicBaseUrl}/lms/sso/callback`,
-    "lppm-unusu": `${publicBaseUrl}/lppm/sso/callback`,
-    "lpm-unusu": `${publicBaseUrl}/lpm/sso/callback`,
-    "esurat-unusu": `${publicBaseUrl}/esurat/sso/callback`,
-    "sdm-sarpras-unusu": `${publicBaseUrl}/sarpras/sso/callback`,
-    "unusu-akreditasi": `${publicBaseUrl}/akreditasi/sso/callback`,
-    "prodi-unusu": `${prodiBaseUrl}/sso/callback`,
-  };
-
-  for (const [clientId, urlRedirect] of Object.entries(VPS_CALLBACKS)) {
+  const apps = buildSsoAppDefinitions(process.env, {
+    publicBaseUrl: process.env.SEED_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL || "",
+    prodiBaseUrl: process.env.SEED_PRODI_BASE_URL || process.env.PRODI_BASE_URL || "",
+    mode: "vps",
+  });
+  for (const { clientId, urlRedirect } of apps) {
     const app = await prisma.ssoApp.findUnique({ where: { clientId } });
     if (!app) {
       console.log(`Lewati ${clientId}: belum terdaftar.`);
@@ -36,7 +24,7 @@ async function main() {
     }
 
     await prisma.ssoApp.update({ where: { clientId }, data: { urlRedirect } });
-    console.log(`[VPS] ${clientId} -> ${urlRedirect}`);
+    console.log(`[VPS] Callback diperbarui: ${clientId}`);
   }
 
   console.log("Penyelarasan URL callback VPS selesai!");
