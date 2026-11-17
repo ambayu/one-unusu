@@ -560,7 +560,7 @@ export const ApiHub: React.FC = () => {
         <button
           type="button"
           onClick={ulangi}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold bg-white text-[#B91C1C] border border-[#FECACA] rounded-[8px] hover:bg-[#FEE2E2] transition"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold bg-white text-[#B91C1C] border border-[#D8E5DC] rounded-[8px] hover:bg-[#FEE2E2] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
         >
           <ArrowPathIcon className="w-3.5 h-3.5" />
           Coba Lagi
@@ -638,18 +638,22 @@ export const ApiHub: React.FC = () => {
           <div className="space-y-4">
             {blokGalat(galatMuat.endpoints, () => void muatEndpoints())}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col gap-4">
+              <div className="min-w-0">
+                <label htmlFor="api-endpoint-search" className={KELAS_LABEL}>Pencarian Endpoint</label>
+                <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                 <input
+                  id="api-endpoint-search"
                   type="text"
                   placeholder="Cari nama, endpoint, atau penyedia..."
                   value={searchEndpoint}
                   onChange={(e) => setSearchEndpoint(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 pl-9 pr-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="order-first flex flex-wrap items-center justify-end gap-2">
                 <span className="text-[11px] text-[#64748B]">{labelMuat('endpoints', endpointTersaring.length)}</span>
                 <button
                   type="button"
@@ -657,15 +661,16 @@ export const ApiHub: React.FC = () => {
                   disabled={memuat.endpoints}
                   title="Muat ulang"
                   aria-label="Muat ulang katalog endpoint"
-                  className="p-2 rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] disabled:opacity-40 transition"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-40 transition"
                 >
                   <ArrowPathIcon className={`w-4 h-4 ${memuat.endpoints ? 'animate-spin' : ''}`} />
+                  Muat Ulang
                 </button>
                 {canEdit && (
                   <button
                     type="button"
                     onClick={() => bukaModalEndpoint(null)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#166534] hover:bg-[#14532D] text-white rounded-[8px] font-semibold text-xs transition"
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 border border-[#D8E5DC] bg-[#166534] hover:bg-[#14532D] text-white rounded-[8px] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Endpoint Baru
@@ -675,8 +680,8 @@ export const ApiHub: React.FC = () => {
             </div>
 
             {/* ---------- Baris filter katalog ---------- */}
-            <div className="flex flex-wrap items-end gap-2.5 px-3.5 py-3 bg-[#F8FBF9] border border-[#D8E5DC] rounded-[10px]">
-              <div className="w-[140px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 items-end gap-4 p-4 bg-[#F8FBF9] border border-[#D8E5DC] rounded-[10px]">
+              <div className="min-w-0">
                 <label htmlFor="filter-ep-metode" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
                   Metode
                 </label>
@@ -684,7 +689,7 @@ export const ApiHub: React.FC = () => {
                   id="filter-ep-metode"
                   value={filterMetode}
                   onChange={(e) => setFilterMetode(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 >
                   <option value="">Semua</option>
                   {opsiMetode.map((m) => (
@@ -695,7 +700,7 @@ export const ApiHub: React.FC = () => {
                 </select>
               </div>
 
-              <div className="w-[180px]">
+              <div className="min-w-0">
                 <label htmlFor="filter-ep-penyedia" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
                   Penyedia
                 </label>
@@ -703,7 +708,7 @@ export const ApiHub: React.FC = () => {
                   id="filter-ep-penyedia"
                   value={filterPenyedia}
                   onChange={(e) => setFilterPenyedia(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 >
                   <option value="">Semua</option>
                   {opsiPenyedia.map((p) => (
@@ -714,7 +719,7 @@ export const ApiHub: React.FC = () => {
                 </select>
               </div>
 
-              <div className="w-[150px]">
+              <div className="min-w-0">
                 <label htmlFor="filter-ep-kategori" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
                   Kategori
                 </label>
@@ -722,7 +727,7 @@ export const ApiHub: React.FC = () => {
                   id="filter-ep-kategori"
                   value={filterKategori}
                   onChange={(e) => setFilterKategori(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 >
                   <option value="">Semua</option>
                   {opsiKategori.map((k) => (
@@ -733,7 +738,7 @@ export const ApiHub: React.FC = () => {
                 </select>
               </div>
 
-              <div className="w-[170px]">
+              <div className="min-w-0">
                 <label htmlFor="filter-ep-akses" className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
                   Akses
                 </label>
@@ -741,7 +746,7 @@ export const ApiHub: React.FC = () => {
                   id="filter-ep-akses"
                   value={filterAkses}
                   onChange={(e) => setFilterAkses(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 >
                   <option value="">Semua</option>
                   <option value="publik">Publik</option>
@@ -755,7 +760,7 @@ export const ApiHub: React.FC = () => {
                 <button
                   type="button"
                   onClick={resetFilterEndpoint}
-                  className="inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#BBF7D0] rounded-[8px] transition"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                 >
                   <XMarkIcon className="w-3.5 h-3.5" />
                   Reset Filter
@@ -780,7 +785,7 @@ export const ApiHub: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSearchEndpoint('')}
-                      className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
+                      className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                     >
                       <XMarkIcon className="w-3.5 h-3.5" />
                       Reset Pencarian
@@ -896,18 +901,22 @@ export const ApiHub: React.FC = () => {
           <div className="space-y-4">
             {blokGalat(galatMuat.keys, () => void muatKeys())}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col gap-4">
+              <div className="min-w-0">
+                <label htmlFor="api-key-search" className={KELAS_LABEL}>Pencarian API Key</label>
+                <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                 <input
+                  id="api-key-search"
                   type="text"
                   placeholder="Cari nama key atau aplikasi..."
                   value={searchKey}
                   onChange={(e) => setSearchKey(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 pl-9 pr-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="order-first flex flex-wrap items-center justify-end gap-2">
                 <span className="text-[11px] text-[#64748B]">{labelMuat('keys', keyTersaring.length)}</span>
                 <button
                   type="button"
@@ -915,15 +924,16 @@ export const ApiHub: React.FC = () => {
                   disabled={memuat.keys}
                   title="Muat ulang"
                   aria-label="Muat ulang daftar key"
-                  className="p-2 rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] disabled:opacity-40 transition"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-40 transition"
                 >
                   <ArrowPathIcon className={`w-4 h-4 ${memuat.keys ? 'animate-spin' : ''}`} />
+                  Muat Ulang
                 </button>
                 {canEdit && (
                   <button
                     type="button"
                     onClick={() => bukaModalKey(null)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#166534] hover:bg-[#14532D] text-white rounded-[8px] font-semibold text-xs transition"
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 border border-[#D8E5DC] bg-[#166534] hover:bg-[#14532D] text-white rounded-[8px] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Buat Key Baru
@@ -947,7 +957,7 @@ export const ApiHub: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => bukaModalKey(null)}
-                      className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
+                      className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                     >
                       <PlusIcon className="w-3.5 h-3.5" />
                       Buat Key Pertama
@@ -1085,18 +1095,22 @@ export const ApiHub: React.FC = () => {
           <div className="space-y-4">
             {blokGalat(galatMuat.logs, () => void muatLogs())}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col gap-4">
+              <div className="min-w-0">
+                <label htmlFor="api-log-search" className={KELAS_LABEL}>Pencarian Riwayat</label>
+                <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                 <input
+                  id="api-log-search"
                   type="text"
                   placeholder="Cari aplikasi, endpoint, atau kode status..."
                   value={searchLog}
                   onChange={(e) => setSearchLog(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+                  className="min-h-[44px] w-full min-w-0 pl-9 pr-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
                 />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="order-first flex flex-wrap items-center justify-end gap-2">
                 <span className="text-[11px] text-[#64748B]">{labelMuat('logs', logTersaring.length)}</span>
                 <button
                   type="button"
@@ -1104,9 +1118,10 @@ export const ApiHub: React.FC = () => {
                   disabled={memuat.logs}
                   title="Muat ulang"
                   aria-label="Muat ulang riwayat penggunaan"
-                  className="p-2 rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] disabled:opacity-40 transition"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-[8px] bg-white border border-[#D8E5DC] text-[#166534] hover:bg-[#F0FDF4] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-40 transition"
                 >
                   <ArrowPathIcon className={`w-4 h-4 ${memuat.logs ? 'animate-spin' : ''}`} />
+                  Muat Ulang
                 </button>
               </div>
             </div>
@@ -1351,14 +1366,14 @@ export const ApiHub: React.FC = () => {
                 type="button"
                 onClick={() => setModalEndpoint(false)}
                 disabled={memproses}
-                className="px-4 py-2.5 text-xs font-semibold text-[#475569] bg-white border border-[#D8E5DC] rounded-[8px] hover:bg-[#F1F5F2] disabled:opacity-50 transition"
+                className="min-h-[44px] px-4 py-3 text-sm font-semibold text-[#475569] bg-white border border-[#D8E5DC] rounded-[8px] hover:bg-[#F1F5F2] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-50 transition"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={memproses}
-                className="px-4 py-2.5 text-xs font-semibold text-white bg-[#166534] hover:bg-[#14532D] rounded-[8px] disabled:opacity-50 transition"
+                className="min-h-[44px] px-4 py-3 text-sm font-semibold text-white bg-[#166534] hover:bg-[#14532D] border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-50 transition"
               >
                 {memproses ? 'Menyimpan...' : suntingEndpoint ? 'Simpan Perubahan' : 'Tambah Endpoint'}
               </button>
@@ -1507,14 +1522,14 @@ export const ApiHub: React.FC = () => {
                 type="button"
                 onClick={() => setModalKey(false)}
                 disabled={memproses}
-                className="px-4 py-2.5 text-xs font-semibold text-[#475569] bg-white border border-[#D8E5DC] rounded-[8px] hover:bg-[#F1F5F2] disabled:opacity-50 transition"
+                className="min-h-[44px] px-4 py-3 text-sm font-semibold text-[#475569] bg-white border border-[#D8E5DC] rounded-[8px] hover:bg-[#F1F5F2] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-50 transition"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={memproses}
-                className="px-4 py-2.5 text-xs font-semibold text-white bg-[#166534] hover:bg-[#14532D] rounded-[8px] disabled:opacity-50 transition"
+                className="min-h-[44px] px-4 py-3 text-sm font-semibold text-white bg-[#166534] hover:bg-[#14532D] border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] disabled:opacity-50 transition"
               >
                 {memproses ? 'Menyimpan...' : suntingKey ? 'Simpan Perubahan' : 'Buat Key'}
               </button>

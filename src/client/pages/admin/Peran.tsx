@@ -191,21 +191,19 @@ export const Peran: React.FC = () => {
       description="Kelola peran akses beserta jumlah izin yang melekat pada setiap peran."
       onRefresh={loadRoles}
       refreshing={isLoading || loading}
+      headerAction={canEdit && (
+        <button onClick={openCreateForm}
+          className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+          <PlusIcon className="w-4 h-4" />
+          <span>Tambah Peran</span>
+        </button>
+      )}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-[11px] text-[#64748B]">
           Peran sistem tidak dapat dihapus. Pilih Atur Izin untuk menautkan izin pada setiap peran.
         </p>
 
-        {canEdit && (
-          <button
-            onClick={openCreateForm}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-            <span>Tambah Peran</span>
-          </button>
-        )}
       </div>
 
       {isLoading ? (
@@ -308,6 +306,7 @@ export const Peran: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsFormOpen(false)}
+                aria-label="Tutup formulir peran"
                 className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
               >
                 <XMarkIcon className="w-4 h-4" />
@@ -354,14 +353,14 @@ export const Peran: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-3.5 py-2 rounded-lg text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold"
+                  className="min-h-[44px] px-4 py-3 rounded-lg border border-[#D8E5DC] text-sm text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-xs shadow-sm disabled:opacity-50 transition"
+                  className="min-h-[44px] px-4 py-3 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-sm shadow-sm disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   {isSubmitting ? 'Menyimpan...' : 'Simpan'}
                 </button>

@@ -291,23 +291,13 @@ export const Izin: React.FC = () => {
       description="Kelola katalog izin menu dan aksi. Penetapan izin untuk setiap peran dilakukan melalui menu Peran."
       onRefresh={loadPermissions}
       refreshing={isLoading || loading}
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-start gap-2.5 text-[11px] text-[#475569] bg-[#F0FDF4] border border-[#BBF7D0] rounded-[10px] px-3.5 py-2.5">
-          <KeyIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
-          <p>
-            Izin bertanda <span className="font-semibold">Menu</span> menentukan tampilnya item navigasi.
-            Izin <span className="font-semibold">Lihat</span>, <span className="font-semibold">Ubah</span>, dan{' '}
-            <span className="font-semibold">Hapus</span> membatasi akses API di server.
-          </p>
-        </div>
-
+      headerAction={
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleSyncCatalog}
             disabled={isSyncing}
             title="Sinkronkan katalog izin resmi sesuai sub-menu dan bersihkan izin usang"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#166534] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sub-Menu'}</span>
@@ -318,7 +308,7 @@ export const Izin: React.FC = () => {
               onClick={() => setShowCleanupConfirm(true)}
               disabled={isCleaning}
               title="Hapus seluruh izin yang belum terikat ke role manapun"
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] font-semibold text-xs shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-white hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#D8E5DC] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#166534] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <TrashIcon className="w-3.5 h-3.5" />
               <span>{isCleaning ? 'Membersihkan...' : `Bersihkan ${unusedCount} Izin Kosong`}</span>
@@ -327,24 +317,36 @@ export const Izin: React.FC = () => {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold text-xs shadow-sm transition whitespace-nowrap"
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white border border-[#D8E5DC] font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Tambah Izin</span>
           </button>
 
         </div>
+      }
+    >
+      <div className="flex items-start gap-2.5 text-[11px] text-[#475569] bg-[#F0FDF4] border border-[#BBF7D0] rounded-[10px] px-3.5 py-2.5">
+        <KeyIcon className="w-4 h-4 text-[#166534] flex-shrink-0 mt-0.5" />
+        <p>
+          Izin bertanda <span className="font-semibold">Menu</span> menentukan tampilnya item navigasi.
+          Izin <span className="font-semibold">Lihat</span>, <span className="font-semibold">Ubah</span>, dan{' '}
+          <span className="font-semibold">Hapus</span> membatasi akses API di server.
+        </p>
       </div>
 
       {/* Bar Filter Status Izin */}
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs">
+      <div className="space-y-2">
+        <div id="izin-filter-label" className="flex items-center gap-1.5 text-xs">
           <FunnelIcon className="w-3.5 h-3.5 text-[#64748B]" />
           <span className="text-[11px] font-semibold text-[#64748B] mr-1">Filter Tampilan:</span>
+        </div>
+        <div role="group" aria-labelledby="izin-filter-label" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => setFilterMode('all')}
-            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+            aria-pressed={filterMode === 'all'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534] transition ${
               filterMode === 'all'
                 ? 'bg-[#166534] text-white'
                 : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
@@ -355,7 +357,8 @@ export const Izin: React.FC = () => {
           <button
             type="button"
             onClick={() => setFilterMode('used')}
-            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+            aria-pressed={filterMode === 'used'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534] transition ${
               filterMode === 'used'
                 ? 'bg-[#166534] text-white'
                 : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
@@ -366,7 +369,8 @@ export const Izin: React.FC = () => {
           <button
             type="button"
             onClick={() => setFilterMode('unused')}
-            className={`px-2.5 py-1 rounded-[6px] text-xs font-semibold transition ${
+            aria-pressed={filterMode === 'unused'}
+            className={`min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534] transition ${
               filterMode === 'unused'
                 ? 'bg-[#B91C1C] text-white'
                 : 'bg-white text-[#475569] border border-[#D8E5DC] hover:bg-[#F1F5F2]'
@@ -465,6 +469,7 @@ export const Izin: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
+                aria-label="Tutup tambah izin"
                 className="p-1 rounded-md text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2]"
               >
                 <XMarkIcon className="w-4 h-4" />
@@ -519,14 +524,14 @@ export const Izin: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-3 py-2 rounded-lg border border-[#D8E5DC] text-[#475569] hover:bg-[#F1F5F2] font-semibold"
+                  className="min-h-[44px] px-4 py-3 rounded-lg border border-[#D8E5DC] text-sm text-[#475569] hover:bg-[#F1F5F2] font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingPerm}
-                  className="px-4 py-2 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white font-semibold transition disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-3 rounded-lg border border-[#D8E5DC] bg-[#166534] hover:bg-[#14532D] text-sm text-white font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534] transition disabled:opacity-50"
                 >
                   {isSubmittingPerm ? 'Menyimpan...' : 'Tambah Izin'}
                 </button>

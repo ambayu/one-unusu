@@ -376,6 +376,23 @@ export const RegistrasiSso: React.FC = () => {
       description="Dashboard ringkasan layanan, pemantauan aplikasi kampus, dan status Single Sign-On UNUSU."
       onRefresh={reload}
       refreshing={loading}
+      headerAction={
+        <>
+          {canEdit && (
+            <button onClick={handleSyncApps} disabled={isSyncing}
+              title="Sinkronkan registry aplikasi terpadu dan kunci akses pengelola bawaan kampus"
+              className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-sm transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+              <ArrowPathIcon className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Aplikasi'}</span>
+            </button>
+          )}
+          <button onClick={openCreateModal}
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+            <PlusIcon className="w-4 h-4" />
+            <span>Daftarkan Aplikasi Baru</span>
+          </button>
+        </>
+      }
     >
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="bg-white p-5 rounded-[14px] border border-[#D8E5DC] shadow-sm flex items-center justify-between gap-3">
@@ -426,39 +443,30 @@ export const RegistrasiSso: React.FC = () => {
       </div>
 
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative max-w-sm w-full">
-            <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="min-w-0">
+            <label htmlFor="sso-search" className="mb-2 block text-sm font-semibold text-[#475569]">Cari aplikasi</label>
+            <div className="relative">
+            <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
             <input
+              id="sso-search"
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cari nama, client ID, atau callback..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+              className="w-full min-w-0 min-h-[44px] px-4 py-3 pl-10 text-sm bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
             />
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-          {canEdit && (
-            <button
-              onClick={handleSyncApps}
-              disabled={isSyncing}
-              title="Sinkronkan registry aplikasi terpadu dan kunci akses pengelola bawaan kampus"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] text-[#166534] border border-[#D8E5DC] font-semibold text-xs shadow-sm transition disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#166534]' : ''}`} />
-              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Aplikasi'}</span>
-            </button>
-          )}
-
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-            <span>Daftarkan Aplikasi Baru</span>
-          </button>
-        </div>
+          <div className="min-w-0">
+            <label htmlFor="sso-sort" className="mb-2 block text-sm font-semibold text-[#475569]">Urutkan</label>
+            <select id="sso-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as AppSortMode)}
+              className="w-full min-w-0 min-h-[44px] px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]">
+              <option value="order">Urutan tampil</option>
+              <option value="name">Nama A–Z</option>
+              <option value="status">Status aktif dulu</option>
+            </select>
+          </div>
         </div>
 
         {/* Baris filter status + pengurutan daftar aplikasi */}
@@ -476,7 +484,7 @@ export const RegistrasiSso: React.FC = () => {
                   type="button"
                   onClick={() => setStatusFilter(chip.key)}
                   aria-pressed={isSelected}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-semibold border transition min-h-[34px] ${
+                   className={`inline-flex items-center gap-2 px-4 py-3 rounded-[8px] text-sm font-semibold border transition min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
                     isSelected
                       ? 'bg-[#166534] text-white border-[#166534]'
                       : 'bg-white text-[#475569] border-[#D8E5DC] hover:bg-[#F0FDF4] hover:text-[#166534]'
@@ -496,24 +504,11 @@ export const RegistrasiSso: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#64748B]">
-              <span>Urutkan</span>
-              <select
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as AppSortMode)}
-                className="px-2.5 py-1.5 text-[11.5px] font-semibold bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] min-h-[34px]"
-              >
-                <option value="order">Urutan tampil</option>
-                <option value="name">Nama A–Z</option>
-                <option value="status">Status aktif dulu</option>
-              </select>
-            </label>
-
             {isFilterActive && (
               <button
                 type="button"
                 onClick={resetAppFilters}
-                className="text-[11px] font-semibold text-[#B91C1C] hover:underline"
+                className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] bg-white text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
               >
                 Reset filter
               </button>
@@ -548,7 +543,7 @@ export const RegistrasiSso: React.FC = () => {
               <button
                 type="button"
                 onClick={resetAppFilters}
-                className="mt-2.5 inline-flex items-center px-3 py-1.5 rounded-[8px] border border-[#D8E5DC] bg-white text-[11px] font-semibold text-[#166534] hover:bg-[#F0FDF4] transition"
+                className="mt-2.5 min-h-[44px] inline-flex items-center px-4 py-3 rounded-[8px] border border-[#D8E5DC] bg-white text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
               >
                 Tampilkan semua aplikasi
               </button>
@@ -693,6 +688,7 @@ export const RegistrasiSso: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowModal(false)}
+                aria-label="Tutup formulir aplikasi"
                 className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2] transition"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -738,7 +734,7 @@ export const RegistrasiSso: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setAppImage(null)}
-                        className="text-[10px] text-[#B91C1C] hover:underline font-semibold"
+                        className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm text-[#B91C1C] hover:bg-[#FEE2E2] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                       >
                         Hapus Foto
                       </button>
@@ -781,7 +777,7 @@ export const RegistrasiSso: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => generateCredentials()}
-                      className="text-[11px] font-semibold text-[#166534] hover:text-[#14532D] inline-flex items-center gap-1 hover:underline"
+                      className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                     >
                       <ArrowPathIcon className="w-3 h-3" />
                       Acak Ulang
@@ -890,14 +886,14 @@ export const RegistrasiSso: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 rounded-[8px] text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold transition"
+                  className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-sm disabled:opacity-50 transition"
+                  className="min-h-[44px] px-4 py-3 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-sm shadow-sm disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   {isSubmitting
                     ? editingApp

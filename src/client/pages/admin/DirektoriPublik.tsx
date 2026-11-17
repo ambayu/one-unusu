@@ -289,29 +289,30 @@ export const DirektoriPublik: React.FC = () => {
       description="Kelola daftar tautan aplikasi mandiri/eksternal non-SSO dan direktori portal publik yang tampil di dashboard dan katalog kampus."
       onRefresh={loadDirectories}
       refreshing={loading || userLoading}
+      headerAction={canEdit && (
+        <button onClick={openCreateModal}
+          className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+          <PlusIcon className="w-4 h-4" />
+          <span>Tambah Aplikasi Non-SSO</span>
+        </button>
+      )}
     >
       {/* Top Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative max-w-sm w-full">
-          <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-3 top-2.5" />
+      <div className="grid grid-cols-1 gap-4">
+        <div className="min-w-0">
+          <label htmlFor="directory-search" className="mb-2 block text-sm font-semibold text-[#475569]">Cari direktori</label>
+          <div className="relative">
+          <MagnifyingGlassIcon className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
           <input
+            id="directory-search"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari direktori atau tautan..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+            className="w-full min-w-0 min-h-[44px] px-4 py-3 pl-10 text-sm bg-white border border-[#D8E5DC] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534]"
           />
+          </div>
         </div>
-
-        {canEdit && (
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-            <span>Tambah Aplikasi Non-SSO</span>
-          </button>
-        )}
       </div>
 
       {/* Tabel Data Direktori */}
@@ -454,6 +455,7 @@ export const DirektoriPublik: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowModal(false)}
+                aria-label="Tutup formulir direktori"
                 className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#475569] hover:bg-[#F1F5F2] transition"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -593,7 +595,7 @@ export const DirektoriPublik: React.FC = () => {
                               e.stopPropagation();
                               setUploadedImage(null);
                             }}
-                            className="mt-1 text-[11px] text-[#B91C1C] hover:underline font-semibold"
+                            className="mt-1 min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm text-[#B91C1C] hover:bg-[#FEE2E2] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                           >
                             Hapus Gambar
                           </button>
@@ -644,14 +646,14 @@ export const DirektoriPublik: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 rounded-[8px] text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold transition"
+                  className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm text-[#475569] bg-[#F1F5F2] hover:bg-[#E8EFEA] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-bold text-xs shadow-sm disabled:opacity-50 transition"
+                  className="min-h-[44px] px-4 py-3 rounded-[8px] text-white bg-[#166534] hover:bg-[#14532D] font-semibold text-sm shadow-sm disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
                 >
                   {isSubmitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Tambah Direktori'}
                 </button>

@@ -118,22 +118,50 @@ export const AplikasiNonSsoPage: React.FC = () => {
         <button
           onClick={loadData}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#D8E5DC] text-xs font-semibold text-[#166534] hover:bg-[#F0FDF4] transition self-start md:self-auto disabled:opacity-60"
+          type="button"
+          className="inline-flex items-center gap-2 min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] transition self-start md:self-auto disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
         >
-          <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <ArrowPathIcon className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
           <span>Muat Ulang</span>
         </button>
       </div>
 
       {/* Filter Kategori & Search Bar */}
-      <div className="bg-white rounded-[18px] border border-[#D8E5DC] p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      <section className="bg-white rounded-[16px] border border-[#D8E5DC] p-4 sm:p-6 space-y-4" aria-labelledby="non-sso-filter-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="non-sso-filter-heading" className="text-base font-semibold text-[#1E293B]">Filter Portal Mandiri</h2>
+          {(searchQuery || selectedCategory !== 'Semua') && (
+            <button type="button" onClick={() => { setSearchQuery(''); setSelectedCategory('Semua'); }} className="min-h-[44px] px-4 py-3 rounded-[8px] border border-[#D8E5DC] text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">
+              Reset Semua Filter
+            </button>
+          )}
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-4">
+          <div className="min-w-0">
+            <label htmlFor="non-sso-search" className="mb-2 block text-sm font-semibold text-[#3A5544]">Cari portal mandiri</label>
+            <div className="relative min-w-0">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+              <input
+                id="non-sso-search"
+                type="text"
+                placeholder="Cari portal mandiri..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="min-w-0 w-full pl-12 pr-4 py-3 text-sm rounded-[8px] border border-[#D8E5DC] bg-white focus:outline-none focus:ring-2 focus:ring-[#166534] focus:border-[#166534] transition"
+              />
+            </div>
+          </div>
+        </div>
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-sm font-semibold text-[#3A5544]">Kategori portal</legend>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
           {categories.map((category) => (
             <button
               key={category}
               type="button"
               onClick={() => setSelectedCategory(category)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+              aria-pressed={selectedCategory === category}
+              className={`min-h-[44px] px-4 py-3 rounded-[8px] text-sm font-semibold break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all ${
                 selectedCategory === category
                   ? 'bg-[#166534] text-white shadow-sm'
                   : 'bg-[#F1F5F2] text-[#475569] hover:bg-[#E2E8F0]'
@@ -142,19 +170,10 @@ export const AplikasiNonSsoPage: React.FC = () => {
               {category}
             </button>
           ))}
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-          <input
-            type="text"
-            placeholder="Cari portal mandiri..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#D8E5DC] bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#166534]/20 focus:border-[#166534] transition"
-          />
-        </div>
-      </div>
+          </div>
+        </fieldset>
+        <p className="text-sm text-[#64748B] break-words">Kategori: {selectedCategory}{searchQuery && ` · Pencarian: ${searchQuery}`}</p>
+      </section>
 
       {error && (
         <div className="flex items-start gap-2.5 rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] px-4 py-3 text-xs font-medium text-[#B91C1C]">
@@ -228,10 +247,10 @@ export const AplikasiNonSsoPage: React.FC = () => {
                   href={dir.urlTarget}
                   target={dir.isExternal ? '_blank' : '_self'}
                   rel={dir.isExternal ? 'noopener noreferrer' : undefined}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[12px] bg-[#166534] hover:bg-[#14532D] text-white text-xs font-bold shadow-sm hover:shadow-sm transition-all"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 px-4 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white text-sm font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 transition-all"
                 >
                   <span>Kunjungi Portal</span>
-                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                  <ArrowTopRightOnSquareIcon className="w-4 h-4 shrink-0" />
                 </a>
               </div>
             </div>

@@ -75,10 +75,10 @@ export const PeranIzin: React.FC = () => {
 
   return (
     <AdminPanelTemplate user={currentUser} title={role ? `Atur Izin — ${role.name}` : 'Atur Izin Peran'} description="Tautkan izin berdasarkan kelompok modul."
-      headerAction={<Link to="/admin/peran" className="self-end shrink-0 inline-flex items-center px-4 py-3 rounded-lg border border-[#D8E5DC] bg-white text-xs font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">Kembali ke Peran</Link>}
+      headerAction={<Link to="/admin/peran" className="min-h-[44px] shrink-0 inline-flex items-center justify-center px-4 py-3 rounded-lg border border-[#D8E5DC] bg-white text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">Kembali ke Peran</Link>}
     >
       {loading ? <p role="status">Memuat izin peran...</p> : !role ? (
-        <button type="button" onClick={() => void load()} className="text-sm text-[#166534]">Coba Lagi</button>
+        <button type="button" onClick={() => void load()} className="min-h-[44px] px-4 py-3 rounded-lg border border-[#D8E5DC] bg-white text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">Coba Lagi</button>
       ) : (
         <form onSubmit={save} className="space-y-4" aria-busy={saving}>
           <fieldset disabled={saving || !canEdit} className="bg-white border border-[#D8E5DC] rounded-[16px] p-6">
@@ -115,7 +115,7 @@ export const PeranIzin: React.FC = () => {
               </div>
             </fieldset>
           ))}
-          <button type="submit" disabled={saving || !canEdit} className="px-4 py-3 rounded-lg bg-[#166534] text-white text-xs font-semibold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan Izin'}</button>
+          <button type="submit" disabled={saving || !canEdit} className="min-h-[44px] px-4 py-3 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white text-sm font-semibold disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]">{saving ? 'Menyimpan...' : 'Simpan Izin'}</button>
         </form>
       )}
       <NotificationModal isOpen={saved} type="success" title="Izin Disimpan" message="Penautan izin peran berhasil diperbarui." onClose={() => setSaved(false)} />

@@ -269,6 +269,26 @@ export const BerkasDosen: React.FC = () => {
       description="Pantau kelengkapan dokumen akademik dosen: siapa yang sudah mengunggah dan jenis berkas apa yang masih kosong."
       onRefresh={() => void muatData(false)}
       refreshing={memuatUlang}
+      headerAction={
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTerbuka(terbuka.size === 0 ? new Set(tersaring.map((d) => d.id)) : new Set())}
+            className="min-h-[44px] px-4 py-3 border border-[#D8E5DC] rounded-lg text-sm font-semibold text-[#475569] hover:bg-[#F1F5F2] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
+          >
+            {terbuka.size === 0 ? 'Buka Semua' : 'Tutup Semua'}
+          </button>
+          <button
+            type="button"
+            onClick={unduhRekap}
+            disabled={tersaring.length === 0}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 border border-[#D8E5DC] rounded-lg bg-[#166534] hover:bg-[#14532D] text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#166534] transition disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4" />
+            Ekspor Rekap
+          </button>
+        </div>
+      }
     >
       {/* Statistik operasional */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -290,24 +310,29 @@ export const BerkasDosen: React.FC = () => {
         ))}
       </div>
 
-      {/* Toolbar: pencarian, saringan, ekspor */}
-      <div className="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-sm">
+      {/* Filter daftar dosen */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="min-w-0 xl:col-span-2">
+          <label htmlFor="berkas-dosen-search" className="mb-1.5 block text-xs font-semibold text-[#475569]">Pencarian</label>
+          <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
             <input
+              id="berkas-dosen-search"
               type="text"
               value={pencarian}
               onChange={(e) => setPencarian(e.target.value)}
               placeholder="Cari nama, NIDN, prodi, fakultas..."
-              className="w-full pl-9 pr-3 py-2.5 border border-[#D8E5DC] rounded-lg text-sm text-[#1E293B] placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534]"
+              className="min-h-[44px] w-full min-w-0 pl-9 pr-4 py-3 border border-[#D8E5DC] rounded-lg text-sm text-[#1E293B] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#166534]"
             />
           </div>
-
+        </div>
+        <div className="min-w-0">
+          <label htmlFor="berkas-dosen-kelengkapan" className="mb-1.5 block text-xs font-semibold text-[#475569]">Kelengkapan Berkas</label>
           <select
+            id="berkas-dosen-kelengkapan"
             value={saringan}
             onChange={(e) => setSaringan(e.target.value as SaringanKelengkapan)}
-            className="px-3 py-2.5 border border-[#D8E5DC] rounded-lg text-sm text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#166534]"
+            className="min-h-[44px] w-full min-w-0 px-4 py-3 bg-white border border-[#D8E5DC] rounded-lg text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#166534]"
           >
             {OPSI_SARINGAN.map((opsi) => (
               <option key={opsi.nilai} value={opsi.nilai}>
@@ -317,24 +342,6 @@ export const BerkasDosen: React.FC = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setTerbuka(terbuka.size === 0 ? new Set(tersaring.map((d) => d.id)) : new Set())}
-            className="px-3 py-2.5 border border-[#D8E5DC] rounded-lg text-sm font-semibold text-[#475569] hover:bg-[#F1F5F2] transition"
-          >
-            {terbuka.size === 0 ? 'Buka Semua' : 'Tutup Semua'}
-          </button>
-          <button
-            type="button"
-            onClick={unduhRekap}
-            disabled={tersaring.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white text-sm font-semibold transition disabled:opacity-50"
-          >
-            <ArrowDownTrayIcon className="w-4 h-4" />
-            Ekspor Rekap
-          </button>
-        </div>
       </div>
 
       {/* Daftar dosen */}
@@ -576,7 +583,8 @@ export const BerkasDosen: React.FC = () => {
                                           type="button"
                                           onClick={() => void pratinjau(utama.fileUrl)}
                                           title="Lihat berkas"
-                                          className="p-1.5 rounded-[6px] text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] transition"
+                                          aria-label={`Lihat ${nama} milik ${dosen.nama}`}
+                                          className="p-1.5 rounded-[6px] text-[#475569] hover:bg-[#F0FDF4] hover:text-[#166534] focus:outline-none focus:ring-2 focus:ring-[#166534] transition"
                                         >
                                           <EyeIcon className="w-4 h-4" />
                                         </button>
