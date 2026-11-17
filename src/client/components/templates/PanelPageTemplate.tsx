@@ -41,7 +41,7 @@ export const PanelPageTemplate: React.FC<PanelPageTemplateProps> = ({
   children,
 }) => (
   <div className="w-full min-w-0 bg-white border border-[#D8E5DC] rounded-[16px] shadow-sm overflow-hidden">
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 border-b border-[#D8E5DC]">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4 p-5 border-b border-[#D8E5DC]">
       <div className="min-w-0">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
           <BadgeIcon className="w-3 h-3" />
@@ -52,17 +52,19 @@ export const PanelPageTemplate: React.FC<PanelPageTemplateProps> = ({
         <p className="text-xs text-[#475569] mt-0.5">{description}</p>
       </div>
 
-      {headerAction}
-      {onRefresh && (
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#D8E5DC] bg-white text-xs font-semibold text-[#475569] hover:bg-[#F1F5F2] transition disabled:opacity-50"
-        >
-          <ArrowPathIcon className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>Segarkan</span>
-        </button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {headerAction}
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="self-start sm:self-auto min-h-[44px] inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-[#D8E5DC] bg-white text-sm font-semibold text-[#475569] hover:bg-[#F1F5F2] focus:outline-none focus:ring-2 focus:ring-[#166534] transition disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Segarkan</span>
+          </button>
+        )}
+      </div>
     </div>
 
     <div className="w-full min-w-0 p-5 sm:p-6 space-y-5">{children}</div>

@@ -243,6 +243,9 @@ export const ManajemenPengguna: React.FC = () => {
   /** Label yang tampil pada dropdown. */
   const labelWilayah = (nilai: string) => (nilai === KOSONG ? 'Belum diisi' : nilai);
 
+  const hasActiveFilters = filterRole !== 'ALL' || filterStatus !== 'ALL' ||
+    filterFakultas !== 'ALL' || filterProdi !== 'ALL' || search.trim() !== '';
+
   // Sinkronisasi jika query param URL berubah dari luar
   React.useEffect(() => {
     setFilterRoleState(validRoleFilter);
@@ -252,9 +255,12 @@ export const ManajemenPengguna: React.FC = () => {
     setFilterStatusState(validStatusFilter);
   }, [statusParam]);
 
-  const updateStatusFilter = (newStatus: StatusFilter) => {
+  const updateStatusFilter = (newStatus: StatusFilter, role: 'ALL' | UserRole = filterRole) => {
+    setFilterRoleState(role);
     setFilterStatusState(newStatus);
     const newParams = new URLSearchParams(searchParams);
+    if (role === 'ALL') newParams.delete('role');
+    else newParams.set('role', role);
     if (newStatus === 'ALL') {
       newParams.delete('status');
     } else {
@@ -811,52 +817,91 @@ export const ManajemenPengguna: React.FC = () => {
       description="Kelola akun civitas akademika, peran akses, dan status keaktifan identitas SSO."
       onRefresh={reload}
       refreshing={loading}
+      headerAction={
+        <>
+          <button
+            onClick={() => setShowSyncConfirm(true)}
+            disabled={isSyncingSiakad || isSyncingMhs}
+            title="Tarik seluruh data Dosen dari SIAKAD UNUSU"
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-sm shadow-sm transition disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingSiakad ? 'animate-spin' : ''}`} />
+            <span>{isSyncingSiakad ? 'Menyinkronkan Dosen...' : 'Tarik Dosen SIAKAD'}</span>
+          </button>
+          <button
+            onClick={handleOpenSyncMhs}
+            disabled={isSyncingSiakad || isSyncingMhs}
+            title="Tarik data Mahasiswa dari SIAKAD UNUSU berdasarkan Prodi & Angkatan"
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-sm shadow-sm transition disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingMhs ? 'animate-spin' : ''}`} />
+            <span>{isSyncingMhs ? 'Menyinkronkan Mhs...' : 'Tarik Mahasiswa SIAKAD'}</span>
+          </button>
+          <button
+            onClick={openModal}
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-sm shadow-sm transition"
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+            <span>Tambah Akun Baru</span>
+          </button>
+        </>
+      }
     >
       {/* Cards Statistik Interaktif */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <button
-          type="button"
-          onClick={() => handleCardClick('ALL')}
-          aria-pressed={filterRole === 'ALL'}
-          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
+        <div
+          className={`min-w-0 p-5 rounded-[14px] border shadow-sm ${
             filterRole === 'ALL'
-              ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
-              : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-sm'
+              ? 'bg-[#F0FDF4] border-[#166534] ring-1 ring-[#166534]'
+              : 'bg-white border-[#D8E5DC]'
           }`}
         >
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-[#64748B]">Total Pengguna</span>
-              {filterRole === 'ALL' && (
-                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#166534] text-white">
-                  Aktif
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalUsers ?? 0}</p>
-            <p className="text-[11px] text-[#64748B] mt-0.5">Semua akun terdaftar</p>
-          </div>
-          <div
-            className={`w-13 h-13 rounded-[14px] border flex items-center justify-center flex-shrink-0 transition-colors ${
-              filterRole === 'ALL'
-                ? 'bg-[#166534] border-[#166534] text-white'
-                : 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
-            }`}
+          <button
+            type="button"
+            onClick={() => handleCardClick('ALL')}
+            aria-pressed={filterRole === 'ALL' && filterStatus === 'ALL'}
+            className="w-full text-left flex items-center justify-between gap-3 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]"
           >
-            <UsersIcon className="w-8 h-8" />
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-[#64748B]">Total Pengguna</span>
+              <span className="block mt-1 text-2xl font-bold text-[#1E293B]">{stats?.totalUsers ?? 0}</span>
+              <span className="block text-[11px] text-[#64748B] mt-0.5">Semua akun terdaftar</span>
+            </span>
+            <span className="w-13 h-13 rounded-[14px] border border-[#BBF7D0] bg-[#DCFCE7] text-[#166534] flex items-center justify-center flex-shrink-0">
+              <UsersIcon className="w-8 h-8" />
+            </span>
+          </button>
+          <div role="group" aria-label="Status akun" className="mt-3 flex flex-wrap gap-2">
+            {([
+              { key: 'AKTIF' as StatusFilter, label: 'Aktif', count: users.filter((user) => user.isActive).length },
+              { key: 'NONAKTIF' as StatusFilter, label: 'Nonaktif', count: users.filter((user) => !user.isActive).length },
+            ]).map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateStatusFilter(item.key, 'ALL')}
+                aria-label={`Semua pengguna ${item.label}: ${item.count}`}
+                aria-pressed={filterRole === 'ALL' && filterStatus === item.key}
+                className={`min-h-[44px] px-4 py-3 text-sm font-semibold rounded-[8px] border focus:outline-none focus:ring-2 focus:ring-[#166534] ${
+                  filterRole === 'ALL' && filterStatus === item.key
+                    ? 'bg-[#166534] border-[#166534] text-white'
+                    : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4]'
+                }`}
+              >
+                {item.label} <span className="tabular-nums">{item.count}</span>
+              </button>
+            ))}
           </div>
-        </button>
+        </div>
 
-        <button
-          type="button"
-          onClick={() => handleCardClick('MAHASISWA')}
-          aria-pressed={filterRole === 'MAHASISWA'}
-          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#166534] ${
+        <div
+          className={`min-w-0 p-5 rounded-[14px] border shadow-sm ${
             filterRole === 'MAHASISWA'
               ? 'bg-[#F0FDF4] border-[#166534] shadow-sm ring-1 ring-[#166534]'
               : 'bg-white border-[#D8E5DC] hover:border-[#86EFAC] hover:bg-[#F9FDFB] shadow-sm'
           }`}
         >
+          <button type="button" onClick={() => handleCardClick('MAHASISWA')} aria-pressed={filterRole === 'MAHASISWA' && filterStatus === 'ALL'} className="w-full text-left flex items-center justify-between gap-3 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-[#64748B]">Mahasiswa</span>
@@ -878,18 +923,31 @@ export const ManajemenPengguna: React.FC = () => {
           >
             <AcademicCapIcon className="w-8 h-8" />
           </div>
-        </button>
+          </button>
+          <div role="group" aria-label="Status mahasiswa" className="mt-3 flex flex-wrap gap-2">
+            {(['AKTIF', 'NONAKTIF'] as const).map((status) => {
+              const label = status === 'AKTIF' ? 'Aktif' : 'Nonaktif';
+              const count = users.filter((user) => user.role === 'MAHASISWA' && user.isActive === (status === 'AKTIF')).length;
+              const selected = filterRole === 'MAHASISWA' && filterStatus === status;
+              return (
+                <button key={status} type="button" onClick={() => updateStatusFilter(status, 'MAHASISWA')}
+                  aria-label={`Mahasiswa ${label}: ${count}`} aria-pressed={selected}
+                  className={`min-h-[44px] px-4 py-3 text-sm font-semibold rounded-[8px] border focus:outline-none focus:ring-2 focus:ring-[#166534] ${selected ? 'bg-[#166534] border-[#166534] text-white' : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4]'}`}>
+                  {label} <span className="tabular-nums">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        <button
-          type="button"
-          onClick={() => handleCardClick('DOSEN')}
-          aria-pressed={filterRole === 'DOSEN'}
-          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#B45309] ${
+        <div
+          className={`min-w-0 p-5 rounded-[14px] border shadow-sm ${
             filterRole === 'DOSEN'
               ? 'bg-[#FEFCE8] border-[#B45309] shadow-sm ring-1 ring-[#B45309]'
               : 'bg-white border-[#D8E5DC] hover:border-[#FDE68A] hover:bg-[#FFFDF5] shadow-sm'
           }`}
         >
+          <button type="button" onClick={() => handleCardClick('DOSEN')} aria-pressed={filterRole === 'DOSEN' && filterStatus === 'ALL'} className="w-full text-left flex items-center justify-between gap-3 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-[#64748B]">Dosen</span>
@@ -911,18 +969,31 @@ export const ManajemenPengguna: React.FC = () => {
           >
             <BriefcaseIcon className="w-8 h-8" />
           </div>
-        </button>
+          </button>
+          <div role="group" aria-label="Status dosen" className="mt-3 flex flex-wrap gap-2">
+            {(['AKTIF', 'NONAKTIF'] as const).map((status) => {
+              const label = status === 'AKTIF' ? 'Aktif' : 'Nonaktif';
+              const count = users.filter((user) => user.role === 'DOSEN' && user.isActive === (status === 'AKTIF')).length;
+              const selected = filterRole === 'DOSEN' && filterStatus === status;
+              return (
+                <button key={status} type="button" onClick={() => updateStatusFilter(status, 'DOSEN')}
+                  aria-label={`Dosen ${label}: ${count}`} aria-pressed={selected}
+                  className={`min-h-[44px] px-4 py-3 text-sm font-semibold rounded-[8px] border focus:outline-none focus:ring-2 focus:ring-[#166534] ${selected ? 'bg-[#166534] border-[#166534] text-white' : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4]'}`}>
+                  {label} <span className="tabular-nums">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        <button
-          type="button"
-          onClick={() => handleCardClick('SUPERADMIN')}
-          aria-pressed={filterRole === 'SUPERADMIN'}
-          className={`text-left p-5 rounded-[14px] border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] ${
+        <div
+          className={`min-w-0 p-5 rounded-[14px] border shadow-sm ${
             filterRole === 'SUPERADMIN'
               ? 'bg-[#EFF6FF] border-[#1D4ED8] shadow-sm ring-1 ring-[#1D4ED8]'
               : 'bg-white border-[#D8E5DC] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] shadow-sm'
           }`}
         >
+          <button type="button" onClick={() => handleCardClick('SUPERADMIN')} aria-pressed={filterRole === 'SUPERADMIN' && filterStatus === 'ALL'} className="w-full text-left flex items-center justify-between gap-3 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-[#64748B]">Superadmin</span>
@@ -946,99 +1017,60 @@ export const ManajemenPengguna: React.FC = () => {
           >
             <ShieldCheckIcon className="w-8 h-8" />
           </div>
-        </button>
-      </div>
-
-      {/* Filter status keaktifan â€” chip ringkas, target sentuh >= 44px */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
-            Status Akun
-          </span>
-          {([
-            { key: 'ALL' as StatusFilter, label: 'Semua', count: users.length },
-            {
-              key: 'AKTIF' as StatusFilter,
-              label: 'Aktif',
-              count: users.filter((user) => user.isActive).length,
-            },
-            {
-              key: 'NONAKTIF' as StatusFilter,
-              label: 'Nonaktif',
-              count: users.filter((user) => !user.isActive).length,
-            },
-          ]).map((item) => {
-            const isActive = filterStatus === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => updateStatusFilter(isActive ? 'ALL' : item.key)}
-                aria-pressed={isActive}
-                className={`inline-flex items-center gap-1.5 min-h-[44px] px-3 text-[11px] font-semibold rounded-full border transition ${
-                  isActive
-                    ? 'bg-[#166534] border-[#166534] text-white shadow-sm'
-                    : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4] hover:border-[#86EFAC]'
-                }`}
-              >
-                <span>{item.label}</span>
-                <span
-                  className={`px-1.5 rounded-full text-[10px] font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-[#F1F5F2] text-[#64748B]'
-                  }`}
-                >
-                  {item.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {(filterRole !== 'ALL' || filterStatus !== 'ALL' || search.trim() !== '') && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="self-start sm:self-auto inline-flex items-center gap-1 min-h-[44px] px-3 text-[11px] font-semibold text-[#B91C1C] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-[8px] transition"
-          >
-            <XMarkIcon className="w-3.5 h-3.5" />
-            Reset Semua Filter
           </button>
-        )}
+          <div role="group" aria-label="Status superadmin" className="mt-3 flex flex-wrap gap-2">
+            {(['AKTIF', 'NONAKTIF'] as const).map((status) => {
+              const label = status === 'AKTIF' ? 'Aktif' : 'Nonaktif';
+              const count = users.filter((user) => user.role === 'SUPERADMIN' && user.isActive === (status === 'AKTIF')).length;
+              const selected = filterRole === 'SUPERADMIN' && filterStatus === status;
+              return (
+                <button key={status} type="button" onClick={() => updateStatusFilter(status, 'SUPERADMIN')}
+                  aria-label={`Superadmin ${label}: ${count}`} aria-pressed={selected}
+                  className={`min-h-[44px] px-4 py-3 text-sm font-semibold rounded-[8px] border focus:outline-none focus:ring-2 focus:ring-[#166534] ${selected ? 'bg-[#166534] border-[#166534] text-white' : 'bg-white border-[#D8E5DC] text-[#475569] hover:bg-[#F0FDF4]'}`}>
+                  {label} <span className="tabular-nums">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/*
-        Baris pencarian & filter.
-
-        Sebelumnya kolom pencarian dibatasi `max-w-md` (448px) lalu dipaksa
-        berbagi baris dengan empat select dan tombol aksi. Di layar selebar
-        laptop ruang yang tersisa untuk input tinggal puluhan piksel sehingga
-        teks yang diketik seolah "hilang" — hanya beberapa karakter terlihat
-        sebelum terpotong. Sekarang pencarian memakai lebar penuh barisnya
-        sendiri; select dan tombol aksi turun ke baris berikutnya saat layar
-        menyempit, bukan memeras kolom pencarian.
-      */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="relative w-full lg:max-w-md">
+      <section aria-labelledby="filter-pengguna-heading" className="bg-white rounded-[16px] border border-[#D8E5DC] p-4 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="filter-pengguna-heading" className="text-base font-bold text-[#1E293B]">Filter Pengguna</h2>
+          {hasActiveFilters && (
+            <button type="button" onClick={resetFilters} className="min-h-[44px] px-4 py-3 text-sm font-semibold text-[#166534] hover:bg-[#F0FDF4] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#166534]">
+              Reset Semua Filter
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="min-w-0 sm:col-span-3">
+            <label htmlFor="pengguna-search" className="block mb-2 text-sm font-semibold text-[#475569]">Pencarian</label>
+            <div className="relative">
             <MagnifyingGlassIcon
-              className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="w-5 h-5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
               aria-hidden="true"
             />
             <input
+              id="pengguna-search"
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cari NIM, NIDN, nama, atau prodi..."
               aria-label="Cari pengguna berdasarkan NIM, NIDN, nama, atau prodi"
-              className="w-full pl-9 pr-3 min-h-[44px] py-2 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
+              className="min-w-0 w-full pl-12 pr-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#1E293B] placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534]"
             />
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="min-w-0">
+            <label htmlFor="pengguna-peran" className="block mb-2 text-sm font-semibold text-[#475569]">Peran</label>
             <select
+              id="pengguna-peran"
               value={filterRole}
               onChange={(event) => updateRoleFilter(event.target.value as 'ALL' | UserRole)}
-              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
+              className="min-w-0 w-full px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
             >
               <option value="ALL">Semua Peran</option>
               {ROLE_OPTIONS.map((role) => (
@@ -1048,28 +1080,16 @@ export const ManajemenPengguna: React.FC = () => {
               ))}
             </select>
 
-            {filterRole !== 'ALL' && (
-              <button
-                type="button"
-                onClick={() => updateRoleFilter('ALL')}
-                title="Reset filter peran"
-                className="inline-flex items-center gap-1 px-2 py-2 min-h-[44px] text-xs font-semibold text-[#64748B] hover:text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
-              >
-                <XMarkIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-            )}
           </div>
 
-          {/* Filter wilayah akademik. Diletakkan sebaris dengan pencarian dan
-              peran karena ketiganya sama-sama mempersempit daftar yang sama;
-              memisahkannya ke baris lain hanya menambah tinggi halaman. */}
-          <div className="flex items-center gap-1.5">
+          <div className="min-w-0">
+            <label htmlFor="pengguna-fakultas" className="block mb-2 text-sm font-semibold text-[#475569]">Fakultas</label>
             <select
+              id="pengguna-fakultas"
               value={filterFakultas}
               onChange={(event) => updateFakultasFilter(event.target.value)}
               aria-label="Saring menurut fakultas"
-              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+              className="min-w-0 w-full px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
             >
               <option value="ALL">Semua Fakultas</option>
               {opsiFakultas.map((opsi) => (
@@ -1078,12 +1098,15 @@ export const ManajemenPengguna: React.FC = () => {
                 </option>
               ))}
             </select>
-
+          </div>
+          <div className="min-w-0">
+            <label htmlFor="pengguna-prodi" className="block mb-2 text-sm font-semibold text-[#475569]">Prodi</label>
             <select
+              id="pengguna-prodi"
               value={filterProdi}
               onChange={(event) => updateProdiFilter(event.target.value)}
               aria-label="Saring menurut program studi"
-              className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534] max-w-[190px]"
+              className="min-w-0 w-full px-4 py-3 text-sm bg-white border border-[#D8E5DC] rounded-[8px] text-[#475569] focus:outline-none focus:ring-1 focus:ring-[#166534]"
             >
               <option value="ALL">Semua Prodi</option>
               {opsiProdi.map((opsi) => (
@@ -1094,117 +1117,26 @@ export const ManajemenPengguna: React.FC = () => {
             </select>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          <button
-            onClick={() => setShowSyncConfirm(true)}
-            disabled={isSyncingSiakad || isSyncingMhs}
-            title="Tarik seluruh data Dosen dari SIAKAD UNUSU"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-sm transition disabled:opacity-60"
-          >
-            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingSiakad ? 'animate-spin' : ''}`} />
-            <span>{isSyncingSiakad ? 'Menyinkronkan Dosen...' : 'Tarik Dosen SIAKAD'}</span>
-          </button>
-
-          <button
-            onClick={handleOpenSyncMhs}
-            disabled={isSyncingSiakad || isSyncingMhs}
-            title="Tarik data Mahasiswa dari SIAKAD UNUSU berdasarkan Prodi & Angkatan"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] bg-white hover:bg-[#F0FDF4] border border-[#166534] text-[#166534] font-semibold text-xs shadow-sm transition disabled:opacity-60"
-          >
-            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncingMhs ? 'animate-spin' : ''}`} />
-            <span>{isSyncingMhs ? 'Menyinkronkan Mhs...' : 'Tarik Mahasiswa SIAKAD'}</span>
-          </button>
-
-          <button
-            onClick={openModal}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs shadow-sm transition"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-            <span>Tambah Akun Baru</span>
-          </button>
-        </div>
-      </div>
+      </section>
 
       <div className="bg-white rounded-[14px] border border-[#D8E5DC] shadow-sm overflow-hidden">
-        {/* Bar hanya dirender bila ada filter aktif. Tanpa penjagaan ini,
-            bar menghilang isinya tetapi tetap tampil sebagai pita abu kosong
-            setinggi ~44px di atas tabel. */}
-        {(filterRole !== 'ALL' ||
-          filterStatus !== 'ALL' ||
-          filterFakultas !== 'ALL' ||
-          filterProdi !== 'ALL' ||
-          search.trim() !== '') && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[#E8EFEA] bg-[#F9FDFB]">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Judul "Daftar Pengguna" tidak dipakai: konteks halaman sudah
-                jelas dari judul panel, dan DataTable sudah memiliki label
-                ringkasan sendiri. Yang dipertahankan hanya chip filter aktif,
-                karena itu informasi yang tidak muncul di tempat lain. */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 px-4 py-3 border-b border-[#D8E5DC] text-sm text-[#475569] break-words">
+            <span className="font-semibold">Filter aktif:</span>
             {filterRole !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
-                Filter: {ROLE_LABEL[filterRole as UserRole] ?? filterRole}
-                <button
-                  type="button"
-                  onClick={() => updateRoleFilter('ALL')}
-                  aria-label="Hapus filter peran"
-                  className="hover:text-[#B91C1C]"
-                >
-                  <XMarkIcon className="w-3 h-3" />
-                </button>
-              </span>
+              <span>Peran: {ROLE_LABEL[filterRole as UserRole] ?? filterRole}</span>
             )}
             {filterStatus !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
-                Status: {filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}
-                <button
-                  type="button"
-                  onClick={() => updateStatusFilter('ALL')}
-                  aria-label="Hapus filter status"
-                  className="hover:text-[#B91C1C]"
-                >
-                  <XMarkIcon className="w-3 h-3" />
-                </button>
-              </span>
+              <span>Status: {filterStatus === 'AKTIF' ? 'Aktif' : 'Nonaktif'}</span>
             )}
             {filterFakultas !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]">
-                Fakultas: {labelWilayah(filterFakultas)}
-                <button
-                  type="button"
-                  onClick={() => updateFakultasFilter('ALL')}
-                  aria-label="Hapus filter fakultas"
-                  className="hover:text-[#B91C1C]"
-                >
-                  <XMarkIcon className="w-3 h-3" />
-                </button>
-              </span>
+              <span>Fakultas: {labelWilayah(filterFakultas)}</span>
             )}
             {filterProdi !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F5F3FF] text-[#6D28D9] border border-[#DDD6FE]">
-                Prodi: {labelWilayah(filterProdi)}
-                <button
-                  type="button"
-                  onClick={() => updateProdiFilter('ALL')}
-                  aria-label="Hapus filter program studi"
-                  className="hover:text-[#B91C1C]"
-                >
-                  <XMarkIcon className="w-3 h-3" />
-                </button>
-              </span>
+              <span>Prodi: {labelWilayah(filterProdi)}</span>
             )}
+            {search.trim() !== '' && <span>Pencarian: {search.trim()}</span>}
           </div>
-          {/* Bar hanya muncul saat ada filter aktif, jadi tombol ini selalu
-              relevan tanpa perlu penjagaan tambahan. */}
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="self-start sm:self-auto inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[#166534] bg-white hover:bg-[#F0FDF4] border border-[#D8E5DC] rounded-[8px] transition"
-          >
-            <XMarkIcon className="w-3.5 h-3.5" />
-            Tampilkan Semua
-          </button>
-        </div>
         )}
         <DataTable<UserProfile>
           data={filteredUsers}
@@ -1225,14 +1157,6 @@ export const ManajemenPengguna: React.FC = () => {
                 {filterProdi !== 'ALL' ? ` prodi ${labelWilayah(filterProdi)}` : ''}
                 {search.trim() ? ` dan kata kunci "${search.trim()}"` : ''}.
               </p>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="mt-3 inline-flex items-center gap-1 px-3 py-2 text-[11px] font-semibold text-[#166534] bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] rounded-[8px] transition"
-              >
-                <XMarkIcon className="w-3.5 h-3.5" />
-                Reset Filter
-              </button>
             </>
           }
           kolom={[

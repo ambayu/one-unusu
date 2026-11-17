@@ -1,5 +1,13 @@
 # Changelog - Admin Panel
 
+## [2026-11-18] - Filter pengguna dan kartu status akun
+
+- `/admin/pengguna` tetap memakai `AdminPanelTemplate` dan `DataTable`. Pencarian kini satu baris penuh; Peran, Fakultas, dan Prodi memiliki label serta kolom sama lebar yang menumpuk di ponsel. Sinkronisasi dosen/mahasiswa dan tambah akun dipindah ke slot `headerAction`, di sebelah Segarkan; grup aksi template membungkus pada layar sempit.
+- Tombol **Aktif N / Nonaktif N** disatukan di setiap kartu **Total Pengguna, Mahasiswa, Dosen, Superadmin**, bukan bar status baru. Kontrol terpisah tanpa nested button, dengan `aria-pressed` dan fokus keyboard. Klik status memilih peran kartu dan status dalam satu pembaruan URL atomik, bukan menonaktifkan atau mengaktifkan akun. Tombol utama kartu mempertahankan handler peran semula.
+- Tombol header, Segarkan pada template bersama, status kartu, dan reset diperbesar (`text-sm px-4 py-3 min-h-[44px]`), dengan pembungkusan responsif mengikuti ukuran nyaman Ekspor Rekap.
+- Satu **Reset Semua Filter** muncul untuk setiap filter aktif, termasuk fakultas/prodi saja. Ringkasan menjadi teks biasa tanpa chip berwarna; reset duplikat dihapus. Handler reset, cascading fakultas/prodi, izin, dan aksi akun tetap dipertahankan.
+- Standar layout dicatat di `docs/design-system/DESIGN_RULES.md` §4; tanpa dependensi, template baru, perubahan API, atau database.
+
 ## [2026-11-18] - Tombol kembali pada penautan izin
 
 - Keputusan pengguna: pilihan aplikasi ditautkan per peran ONE UNUSU, bukan per anggota cabang. Menggunakan `SsoApp.targetRoles` tanpa perubahan skema; izin tindakan internal aplikasi tidak digabungkan dengan hak masuk.

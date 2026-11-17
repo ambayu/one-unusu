@@ -45,7 +45,20 @@ Dokumen ini mendefinisikan prinsip estetika, visual hierarchy, elevation, spacin
 
 ---
 
-## 4. Spacing & Elevation
+## 4. Standar Tata Letak Filter Panel
+
+- Berlaku untuk seluruh halaman panel ONE UNUSU (`/admin/*` dan panel sivitas), bukan portal publik atau repositori aplikasi cabang. Implementasi acuan: `/admin/pengguna`; penerapan halaman lain tidak mengubah semantik filter/izin masing-masing.
+- Gunakan template halaman dan komponen data yang terdaftar; filter adalah pola layout lokal, bukan template/komponen baru.
+- Kelompokkan filter dalam section putih berjudul (`rounded-[16px] border border-[#D8E5DC] p-4 sm:p-6`). Pisahkan toolbar sinkronisasi/tambah dari grid filter.
+- Pencarian memakai satu baris penuh. Dropdown memakai kolom sama lebar: satu kolom pada ponsel, tiga kolom mulai `sm` untuk Peran/Fakultas/Prodi. Pembungkus memakai `min-w-0`, kontrol `min-w-0 w-full`; jangan batasi lebar dropdown berdasarkan panjang label.
+- Label terlihat dan terhubung melalui `htmlFor`/`id`. Input/select memakai `px-4 py-3`, border `#D8E5DC`, radius 8px dan focus ring `#166534`. Pencarian berikon memakai `left-4`, ikon 20px, dan `pl-12` agar teks tidak menimpa ikon.
+- Status opsional disatukan di setiap kartu ringkasan yang relevan: pada `/admin/pengguna`, kartu **Total Pengguna, Mahasiswa, Dosen, Superadmin** masing-masing berisi tombol total serta tombol **Aktif N / Nonaktif N**. Wadah kartu berupa `div`, kontrol `button type="button"` dengan `aria-pressed`, label status+peran, dan fokus keyboard; jangan menumpuk button di dalam button. Jumlah status dihitung dari keanggotaan kartu pada pengguna termuat, bukan hasil pencarian. Klik status memilih peran kartu dan status sekaligus melalui satu pembaruan URL atomik, bukan dua setter URL berturut-turut. Jangan tambah bar/dropdown status terpisah. Klik hanya menyaring, bukan mengubah keaktifan akun.
+- Ukuran tombol aksi header (termasuk Segarkan), status kartu, dan reset mengikuti keterbacaan **Ekspor Rekap**: `text-sm font-semibold px-4 py-3 min-h-[44px]`. Kelompok tombol di kartu maupun header memakai `flex-wrap` agar tidak meluber pada layar sempit.
+- Aksi halaman seperti sinkronisasi dan tambah memakai slot `headerAction` template, berdampingan dengan **Segarkan** dalam grup `flex flex-wrap items-center gap-2`; pada layar sempit tombol turun baris, bukan memeras filter.
+- Sediakan satu tombol **Reset Semua Filter** pada kepala section, tampil jika salah satu filter aktif, termasuk fakultas/prodi saja atau pencarian. Reset membersihkan seluruh state dan parameter URL filter tanpa menghapus parameter lain; pertahankan aturan cascading.
+- Ringkasan filter aktif berupa teks biasa yang membungkus pada layar sempit, bukan chip/badge berwarna atau tombol reset tambahan. Filter individual diubah melalui kontrol asal.
+
+## 5. Spacing & Elevation
 
 - **Skala Spacing**: Menggunakan kelipatan 4px Tailwind (`gap-2` = 8px, `gap-3.5` = 14px, `gap-4` = 16px, `gap-6` = 24px, `p-6` = 24px, `p-7` = 28px).
 - **Elevation**: Hindari shadow tebal. Kedalaman visual utama dibuat oleh border `#D8E5DC` yang presisi; shadow hanya pelengkap. Skala shadow netral yang **sah** di proyek ini (Tailwind 3.4, tanpa `boxShadow` kustom di `tailwind.config.js`): `shadow-sm`, `shadow`, `shadow-md`, `shadow-lg`, `shadow-xl`, `shadow-2xl`, `shadow-inner`, `shadow-none`.
