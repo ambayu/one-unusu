@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
+import { LOCAL_DEV_CALLBACKS } from "../src/server/lib/ssoApps";
 
 dotenv.config();
 
@@ -15,18 +16,8 @@ const prisma = new PrismaClient();
  *
  *   npm run prisma:sso-dev-urls
  */
-const DEV_CALLBACKS: Record<string, string> = {
-  "unusu-lms": "http://localhost:5181/sso/callback",
-  "lppm-unusu": "http://localhost:5178/sso/callback",
-  "lpm-unusu": "http://localhost:5177/sso/callback",
-  "esurat-unusu": "http://localhost:5175/sso/callback",
-  "sdm-sarpras-unusu": "http://localhost:5179/sso/callback",
-  "unusu-akreditasi": "http://localhost:5176/sso/callback",
-  "prodi-unusu": "http://localhost:5180/sso/callback",
-};
-
 async function main() {
-  for (const [clientId, urlRedirect] of Object.entries(DEV_CALLBACKS)) {
+  for (const [clientId, urlRedirect] of Object.entries(LOCAL_DEV_CALLBACKS)) {
     const app = await prisma.ssoApp.findUnique({ where: { clientId } });
     if (!app) {
       console.log(`Lewati ${clientId}: belum terdaftar sebagai aplikasi SSO.`);
