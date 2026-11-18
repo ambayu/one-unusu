@@ -183,6 +183,14 @@ export const KUNCI_API_HUB: readonly DefinisiKunci[] = [
       "/api/v2/website/organisasi",
     ],
   },
+  {
+    name: "Direktori Pengguna — LMS UNUSU",
+    description:
+      "Token server-ke-server untuk menambah akun dari direktori civitas pada Manajemen Pengguna LMS.",
+    clientId: "50e3ed28134b379d",
+    envKey: "unusu-lms/.env → DIREKTORI_API_KEY",
+    endpointDiizinkan: ["/api/v2/website/users"],
+  },
 ];
 
 /** Membuat kunci baru dengan format yang sama seperti yang dipakai server. */
