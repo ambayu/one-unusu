@@ -14,6 +14,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { AdminPanelTemplate } from '../../components/templates/AdminPanelTemplate';
+import { BiodataEditor } from '../../components/BiodataEditor';
 import { DataTable } from '../../components/DataTable';
 import { useAdminData } from '../../hooks/useAdminData';
 import { NotificationModal, NotificationType } from '../../components/NotificationModal';
@@ -2026,13 +2027,11 @@ export const ManajemenPengguna: React.FC = () => {
                   <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-biografi">
                     Biografi
                   </label>
-                  <textarea
+                  <BiodataEditor
                     id="edit-biografi"
-                    rows={3}
-                    maxLength={5000}
-                    value={editBiografi}
-                    onChange={(event) => setEditBiografi(event.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#D8E5DC] rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-[#166534]"
+                    nilai={editBiografi}
+                    onUbah={setEditBiografi}
+                    placeholder="Latar belakang pendidikan, mata kuliah yang diampu, atau pengalaman profesional..."
                   />
                 </div>
               </div>

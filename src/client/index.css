@@ -29,3 +29,20 @@
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
 }
+.bio-editor .rsw-editor {
+  border-color: #d8e5dc;
+  border-radius: 8px;
+}
+.bio-editor .rsw-toolbar {
+  background-color: #f7fbf8;
+  border-bottom: 1px solid #d8e5dc;
+}
+.bio-editor .rsw-ce {
+  min-height: 170px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #1e293b;
+}
+.bio-editor .rsw-ce:focus {
+  outline: 1px solid #166534;
+}

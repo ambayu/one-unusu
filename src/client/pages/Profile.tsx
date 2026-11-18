@@ -2,6 +2,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchMe, updateProfile, syncProfileFromSiakad, UserProfile } from '../services/api';
 import { ProfileSkeleton } from '../components/Skeleton';
+import { BiodataEditor } from '../components/BiodataEditor';
 import { NotificationModal, NotificationType } from '../components/NotificationModal';
 import { isBiodataComplete } from '../lib/biodata';
 import { GalatPermintaan, pesanGalatPermintaan } from '../lib/pesanGalat';
@@ -570,12 +571,11 @@ export const Profile: React.FC = () => {
                 <div className="pt-4 border-t border-[#E8EFEA]">
                   <div className="space-y-1.5">
                     <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
-                    <textarea
-                      rows={3}
-                      value={biografi}
-                      onChange={(e) => setBiografi(e.target.value)}
+                    <BiodataEditor
+                      id="bio-mahasiswa"
+                      nilai={biografi}
+                      onUbah={setBiografi}
                       placeholder="Ceritakan sedikit tentang diri Anda, minat, kegiatan, atau pencapaian..."
-                      className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
                     />
                   </div>
                 </div>
@@ -825,12 +825,11 @@ export const Profile: React.FC = () => {
 
                       <div className="space-y-1.5">
                         <label className="block text-sm font-semibold text-[#1E293B]">Biografi Singkat Dosen</label>
-                        <textarea
-                          rows={3}
-                          value={biografi}
-                          onChange={(e) => setBiografi(e.target.value)}
-                          placeholder="Latar belakang riset atau ringkasan profil dosen..."
-                          className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
+                        <BiodataEditor
+                          id="bio-dosen"
+                          nilai={biografi}
+                          onUbah={setBiografi}
+                          placeholder="Latar belakang pendidikan, mata kuliah yang diampu, pengalaman praktik, dan bidang keahlian..."
                         />
                       </div>
                     </div>
@@ -863,12 +862,11 @@ export const Profile: React.FC = () => {
                 <div className="pt-4 border-t border-[#E8EFEA]">
                   <div className="space-y-1.5">
                     <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
-                    <textarea
-                      rows={3}
-                      value={biografi}
-                      onChange={(e) => setBiografi(e.target.value)}
+                    <BiodataEditor
+                      id="bio-admin"
+                      nilai={biografi}
+                      onUbah={setBiografi}
                       placeholder="Profil dan informasi tambahan tentang administrator..."
-                      className="w-full px-4 py-3 bg-white border border-[#D8E5DC] rounded-[8px] text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#166534] focus:border-[#166534] transition shadow-xs resize-none"
                     />
                   </div>
                 </div>

@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import { PrismaClient, type Prisma } from "@prisma/client";
 import { decideAppAccess, mapAppRole, parseAppRoles } from "./lib/appAccess.js";
 import { validasiIdsPengguna } from "./lib/websiteUsers.js";
+import { bersihkanBio, bioKeTeks } from "./lib/bioHtml.js";
 import { TINGKAT_MASUK, type TingkatMasuk } from "./lib/accessControl.js";
 import {
   MAKS_UKURAN_BERKAS,
@@ -1594,7 +1595,12 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
     setOptStr("googleScholar", googleScholar, 255);
     setOptStr("orcid", orcid, 50);
     setOptStr("scopusId", scopusId, 50);
-    setOptStr("biografi", biografi, 5000);
+    // Biografi berasal dari editor berformat: dibersihkan dulu, bukan sekadar
+    // dipotong, supaya tidak ada HTML berbahaya yang tersimpan.
+    if (biografi !== undefined) {
+      const bersih = typeof biografi === "string" ? bersihkanBio(biografi) : "";
+      updateData.biografi = bersih || null;
+    }
 
     // ---------------------------------------------------------------
     // Jenis kelamin � boleh diisi sendiri pemilik akun.
@@ -2627,7 +2633,6 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
       ["googleScholar", 255],
       ["orcid", 60],
       ["scopusId", 60],
-      ["biografi", 5000],
     ];
 
     for (const [nama, batas] of kolomTeksMaksimal) {
@@ -2654,6 +2659,19 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
         });
       }
       updateData[nama] = bersih;
+    }
+
+    // Biografi berasal dari editor berformat: dibersihkan, bukan sekadar
+    // dipotong, lalu disimpan sebagai null bila tidak menyisakan teks.
+    if (body.biografi !== undefined) {
+      const nilaiBio = body.biografi;
+      if (nilaiBio === null || nilaiBio === "") {
+        updateData.biografi = null;
+      } else if (typeof nilaiBio !== "string") {
+        return res.status(400).json({ status: false, message: "Kolom biografi harus berupa teks." });
+      } else {
+        updateData.biografi = bersihkanBio(nilaiBio) || null;
+      }
     }
 
     // Jenis kelamin dibatasi ke dua nilai yang dipakai seluruh aplikasi.
@@ -5627,7 +5645,7 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         googleScholar: d.googleScholar || null,
         scopusId: d.scopusId || null,
         orcid: d.orcid || null,
-        bio: d.biografi || null,
+        bio: bioKeTeks(d.biografi),
         photoUrl: d.avatar || null,
         isActive: d.isActive,
       };
@@ -6268,6 +6286,7 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           jenisKelamin: true,
           avatar: true,
           isActive: true,
+          biografi: true,
           roles: { select: { role: { select: { code: true } } } },
         },
         orderBy: { nama: "asc" },
@@ -6289,6 +6308,7 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           jenisKelamin: u.jenisKelamin,
           avatar: u.avatar,
           isActive: u.isActive,
+          biografi: bioKeTeks(u.biografi),
           role: kodePeran[0] ?? null,
           roles: kodePeran,
         };

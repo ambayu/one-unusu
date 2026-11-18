@@ -50,7 +50,7 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
   {
     name: "Daftar Pengguna ONE UNUSU",
     description:
-      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, excludeRole, fakultas, prodi, limit. Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan.",
+      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, excludeRole, fakultas, prodi, limit. Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan. Field biografi dikirim sebagai teks polos (penanda format editor dihilangkan).",
     endpoint: "/api/v2/website/users",
     method: "POST",
     sourceApp: "ONE_UNUSU",
@@ -58,7 +58,7 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
     exampleRequest:
       'POST /api/v2/website/users\nAuthorization: Bearer unusu_sec_...\n\n{"search":"sep","role":"DOSEN","limit":10}\n\nAtau berdasarkan ID (tanpa filter lain):\n{"ids":[38,50]}',
     exampleResponse:
-      '{"status":true,"data":[{"id":12,"username":"septi","nama":"SEPTIARINI ZULIATI","email":"septi@unusu.ac.id","noHp":"08...","nim":null,"nidn":"...","nip":null,"fakultas":"Fakultas Ilmu Komputer","prodi":"Teknik Informatika","jenisKelamin":"P","avatar":null,"isActive":true}],"meta":{"total":1,"limit":10,"search":"sep"}}',
+      '{"status":true,"data":[{"id":12,"username":"septi","nama":"SEPTIARINI ZULIATI","email":"septi@unusu.ac.id","noHp":"08...","nim":null,"nidn":"...","nip":null,"fakultas":"Fakultas Ilmu Komputer","prodi":"Teknik Informatika","jenisKelamin":"P","avatar":null,"isActive":true,"biografi":"Junaidi merupakan dosen bidang Ilmu Komputer...\\n• Pemrograman Visual\\n• Jaringan Komputer"}],"meta":{"total":1,"limit":10,"search":"sep"}}',
     isPublic: false,
   },
   {
