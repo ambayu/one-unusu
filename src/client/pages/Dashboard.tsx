@@ -84,8 +84,20 @@ export const Dashboard: React.FC = () => {
       // kosong tanpa menu dan tanpa pesan apa pun.
       if (userRes.status === 'rejected') {
         const status = userRes.reason?.response?.status;
-        if (status === 401 || status === 403) {
-          // Interceptor sudah membersihkan sesi dan mengalihkan ke halaman login.
+        const msg = String(userRes.reason?.response?.data?.message || userRes.reason?.message || '');
+        if (
+          status === 401 ||
+          status === 403 ||
+          msg.includes('Token') ||
+          msg.includes('jwt') ||
+          msg.includes('Akses ditolak')
+        ) {
+          localStorage.removeItem('one_unusu_token');
+          localStorage.removeItem('one_unusu_user');
+          const baseUrl = import.meta.env.BASE_URL;
+          const basePrefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+          const targetUrl = `${basePrefix}login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          window.location.replace(targetUrl);
           return;
         }
         setError('Gagal memuat data akun Anda. Periksa koneksi lalu muat ulang halaman.');

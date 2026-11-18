@@ -55,23 +55,30 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const baseUrl = import.meta.env.BASE_URL;
-      const loginPath = `${baseUrl}login`;
-      const onLoginPage = window.location.pathname === loginPath;
+      const basePrefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      const onLoginPage =
+        window.location.pathname === `${basePrefix}login` ||
+        window.location.pathname === '/login' ||
+        window.location.pathname === '/sso/login';
 
       localStorage.removeItem('one_unusu_token');
       localStorage.removeItem('one_unusu_user');
 
       // Di halaman login, biarkan formulir yang menampilkan pesan galat.
       if (!onLoginPage) {
+        // Normalisasi loginPath: jika browser di root (/dashboard), router memakai basePrefix
+        const loginPath = `${basePrefix}login`;
         // Sertakan tujuan semula supaya pengguna kembali ke halaman yang sama
         // setelah login, termasuk saat masuk lewat tautan aplikasi cabang.
-        const path = window.location.pathname.startsWith(baseUrl)
-          ? `/${window.location.pathname.slice(baseUrl.length)}`
-          : window.location.pathname;
-        const nextPath = `${path}${window.location.search}`;
+        const currentPath = window.location.pathname;
+        const relativePath = currentPath.startsWith(basePrefix)
+          ? `/${currentPath.slice(basePrefix.length)}`
+          : currentPath;
+        const nextPath = `${relativePath}${window.location.search}`;
         const safeNext = nextPath.startsWith('//') ? '' : nextPath;
 
-        window.location.replace(`${loginPath}?next=${encodeURIComponent(safeNext)}`);
+        const targetUrl = `${loginPath}?next=${encodeURIComponent(safeNext)}`;
+        window.location.replace(targetUrl);
       }
     }
     return Promise.reject(error);
