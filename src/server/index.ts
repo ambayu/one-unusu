@@ -6026,8 +6026,8 @@ const wajibApiKey = (endpointWajib: string) => {
  * 2. **Filter** — `role`, `fakultas`, dan `prodi` menyaring hasil. Ini yang
  *    dipakai tabel "Tambah Pengguna" agar admin bisa menelusuri peran dan
  *    program studi tanpa harus mengetik nama.
- * 3. **Penelusuran awal** — tanpa `search` sama sekali, endpoint tetap menjawab
- *    (maksimal 20 baris) supaya tabel langsung terisi begitu halaman dibuka.
+ * 3. **Penelusuran awal** — tanpa `search` sama sekali, endpoint mengembalikan
+ *    seluruh pengguna aktif supaya tabel langsung terisi begitu halaman dibuka.
  *    Sebelumnya ini ditolak 422 dan tabel tampak kosong sampai admin mengetik.
  * 4. **Berdasarkan ID** — `ids` berisi 1–50 angka ID valid, tanpa filter lain;
  *    mengembalikan akun aktif maupun nonaktif beserta ID yang tidak ditemukan.
@@ -6037,7 +6037,6 @@ const wajibApiKey = (endpointWajib: string) => {
  * mengetahuinya dan tidak membutuhkannya untuk memilih pengguna. `role` hanya
  * dikirim sebagai label supaya admin tahu siapa dosen dan siapa mahasiswa.
  */
-const BATAS_MAKS_USERS_API = 20;
 
 const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
     try {
@@ -6064,11 +6063,6 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           message: "Parameter `search` maksimal 100 karakter.",
         });
       }
-
-      const limitDiminta = Number(body.limit);
-      const limit = Number.isInteger(limitDiminta)
-        ? Math.min(Math.max(limitDiminta, 1), BATAS_MAKS_USERS_API)
-        : BATAS_MAKS_USERS_API;
 
       // Syarat disusun bertingkat; setiap filter hanya ikut bila benar-benar diisi.
       const syarat: Prisma.UserWhereInput[] = [{ isActive: true }];
@@ -6116,7 +6110,6 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           roles: { select: { role: { select: { code: true } } } },
         },
         orderBy: { nama: "asc" },
-        take: daftarId ? undefined : limit,
       });
 
       const data = rows.map((u) => {
