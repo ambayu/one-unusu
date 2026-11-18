@@ -94,27 +94,48 @@ export const ManajemenPengguna: React.FC = () => {
   const [rolesLoading, setRolesLoading] = useState(true);
   const [academicHierarchy, setAcademicHierarchy] = useState<AcademicFacultyItem[]>([]);
   const [academicLoading, setAcademicLoading] = useState(true);
+  const [notify, setNotify] = useState<{
+    isOpen: boolean;
+    type: NotificationType;
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: '',
+  });
+
+  const loadRoles = React.useCallback(async (isCancelled?: () => boolean) => {
+    setRolesLoading(true);
+    try {
+      const res = await fetchAdminRoles();
+      if (!isCancelled?.() && res.data?.data) setRoles(res.data.data);
+    } catch (error: unknown) {
+      const status =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+      if (!isCancelled?.() && status !== 403) {
+        setNotify({
+          isOpen: true,
+          type: 'error',
+          title: 'Gagal Memuat Peran',
+          message: 'Gagal memuat daftar peran pengguna dari server.',
+        });
+      }
+    } finally {
+      if (!isCancelled?.()) setRolesLoading(false);
+    }
+  }, []);
+
+  const handleRefresh = React.useCallback(async () => {
+    await Promise.all([reload(), loadRoles()]);
+  }, [reload, loadRoles]);
 
   React.useEffect(() => {
     let cancelled = false;
 
-    fetchAdminRoles()
-      .then((res) => {
-        if (!cancelled && res.data?.data) setRoles(res.data.data);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setNotify({
-            isOpen: true,
-            type: 'error',
-            title: 'Gagal Memuat Peran',
-            message: 'Gagal memuat daftar peran pengguna dari server.',
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setRolesLoading(false);
-      });
+    void loadRoles(() => cancelled);
 
     fetchAcademicHierarchy()
       .then((res) => {
@@ -130,36 +151,36 @@ export const ManajemenPengguna: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadRoles]);
+
+  const roleCatalog = React.useMemo(() => {
+    const byCode = new Map<UserRole, string>(roles.map((role) => [role.code, role.name]));
+    users.forEach((user) => {
+      user.roles?.forEach((role) => {
+        if (!byCode.has(role.code)) byCode.set(role.code, role.name);
+      });
+    });
+    return Array.from(byCode.entries());
+  }, [roles, users]);
 
   const ROLE_OPTIONS = React.useMemo<UserRole[]>(
-    () => roles.map((role) => role.code),
-    [roles]
+    () => roleCatalog.map(([code]) => code),
+    [roleCatalog]
   );
 
   const ROLE_LABEL = React.useMemo<Record<string, string>>(
-    () => Object.fromEntries(roles.map((role) => [role.code, role.name])),
-    [roles]
+    () => Object.fromEntries(roleCatalog),
+    [roleCatalog]
   );
 
   const roleParam = searchParams.get('role');
   const validRoleFilter: 'ALL' | UserRole =
-    roleParam && (ROLE_OPTIONS.includes(roleParam as UserRole) || roleParam === 'ALL')
+    roleParam && (rolesLoading || loading || ROLE_OPTIONS.includes(roleParam as UserRole) || roleParam === 'ALL')
       ? (roleParam as 'ALL' | UserRole)
       : 'ALL';
 
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRoleState] = useState<'ALL' | UserRole>(validRoleFilter);
-  const [notify, setNotify] = useState<{
-    isOpen: boolean;
-    type: NotificationType;
-    title?: string;
-    message: string;
-  }>({
-    isOpen: false,
-    type: 'info',
-    message: '',
-  });
 
   type StatusFilter = 'ALL' | 'AKTIF' | 'NONAKTIF';
   const statusParam = searchParams.get('status');
@@ -246,10 +267,10 @@ export const ManajemenPengguna: React.FC = () => {
   const hasActiveFilters = filterRole !== 'ALL' || filterStatus !== 'ALL' ||
     filterFakultas !== 'ALL' || filterProdi !== 'ALL' || search.trim() !== '';
 
-  // Sinkronisasi jika query param URL berubah dari luar
+  // Sinkronisasi jika query param URL berubah dari luar atau daftar peran selesai dimuat
   React.useEffect(() => {
     setFilterRoleState(validRoleFilter);
-  }, [roleParam]);
+  }, [validRoleFilter]);
 
   React.useEffect(() => {
     setFilterStatusState(validStatusFilter);
@@ -815,8 +836,8 @@ export const ManajemenPengguna: React.FC = () => {
       user={currentUser}
       title="Manajemen Pengguna"
       description="Kelola akun civitas akademika, peran akses, dan status keaktifan identitas SSO."
-      onRefresh={reload}
-      refreshing={loading}
+      onRefresh={handleRefresh}
+      refreshing={loading || rolesLoading}
       headerAction={
         <>
           <button

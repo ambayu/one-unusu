@@ -48,4 +48,6 @@ for (const role of ['ALL', 'MAHASISWA', 'DOSEN', 'SUPERADMIN']) {
   }
 }
 assert.doesNotMatch(source, /status-akun-heading/);
+assert.match(source, /onRefresh=\{handleRefresh\}/);
+assert.match(source, /Promise\.all\(\[reload\(\), loadRoles\(\)\]\)/);
 console.log('PASS: setiap filter memunculkan satu reset, reset membersihkan seluruh filter dan mempertahankan parameter URL lain.');
