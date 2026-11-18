@@ -6574,6 +6574,67 @@ app.get("/api/v1/inter-service/kurikulum-prodi", async (req: Request, res: Respo
   }
 });
 
+// GET /api/v1/inter-service/lms-kurikulum
+//
+// Proxy API Hub: meneruskan katalog perkuliahan Portal Prodi ke LMS. Kunci
+// `PRODI_API_KEY` sengaja TIDAK diminta dari pemanggil: ia rahasia
+// server-ke-server milik ONE UNUSU. Penjaganya adalah API key API Hub milik
+// aplikasi pemanggil (`wajibApiKey`), sama seperti endpoint organisasi.
+const KUNCI_LMS_KURIKULUM = (process.env.PRODI_API_KEY || "").trim();
+
+app.get("/api/v1/inter-service/lms-kurikulum", serverToServerLimiter, async (req: Request, res: Response) => {
+  if (!KUNCI_LMS_KURIKULUM) {
+    return res.status(503).json({
+      status: false,
+      message: "PRODI_API_KEY belum dikonfigurasi pada server ONE UNUSU.",
+    });
+  }
+
+  const baseProdi = (process.env.PRODI_BASE_URL || "http://localhost:5010").replace(/\/$/, "");
+  const nidn = typeof req.query.nidn === "string" ? req.query.nidn.trim() : "";
+  const url = `${baseProdi}/api/v1/public/lms-kurikulum${nidn ? `?nidn=${encodeURIComponent(nidn)}` : ""}`;
+
+  const pengendali = new AbortController();
+  const batasWaktu = setTimeout(() => pengendali.abort(), 15000);
+  try {
+    const jawabanProdi = await fetch(url, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${KUNCI_LMS_KURIKULUM}` },
+      signal: pengendali.signal,
+    });
+
+    if (!jawabanProdi.ok) {
+      const teks = await jawabanProdi.text().catch(() => "");
+      logServerError(
+        "GET /api/v1/inter-service/lms-kurikulum",
+        new Error(`Portal Prodi menjawab ${jawabanProdi.status}: ${teks.slice(0, 200)}`)
+      );
+      return res.status(502).json({
+        status: false,
+        message: "Portal Prodi menolak permintaan data perkuliahan.",
+      });
+    }
+
+    const isi: any = await jawabanProdi.json();
+    return res.json({
+      status: true,
+      semesterAktif: isi?.semesterAktif ?? null,
+      data: Array.isArray(isi?.data) ? isi.data : [],
+      meta: isi?.meta ?? {},
+    });
+  } catch (error: any) {
+    logServerError("GET /api/v1/inter-service/lms-kurikulum", error);
+    return res.status(503).json({
+      status: false,
+      message:
+        error?.name === "AbortError"
+          ? "Portal Prodi tidak menjawab tepat waktu."
+          : "Portal Prodi tidak dapat dihubungi.",
+    });
+  } finally {
+    clearTimeout(batasWaktu);
+  }
+});
+
 // Rute API yang tidak dikenal tidak boleh jatuh ke fallback SPA.
 app.use("/api", (req: Request, res: Response) => {
   res.status(404).json({ status: false, message: "Endpoint API tidak ditemukan." });
