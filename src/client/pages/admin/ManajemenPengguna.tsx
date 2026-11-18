@@ -1202,16 +1202,21 @@ export const ManajemenPengguna: React.FC = () => {
                       alt={`Foto ${user.nama}`}
                       loading="lazy"
                       onError={(e) => {
+                        // Sembunyikan elemen <img> dan tampilkan elemen inisial bila tautan gambar rusak
                         e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        const inisialEl = e.currentTarget.nextElementSibling as HTMLElement | null;
+                        if (inisialEl) {
+                          inisialEl.classList.remove('hidden');
+                          inisialEl.style.display = 'flex';
+                        }
                       }}
                       className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#D8E5DC] bg-[#F0FDF4]"
                     />
                   ) : null}
                   <span
                     aria-hidden="true"
-                    className={`w-8 h-8 rounded-full flex-shrink-0 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] flex items-center justify-center text-[11px] font-bold uppercase ${
-                      user.avatar ? 'hidden' : ''
+                    className={`w-8 h-8 rounded-full flex-shrink-0 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] items-center justify-center text-[11px] font-bold uppercase ${
+                      user.avatar ? 'hidden' : 'flex'
                     }`}
                   >
                     {inisialNama(user.nama)}
