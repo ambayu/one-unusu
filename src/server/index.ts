@@ -6048,6 +6048,7 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
       const daftarId = validasi.ids;
       const search = typeof body.search === "string" ? body.search.trim() : "";
       const filterRole = typeof body.role === "string" ? body.role.trim().toUpperCase() : "";
+      const excludeRole = typeof body.excludeRole === "string" ? body.excludeRole.trim().toUpperCase() : "";
       const filterFakultas = typeof body.fakultas === "string" ? body.fakultas.trim() : "";
       const filterProdi = typeof body.prodi === "string" ? body.prodi.trim() : "";
 
@@ -6085,6 +6086,9 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
 
       if (filterRole) {
         syarat.push({ roles: { some: { role: { code: filterRole } } } });
+      }
+      if (excludeRole) {
+        syarat.push({ roles: { none: { role: { code: excludeRole } } } });
       }
 
       const where: Prisma.UserWhereInput = daftarId
