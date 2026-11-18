@@ -50,7 +50,7 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
   {
     name: "Daftar Pengguna ONE UNUSU",
     description:
-      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, fakultas, prodi, limit (maksimal 20). Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan.",
+      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, excludeRole, fakultas, prodi, limit. Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan.",
     endpoint: "/api/v2/website/users",
     method: "POST",
     sourceApp: "ONE_UNUSU",
@@ -224,6 +224,12 @@ export async function seedApiHub(prisma: PrismaClient): Promise<void> {
       .map((alamat) => idPerAlamat.get(alamat))
       .filter((id): id is number => typeof id === "number");
 
+    if (idDiizinkan.length !== definisi.endpointDiizinkan.length) {
+      console.warn(
+        `  ! Sebagian endpoint untuk kunci "${definisi.name}" tidak ada di katalog; cakupan izin tidak lengkap.`
+      );
+    }
+
     const allowedEndpoints = JSON.stringify(idDiizinkan);
 
     const sudahAda = await prisma.apiKey.findFirst({
@@ -264,6 +270,57 @@ export async function seedApiHub(prisma: PrismaClient): Promise<void> {
     `  Katalog endpoint: ${ENDPOINT_API_HUB.length} entri tersedia. ` +
       `API key: ${kunciBaru.length} baru, ${kunciDiperluas} diperluas.`
   );
+
+  // ---------- 3. Verifikasi akses server-ke-server ----------
+  // Setiap aplikasi yang butuh jalur server-ke-server harus memakai kunci
+  // terdaftar, bukan rahasia lain: hanya kunci terdaftar yang dibatasi
+  // `allowedEndpoints` dan tercatat di `api_usage_logs`.
+  const aplikasiPemanggil = await prisma.ssoApp.findMany({
+    where: { clientId: { in: KUNCI_API_HUB.map((k) => k.clientId) } },
+    select: { id: true, clientId: true, nameApp: true, isActive: true },
+  });
+
+  const kunciTersimpan = await prisma.apiKey.findMany({
+    where: { appId: { in: aplikasiPemanggil.map((a) => a.id) } },
+    select: { appId: true, isActive: true, revoked: true, allowedEndpoints: true, usageCount: true },
+    orderBy: { id: "asc" },
+  });
+
+  console.log("  Akses server-ke-server per aplikasi:");
+  for (const definisi of KUNCI_API_HUB) {
+    const aplikasi = aplikasiPemanggil.find((a) => a.clientId === definisi.clientId);
+    if (!aplikasi) {
+      console.log(`    ! ${definisi.name}: aplikasi belum terdaftar di sso_apps.`);
+      continue;
+    }
+
+    const kunci = kunciTersimpan.find((k) => k.appId === aplikasi.id);
+    if (!kunci) {
+      console.log(`    ! ${aplikasi.nameApp}: belum punya API key terdaftar.`);
+      continue;
+    }
+    if (kunci.revoked || !kunci.isActive) {
+      console.log(`    ! ${aplikasi.nameApp}: API key ada tetapi ${kunci.revoked ? "sudah dicabut" : "nonaktif"}.`);
+      continue;
+    }
+
+    let cakupan = 0;
+    try {
+      const daftar = JSON.parse(kunci.allowedEndpoints ?? "[]");
+      cakupan = Array.isArray(daftar) ? daftar.length : 0;
+    } catch {
+      cakupan = 0;
+    }
+
+    const status = !aplikasi.isActive
+      ? "aplikasi nonaktif"
+      : cakupan === 0
+        ? "izin endpoint kosong"
+        : kunci.usageCount > 0
+          ? `${kunci.usageCount} panggilan tercatat`
+          : `belum pernah dipanggil — isi ${definisi.envKey}`;
+    console.log(`    ${cakupan > 0 && aplikasi.isActive ? "✓" : "!"} ${aplikasi.nameApp}: ${cakupan} endpoint, ${status}.`);
+  }
 
   if (kunciBaru.length > 0) {
     console.log("");

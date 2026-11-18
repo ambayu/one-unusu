@@ -54,7 +54,7 @@ npm run dev
 npm run dev:client
 ```
 
-> **Port tetap.** Dev client memakai port `5183` dengan `strictPort: true`; `5178` khusus Sarpras dan `5173` milik sikapi. Bila port sedang dipakai, Vite gagal tanpa berpindah otomatis.
+> **Port tetap.** Dev client memakai port `5173` dengan `strictPort: true`; `5178` khusus Sarpras. Bila port sedang dipakai, Vite gagal tanpa berpindah otomatis.
 
 ### Production Build & Run
 ```bash

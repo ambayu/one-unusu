@@ -2,7 +2,7 @@
 
 ## Port dan URL aplikasi
 
-- ONE UNUSU memakai port Vite **5183**, bukan 5173 (milik sikapi) atau 5178 (milik Sarpras). Aplikasi SSO membaca `DEV_PORT`; port harus integer 1–65535 dan tidak berpindah otomatis bila terpakai.
+- ONE UNUSU memakai port Vite **5173**. Aplikasi SSO membaca `DEV_PORT`; port harus integer 1–65535 dan tidak berpindah otomatis bila terpakai.
 - `DEV_API_TARGET` mengatur target proxy API saat development pada aplikasi yang memiliki backend Express.
 - Setiap frontend cabang membaca `VITE_ONE_UNUSU_URL` untuk alamat portal ONE. Isi URL publik sesuai deployment VPS sebelum build; nilai `VITE_*` tertanam saat build dan membutuhkan build ulang bila berubah.
 - Default localhost hanya untuk development. Atur `SSO_BASE_URL` pada backend cabang untuk endpoint server ONE, bukan alamat frontend; proxy/API path harus sesuai deployment.
@@ -28,7 +28,7 @@ Override berlaku di lokal maupun VPS. Mengubah callback tidak mengubah port list
 
 | Aplikasi | API | Frontend |
 | --- | --- | --- |
-| ONE UNUSU | 5000 | 5183 |
+| ONE UNUSU | 5000 | 5173 |
 | LMS | 5003 | 5174 |
 | E-Surat | 5002 | 5175 |
 | LPPM | 5005 | 5176 |
@@ -40,7 +40,7 @@ Override berlaku di lokal maupun VPS. Mengubah callback tidak mengubah port list
 | BAKSI | 5012 | 5182 |
 | Portal Web | 5006 | 5184 |
 
-Port 5173 tetap milik sikapi dan 3000 milik devhub-ai, sesuai `D:\Project\LIST_PORT.md`. Portal ONE bukan callback aplikasi cabang: registry seeder tetap memakai 5174–5182, tanpa perlu seed ulang. URL portal pada environment lokal dan contoh diselaraskan ke 5183. Restart dilakukan manual oleh operator; perubahan `.env` tidak otomatis dimuat ulang backend.
+App devhub-ai memakai 3000 sesuai `D:\Project\LIST_PORT.md`. Portal ONE bukan callback aplikasi cabang: registry seeder tetap memakai 5174–5182, tanpa perlu seed ulang. URL portal pada environment lokal dan contoh diselaraskan ke 5173. Restart dilakukan manual oleh operator; perubahan `.env` tidak otomatis dimuat ulang backend.
 
 ## Pemilihan lingkungan
 
