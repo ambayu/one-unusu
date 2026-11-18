@@ -284,6 +284,12 @@ app.use(
   })
 );
 
+// Sajikan folder uploads statis publik untuk foto profil/avatar dosen
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads"), { maxAge: "7d" }));
+app.use("/sso/uploads", express.static(path.resolve(process.cwd(), "uploads"), { maxAge: "7d" }));
+app.use("/public/uploads", express.static(path.resolve(process.cwd(), "public/uploads"), { maxAge: "7d" }));
+
+
 // Serve static frontend build files when in production
 const clientDistPath = path.resolve(process.cwd(), "dist/client");
 app.use(express.static(clientDistPath));
@@ -5603,6 +5609,7 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         id: true,
         nama: true,
         nidn: true,
+        nip: true,
         email: true,
         prodi: true,
         fakultas: true,
@@ -5620,6 +5627,9 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         scopusId: true,
         orcid: true,
         biografi: true,
+        tempatLahir: true,
+        tanggalLahir: true,
+        alamat: true,
         isActive: true,
       },
     });
@@ -5651,6 +5661,9 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         scopusId: d.scopusId || null,
         orcid: d.orcid || null,
         bio: bioKeTeks(d.biografi),
+        placeOfBirth: d.tempatLahir || null,
+        dateOfBirth: d.tanggalLahir || null,
+        address: d.alamat || null,
         photoUrl: d.avatar || null,
         isActive: d.isActive,
       };
