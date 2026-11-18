@@ -5619,7 +5619,6 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         jabatanAkademik: true,
         pendidikanTerakhir: true,
         bidangKeahlian: true,
-        nip: true,
         jenisKelamin: true,
         sintaId: true,
         linkSinta: true,
