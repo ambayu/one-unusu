@@ -89,6 +89,34 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
       '{"success":true,"data":[{"id":1,"kode":"FIK","nama":"Fakultas Ilmu Komputer","slug":"fakultas-ilmu-komputer","urutan":1,"prodi":[{"id":1,"kode":"TIF","nama":"Teknik Informatika","slug":"teknik-informatika","jenjang":"S1","urutan":0}]}],"meta":{"totalFakultas":6,"totalProdi":14,"sumber":"Portal Prodi UNUSU"}}',
     isPublic: false,
   },
+  {
+    name: "Arsip Dokumen LPM/LPPM",
+    description:
+      "Proxy server-to-server untuk membaca dokumen publik mutu LPM dan penelitian/pengabdian LPPM oleh aplikasi satelit dengan otorisasi client_id dan client_key.",
+    endpoint: "/api/v2/website/dokumen",
+    method: "POST",
+    sourceApp: "ONE_UNUSU",
+    category: "data",
+    exampleRequest:
+      'POST /api/v2/website/dokumen\nContent-Type: application/json\n\n{"client_id":"...","client_key":"...","sumber":"lpm","prodiCode":"TIF"}',
+    exampleResponse:
+      '{"status":true,"app":"lpm","data":[{"id":1,"judul":"Pedoman Akademik","nomor":"01/SK/2026","filePdfUrl":"https://..."}],"meta":{"total":1}}',
+    isPublic: false,
+  },
+  {
+    name: "Sarana Prasarana Program Studi",
+    description:
+      "Proxy server-to-server untuk membaca sarana prasarana berlingkup Program Studi dari UNUSU Sarpras untuk website masing-masing prodi.",
+    endpoint: "/api/v2/website/sarpras",
+    method: "POST",
+    sourceApp: "ONE_UNUSU",
+    category: "data",
+    exampleRequest:
+      'POST /api/v2/website/sarpras\nContent-Type: application/json\n\n{"client_id":"70c76ea9b5d5d3a8","client_key":"...","prodiCode":"TIF"}',
+    exampleResponse:
+      '{"status":true,"data":[{"id":"sarpras-1","kode":"LAB-01","nama":"Lab Komputer Dasar","jenis":"laboratorium","gedung":"Gedung A","fotoUrl":"https://..."}],"meta":{"total":1}}',
+    isPublic: false,
+  },
 ];
 
 /**

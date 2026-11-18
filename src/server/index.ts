@@ -5823,6 +5823,143 @@ app.post(
   }
 );
 
+/**
+ * POST /api/v2/website/sarpras
+ *
+ * Proxy fasilitas sarana prasarana per Program Studi untuk portal Prodi.
+ * Pola otorisasi identik dengan `POST /api/v2/website/dokumen` (server-to-server
+ * via `client_id` + `client_key` pada `sso_apps`).
+ *
+ * Endpoint ini membaca sarpras berlingkup `prodi` langsung dari UNUSU Sarpras
+ * (single source of truth) dan membangun URL foto absolut menggunakan
+ * `SARPRAS_PUBLIC_URL` atau `SARPRAS_BASE_URL`.
+ */
+app.post(
+  "/api/v2/website/sarpras",
+  serverToServerLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const body = isPlainObject(req.body) ? req.body : {};
+      const client_id = body.client_id;
+      const client_key = body.client_key;
+
+      if (
+        typeof client_id !== "string" ||
+        typeof client_key !== "string" ||
+        !client_id ||
+        !client_key ||
+        client_id.length > 100 ||
+        client_key.length > 200
+      ) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter tidak lengkap. client_id dan client_key wajib disertakan.",
+        });
+      }
+
+      const ssoApp = await prisma.ssoApp.findFirst({
+        where: { clientId: client_id, clientKey: client_key, isActive: true },
+      });
+
+      if (!ssoApp) {
+        return res.status(401).json({
+          status: false,
+          message: "Kredensial aplikasi cabang tidak valid atau belum terdaftar.",
+        });
+      }
+
+      const prodiCode = typeof body.prodiCode === "string" ? body.prodiCode.trim().slice(0, 50) : "";
+      if (!prodiCode) {
+        return res.status(422).json({
+          status: false,
+          message: "Parameter prodiCode wajib disertakan.",
+        });
+      }
+
+      const sarprasBaseUrl = (process.env.SARPRAS_BASE_URL || "http://localhost:5009").replace(/\/$/, "");
+      const sarprasPublicUrl = (process.env.SARPRAS_PUBLIC_URL || sarprasBaseUrl).replace(/\/$/, "");
+
+      const url = new URL(`${sarprasBaseUrl}/api/sarpras/items`);
+      url.searchParams.set("lingkup", "prodi");
+      url.searchParams.set("prodiCode", prodiCode);
+
+      const pengendali = new AbortController();
+      const batasWaktu = setTimeout(() => pengendali.abort(), 8000);
+
+      try {
+        const huluRes = await fetch(url.toString(), {
+          headers: { Accept: "application/json" },
+          signal: pengendali.signal,
+        });
+
+        if (!huluRes.ok) {
+          const pesan = `Gagal membaca sarpras dari hulu (${huluRes.status})`;
+          return res.status(502).json({ status: false, message: pesan, data: [] });
+        }
+
+        const items = await huluRes.json();
+        if (!Array.isArray(items)) {
+          return res.status(502).json({
+            status: false,
+            message: "Format data sarpras dari hulu tidak valid.",
+            data: [],
+          });
+        }
+
+        const mapped = items.map((item: any) => {
+          let fotoUrl: string | null = null;
+          if (item.foto && typeof item.foto === "string") {
+            const trimmed = item.foto.trim();
+            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+              fotoUrl = trimmed;
+            } else {
+              const cleaned = trimmed.replace(/^\/+/, "");
+              const pathPart = cleaned.startsWith("storage/") ? cleaned : `storage/${cleaned}`;
+              fotoUrl = `${sarprasPublicUrl}/${pathPart}`;
+            }
+          }
+
+          return {
+            id: `sarpras-${item.id}`,
+            kode: item.kode,
+            nama: item.nama,
+            jenis: item.jenis,
+            gedung: item.gedung ?? null,
+            lantai: item.lantai ?? null,
+            luas: item.luas != null ? Number(item.luas) : null,
+            kapasitas: item.kapasitas ?? null,
+            kondisi: item.kondisi ?? "baik",
+            status: item.status ?? "aktif",
+            tahun: item.tahun ?? null,
+            internet: item.internet ?? null,
+            keterangan: item.keterangan ?? null,
+            fotoUrl,
+            prodiKode: item.prodi_kode ?? prodiCode,
+            prodiNama: item.prodi_nama ?? null,
+            source: "sarpras",
+          };
+        });
+
+        return res.json({
+          status: true,
+          data: mapped,
+          meta: { total: mapped.length },
+        });
+      } finally {
+        clearTimeout(batasWaktu);
+      }
+    } catch (error: any) {
+      logServerError("POST /api/v2/website/sarpras", error);
+      return res.status(500).json({
+        status: false,
+        message: "Gagal mengambil data sarpras melalui API Hub.",
+        data: [],
+      });
+    }
+  }
+);
+
+
 // ==========================================
 // 5b. API GATEWAY BERBASIS API KEY (aplikasi cabang)
 // ==========================================
