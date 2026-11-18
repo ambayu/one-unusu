@@ -6146,13 +6146,13 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           tidakDitemukan: daftarId.filter((id) => !data.some((u) => u.id === id)),
         } : {
           total: data.length,
-          limit,
+          limit: null,
           search,
           role: filterRole || null,
+          excludeRole: excludeRole || null,
           fakultas: filterFakultas || null,
           prodi: filterProdi || null,
-          // Menandakan hasil mungkin terpotong karena mencapai batas maksimum.
-          terpotong: data.length >= limit,
+          terpotong: false,
         },
       });
     } catch (error: unknown) {
