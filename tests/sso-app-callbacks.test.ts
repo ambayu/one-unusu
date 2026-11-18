@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildSsoAppDefinitions, LOCAL_DEV_CALLBACKS } from "../src/server/lib/ssoApps.js";
 
-const options = { publicBaseUrl: "http://localhost:5183", prodiBaseUrl: "" };
+const options = { publicBaseUrl: "http://localhost:5173", prodiBaseUrl: "" };
 const suffixes = ["UNUSU_LMS", "LPPM_UNUSU", "LPM_UNUSU", "ESURAT_UNUSU", "SDM_SARPRAS", "UNUSU_AKREDITASI", "PRODI_UNUSU", "BAKSA_UNUSU", "BAKSI_UNUSU"];
 const callbacks = Object.fromEntries(suffixes.map((suffix) => [
   `SSO_CALLBACK_URL_${suffix}`, `https://${suffix.toLowerCase().replaceAll("_", "-")}.example.org/sso/callback`,

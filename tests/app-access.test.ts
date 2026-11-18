@@ -24,7 +24,7 @@ assert.deepEqual(JSON.parse(mapAppRole('["DOSEN","UNIT_A","UNIT_B"]', 'UNIT_B', 
 assert.equal(mapAppRole('["DOSEN"]', 'DOSEN', true), '["DOSEN"]');
 assert.throws(() => mapAppRole('[1]', 'DOSEN', true));
 
-const definitions = buildSsoAppDefinitions({}, { publicBaseUrl: 'http://localhost:5183', prodiBaseUrl: '', mode: 'local' });
+const definitions = buildSsoAppDefinitions({}, { publicBaseUrl: 'http://localhost:5173', prodiBaseUrl: '', mode: 'local' });
 let storedRoles = '["CUSTOM_ROLE"]';
 let createdRoles: string | undefined;
 let calls = 0;
