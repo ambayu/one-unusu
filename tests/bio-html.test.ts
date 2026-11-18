@@ -35,9 +35,10 @@ assert.equal(bioKeTeks('<ul><li>satu</li><li>dua</li></ul>'), '• satu\n• dua
 assert.equal(bioKeTeks('<p>R&amp;D</p>'), 'R&D');
 assert.equal(bioKeTeks('Teks polos <b>lama</b>'), 'Teks polos lama');
 
-// Biografi hanya boleh disimpan dan dibagikan untuk peran dosen.
+// Biografi hanya boleh disimpan untuk peran dosen; pembacaannya tidak dibatasi.
 const server = readFileSync(new URL('../src/server/index.ts', import.meta.url), 'utf8');
 assert.equal(server.match(/biografi !== undefined && [\w.]+\.some\(\(ur\) => ur\.role\.code === "DOSEN"\)/g)?.length, 2);
-assert.match(server, /biografi: kodePeran\.includes\("DOSEN"\) \? bioKeTeks\(u\.biografi\) : null/);
+assert.match(server, /biografi: bioKeTeks\(u\.biografi\)/);
+assert.doesNotMatch(server, /biografi: kodePeran\.includes\("DOSEN"\)/);
 
 console.log('bio-html: ok');

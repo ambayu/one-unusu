@@ -6313,7 +6313,7 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           jenisKelamin: u.jenisKelamin,
           avatar: u.avatar,
           isActive: u.isActive,
-          biografi: kodePeran.includes("DOSEN") ? bioKeTeks(u.biografi) : null,
+          biografi: bioKeTeks(u.biografi),
           role: kodePeran[0] ?? null,
           roles: kodePeran,
         };
