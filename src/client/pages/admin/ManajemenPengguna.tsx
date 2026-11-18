@@ -1201,16 +1201,21 @@ export const ManajemenPengguna: React.FC = () => {
                       src={user.avatar}
                       alt={`Foto ${user.nama}`}
                       loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
                       className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-[#D8E5DC] bg-[#F0FDF4]"
                     />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="w-8 h-8 rounded-full flex-shrink-0 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] flex items-center justify-center text-[11px] font-bold uppercase"
-                    >
-                      {inisialNama(user.nama)}
-                    </span>
-                  )}
+                  ) : null}
+                  <span
+                    aria-hidden="true"
+                    className={`w-8 h-8 rounded-full flex-shrink-0 bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] flex items-center justify-center text-[11px] font-bold uppercase ${
+                      user.avatar ? 'hidden' : ''
+                    }`}
+                  >
+                    {inisialNama(user.nama)}
+                  </span>
                   <span className="truncate">{user.nama}</span>
                 </div>
               ),
