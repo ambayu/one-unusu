@@ -1534,7 +1534,10 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
     } = body;
     const userId = req.user!.id;
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { select: { role: { select: { code: true } } } } },
+    });
     if (!user) {
       return res.status(404).json({ status: false, message: "Pengguna tidak ditemukan." });
     }
@@ -1596,8 +1599,9 @@ app.put("/api/auth/profile", authenticateToken, writeLimiter, async (req: AuthRe
     setOptStr("orcid", orcid, 50);
     setOptStr("scopusId", scopusId, 50);
     // Biografi berasal dari editor berformat: dibersihkan dulu, bukan sekadar
-    // dipotong, supaya tidak ada HTML berbahaya yang tersimpan.
-    if (biografi !== undefined) {
+    // dipotong, supaya tidak ada HTML berbahaya yang tersimpan. Bidang ini
+    // hanya dimiliki peran dosen, jadi peran lain diabaikan tanpa galat.
+    if (biografi !== undefined && user.roles.some((ur) => ur.role.code === "DOSEN")) {
       const bersih = typeof biografi === "string" ? bersihkanBio(biografi) : "";
       updateData.biografi = bersih || null;
     }
@@ -2662,8 +2666,9 @@ app.put("/api/admin/users/:id", authenticateToken, requirePermission("user:edit"
     }
 
     // Biografi berasal dari editor berformat: dibersihkan, bukan sekadar
-    // dipotong, lalu disimpan sebagai null bila tidak menyisakan teks.
-    if (body.biografi !== undefined) {
+    // dipotong, lalu disimpan sebagai null bila tidak menyisakan teks. Hanya
+    // berlaku untuk peran dosen; peran lain diabaikan tanpa galat.
+    if (body.biografi !== undefined && targetUser.roles.some((ur) => ur.role.code === "DOSEN")) {
       const nilaiBio = body.biografi;
       if (nilaiBio === null || nilaiBio === "") {
         updateData.biografi = null;
@@ -6308,7 +6313,7 @@ const tanganiDirektoriPengguna = async (req: AuthRequest, res: Response) => {
           jenisKelamin: u.jenisKelamin,
           avatar: u.avatar,
           isActive: u.isActive,
-          biografi: bioKeTeks(u.biografi),
+          biografi: kodePeran.includes("DOSEN") ? bioKeTeks(u.biografi) : null,
           role: kodePeran[0] ?? null,
           roles: kodePeran,
         };

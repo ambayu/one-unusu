@@ -2023,17 +2023,20 @@ export const ManajemenPengguna: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="mt-3">
-                  <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-biografi">
-                    Biografi
-                  </label>
-                  <BiodataEditor
-                    id="edit-biografi"
-                    nilai={editBiografi}
-                    onUbah={setEditBiografi}
-                    placeholder="Latar belakang pendidikan, mata kuliah yang diampu, atau pengalaman profesional..."
-                  />
-                </div>
+                {/* Biografi hanya milik peran dosen, sama seperti di halaman profil. */}
+                {editRoleIds.some((id) => roles.some((r) => r.id === id && r.code === 'DOSEN')) && (
+                  <div className="mt-3">
+                    <label className="block font-semibold text-[#475569] mb-1" htmlFor="edit-biografi">
+                      Biografi
+                    </label>
+                    <BiodataEditor
+                      id="edit-biografi"
+                      nilai={editBiografi}
+                      onUbah={setEditBiografi}
+                      placeholder="Latar belakang pendidikan, mata kuliah yang diampu, atau pengalaman profesional..."
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

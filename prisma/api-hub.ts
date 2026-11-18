@@ -50,7 +50,7 @@ export const ENDPOINT_API_HUB: readonly DefinisiEndpoint[] = [
   {
     name: "Daftar Pengguna ONE UNUSU",
     description:
-      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, excludeRole, fakultas, prodi, limit. Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan. Field biografi dikirim sebagai teks polos (penanda format editor dihilangkan).",
+      "Direktori pengguna untuk aplikasi cabang. Filter opsional: search (2–100 karakter), role, excludeRole, fakultas, prodi, limit. Kirim ids (1–50 ID) tanpa filter lain untuk verifikasi pilihan; respons menyertakan status aktif dan ID yang tidak ditemukan. Field biografi dikirim sebagai teks polos (penanda format editor dihilangkan) dan hanya terisi untuk pengguna berperan dosen.",
     endpoint: "/api/v2/website/users",
     method: "POST",
     sourceApp: "ONE_UNUSU",

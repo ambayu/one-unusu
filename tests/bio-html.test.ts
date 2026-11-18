@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { BATAS_BIO, bersihkanBio, bioKeTeks } from '../src/server/lib/bioHtml.js';
 
 assert.equal(
@@ -33,5 +34,10 @@ assert.equal(bioKeTeks('<p>Satu<br>Dua</p>'), 'Satu\nDua');
 assert.equal(bioKeTeks('<ul><li>satu</li><li>dua</li></ul>'), '• satu\n• dua');
 assert.equal(bioKeTeks('<p>R&amp;D</p>'), 'R&D');
 assert.equal(bioKeTeks('Teks polos <b>lama</b>'), 'Teks polos lama');
+
+// Biografi hanya boleh disimpan dan dibagikan untuk peran dosen.
+const server = readFileSync(new URL('../src/server/index.ts', import.meta.url), 'utf8');
+assert.equal(server.match(/biografi !== undefined && [\w.]+\.some\(\(ur\) => ur\.role\.code === "DOSEN"\)/g)?.length, 2);
+assert.match(server, /biografi: kodePeran\.includes\("DOSEN"\) \? bioKeTeks\(u\.biografi\) : null/);
 
 console.log('bio-html: ok');

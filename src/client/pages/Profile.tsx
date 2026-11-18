@@ -568,17 +568,6 @@ export const Profile: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#E8EFEA]">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
-                    <BiodataEditor
-                      id="bio-mahasiswa"
-                      nilai={biografi}
-                      onUbah={setBiografi}
-                      placeholder="Ceritakan sedikit tentang diri Anda, minat, kegiatan, atau pencapaian..."
-                    />
-                  </div>
-                </div>
               </div>
             )}
 
@@ -859,17 +848,6 @@ export const Profile: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#E8EFEA]">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-[#1E293B]">Deskripsi / Biografi Singkat</label>
-                    <BiodataEditor
-                      id="bio-admin"
-                      nilai={biografi}
-                      onUbah={setBiografi}
-                      placeholder="Profil dan informasi tambahan tentang administrator..."
-                    />
-                  </div>
-                </div>
               </div>
             )}
 
