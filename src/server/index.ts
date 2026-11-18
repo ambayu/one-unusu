@@ -5588,6 +5588,13 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         gelarBelakang: true,
         jabatanAkademik: true,
         pendidikanTerakhir: true,
+        bidangKeahlian: true,
+        sintaId: true,
+        linkSinta: true,
+        googleScholar: true,
+        scopusId: true,
+        orcid: true,
+        biografi: true,
         isActive: true,
       },
     });
@@ -5599,6 +5606,8 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         ? `${gelarDepan}${d.nama ?? ""}${gelarBelakang}`.trim()
         : d.nama;
 
+      const sintaUrl = d.linkSinta || (d.sintaId ? `https://sinta.kemdiktisaintek.go.id/authors/profile/${d.sintaId}` : null);
+
       return {
         id: d.id,
         name: namaLengkap || d.nama || "Tanpa Nama",
@@ -5608,6 +5617,13 @@ app.get("/api/v1/inter-service/dosen", async (req: Request, res: Response) => {
         facultyName: d.fakultas || null,
         academicRank: d.jabatanAkademik || null,
         education: d.pendidikanTerakhir || null,
+        expertise: d.bidangKeahlian || null,
+        sintaId: d.sintaId || null,
+        sintaUrl,
+        googleScholar: d.googleScholar || null,
+        scopusId: d.scopusId || null,
+        orcid: d.orcid || null,
+        bio: d.biografi || null,
         photoUrl: d.avatar || null,
         isActive: d.isActive,
       };
