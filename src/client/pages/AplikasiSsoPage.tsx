@@ -141,20 +141,9 @@ export const AplikasiSsoPage: React.FC = () => {
     return assetUrl('/assets/apps/app-lms.png');
   };
 
-  // Filter aplikasi: akun mahasiswa murni hanya melihat aplikasi yang memang
-  // menerima mahasiswa. Ditentukan dari PERAN (izin `masuk_*` sudah dihapus).
+  // Aplikasi di luar peran pengguna disembunyikan, bukan ditampilkan terkunci.
   const filteredApps = useMemo(() => {
-    const roles = [user?.role, ...((user as { roles?: string[] })?.roles ?? [])]
-      .filter(Boolean)
-      .map((r) => String(r).toUpperCase());
-    const isMahasiswaOnly =
-      roles.includes('MAHASISWA') &&
-      !roles.some((r) => r === 'DOSEN' || r.startsWith('ADMIN_') || r === 'SUPERADMIN');
-
-    let list = ssoApps;
-    if (isMahasiswaOnly) {
-      list = list.filter((a) => a.isAllowed !== false);
-    }
+    const list = ssoApps.filter((a) => a.isAllowed !== false);
 
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
@@ -165,7 +154,7 @@ export const AplikasiSsoPage: React.FC = () => {
         (app.badge && app.badge.toLowerCase().includes(q)) ||
         app.clientId.toLowerCase().includes(q)
     );
-  }, [ssoApps, user, searchQuery]);
+  }, [ssoApps, searchQuery]);
 
   return (
     <div className="space-y-6">

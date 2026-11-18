@@ -298,21 +298,12 @@ export const Dashboard: React.FC = () => {
   // pengelola hanya memiliki butir akun. Dipakai untuk memilih kalimat ajakan.
   const isCivitas = isDosen || user?.role === 'MAHASISWA';
 
-  // Filter aplikasi: akun mahasiswa murni hanya melihat aplikasi yang memang
-  // menerima mahasiswa. Ditentukan dari PERAN (izin masuk_* sudah dihapus).
-  const displayedApps = React.useMemo(() => {
-    const roles = [user?.role, ...(user?.roles?.map((r) => r.code) ?? [])]
-      .filter(Boolean)
-      .map((r) => String(r).toUpperCase());
-    const isMahasiswaOnly =
-      roles.includes('MAHASISWA') &&
-      !roles.some((r) => r === 'DOSEN' || r.startsWith('ADMIN_') || r === 'SUPERADMIN');
-
-    if (isMahasiswaOnly) {
-      return apps.filter((app) => app.isAllowed !== false);
-    }
-    return apps;
-  }, [apps, user]);
+  // Aplikasi di luar peran pengguna tidak ditampilkan sama sekali; status
+  // `isAllowed` dihitung server dari peran aplikasi (`targetRoles`).
+  const displayedApps = React.useMemo(
+    () => apps.filter((app) => app.isAllowed !== false),
+    [apps]
+  );
 
   const renderDirectoryIcon = (iconName: string | null) => {
     if (isImageSource(iconName)) {

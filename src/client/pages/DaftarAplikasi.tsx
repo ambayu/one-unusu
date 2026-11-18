@@ -183,9 +183,10 @@ export const DaftarAplikasi: React.FC = () => {
 
   const filteredSsoApps = useMemo(() => {
     if (filterTab === 'non-sso') return [];
-    if (!searchQuery.trim()) return ssoApps;
+    const berizin = ssoApps.filter((app) => app.isAllowed !== false);
+    if (!searchQuery.trim()) return berizin;
     const q = searchQuery.toLowerCase();
-    return ssoApps.filter(
+    return berizin.filter(
       (app) =>
         app.nameApp.toLowerCase().includes(q) ||
         (app.description && app.description.toLowerCase().includes(q)) ||
