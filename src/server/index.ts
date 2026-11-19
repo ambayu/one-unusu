@@ -409,7 +409,7 @@ function normalizeHttpUrl(value: unknown): string | null {
   }
 }
 
-/** Menerima data URL gambar atau URL http/https saja. */
+/** Menerima data URL gambar, path lokal relatif (/uploads/...), atau URL http/https. */
 function normalizeImageSource(value: unknown): string | null {
   if (typeof value !== "string" || value.trim() === "") {
     return null;
@@ -417,6 +417,10 @@ function normalizeImageSource(value: unknown): string | null {
   const trimmed = value.trim();
   if (/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=\s]+$/i.test(trimmed)) {
     return trimmed.length > MAX_IMAGE_LENGTH ? null : trimmed;
+  }
+  // Izinkan path lokal relatif resmi server (mis. hasil upload atau sinkronisasi SIAKAD: /uploads/...)
+  if (/^\/(?:sso\/|public\/)?uploads\/[A-Za-z0-9_\-./]+$/i.test(trimmed)) {
+    return trimmed;
   }
   return normalizeHttpUrl(trimmed);
 }
